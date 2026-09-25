@@ -1513,10 +1513,15 @@
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius + topMargin, Math.min(canvas.height - player.radius - bottomMargin, player.y));
 
-            // Auto-Firing System (paused during the gauntlet — nothing to shoot at, just navigate)
+            // Auto-Firing System (paused only once the gauntlet walls are
+            // actually close by — not from the moment the gauntlet is
+            // merely triggered/approaching from off-screen)
+            const insideGauntlet = isObstacleCourse && asteroids.some(a =>
+                a.indestructible && Math.hypot(a.x - player.x, a.y - player.y) < 260
+            );
             player.shootTimer -= dt;
             const currentShootInterval = player.powerups.rapid > 0 ? player.shootInterval / 2.2 : player.shootInterval;
-            if (!isObstacleCourse && (isTouching || keys.Space || true) && player.shootTimer <= 0) {
+            if (!insideGauntlet && (isTouching || keys.Space || true) && player.shootTimer <= 0) {
                 fireBullet();
                 player.shootTimer = currentShootInterval;
             }
