@@ -91,11 +91,11 @@
                 <span class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-cyan-300 tracking-wider uppercase whitespace-nowrap">FAN-5 [K]</span>
             </button>
 
-            <!-- Homing Missile Button -->
+            <!-- Homing Missile / Photon Torpedo Button -->
             <button id="missile-btn" class="hidden relative group flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-400 border-2 border-orange-200 text-white shadow-xl transition-all duration-200 active:scale-95">
-                <i class="fa-solid fa-rocket text-xl md:text-3xl animate-pulse"></i>
+                <i id="missile-btn-icon" class="fa-solid fa-rocket text-xl md:text-3xl animate-pulse"></i>
                 <span id="missile-badge" class="absolute -top-2 -right-2 w-5 h-5 md:w-7 md:h-7 rounded-full bg-orange-300 text-slate-950 font-black text-[10px] md:text-sm flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
-                <span class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-orange-300 tracking-wider uppercase whitespace-nowrap">MISSILE [M]</span>
+                <span id="missile-btn-label" class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-orange-300 tracking-wider uppercase whitespace-nowrap">MISSILE [M]</span>
             </button>
 
             <!-- Score Display -->
@@ -385,6 +385,8 @@
         const chainLaserBtn = document.getElementById('chain-laser-btn');
         const crossLaserBtn = document.getElementById('cross-laser-btn');
         const missileBtn = document.getElementById('missile-btn');
+        const missileBtnIcon = document.getElementById('missile-btn-icon');
+        const missileBtnLabel = document.getElementById('missile-btn-label');
         const missileBadge = document.getElementById('missile-badge');
         const chainBadge = document.getElementById('chain-badge');
         const fanBadge = document.getElementById('fan-badge');
@@ -502,6 +504,13 @@
         // a perfect clear unlocks permanent Photon Torpedoes.
         let intervalPerfectClear = true;
         let intervalAsteroidsSpawned = 0;
+
+        // Standalone indestructible asteroids (outside gauntlets): population
+        // target re-rolls every 10-30s, weighted heavily toward 0-1 at a time,
+        // capped at 4. spawnAsteroid() only makes one indestructible while the
+        // current on-screen count is below this target.
+        let indestructibleTargetCount = 0;
+        let indestructibleRerollTimer = 10 + Math.random() * 20;
 
         // === Alien Ships (regular, up to 3 at once) ===
         let alienShips = []; // [{x,y,radius,hp,maxHp,wobble,hitFlashTimer,shootTimer}]
@@ -781,32 +790,33 @@
             setTimeout(() => waveWarning.classList.add('hidden'), 3500);
 
             const totalStormAsteroids = 28;
+            const SLOW_FACTOR = 0.35; // same multiplier as the Slow powerup — these always move this way
             for (let i = 0; i < totalStormAsteroids; i++) {
                 const side = Math.floor(Math.random() * 4); // 0: Top, 1: Right, 2: Bottom, 3: Left
                 let x, y, vx, vy;
-                const speed = 110 + Math.random() * 90;
+                const speed = (110 + Math.random() * 90) * SLOW_FACTOR;
                 const radius = 14 + Math.random() * 12;
 
                 if (side === 0) { // Top
                     x = Math.random() * canvas.width;
                     y = -radius - 10;
-                    vx = (Math.random() - 0.5) * 160;
+                    vx = (Math.random() - 0.5) * 160 * SLOW_FACTOR;
                     vy = speed;
                 } else if (side === 1) { // Right
                     x = canvas.width + radius + 10;
                     y = Math.random() * canvas.height;
                     vx = -speed;
-                    vy = (Math.random() - 0.5) * 160;
+                    vy = (Math.random() - 0.5) * 160 * SLOW_FACTOR;
                 } else if (side === 2) { // Bottom
                     x = Math.random() * canvas.width;
                     y = canvas.height + radius + 10;
-                    vx = (Math.random() - 0.5) * 160;
+                    vx = (Math.random() - 0.5) * 160 * SLOW_FACTOR;
                     vy = -speed;
                 } else { // Left
                     x = -radius - 10;
                     y = Math.random() * canvas.height;
                     vx = speed;
-                    vy = (Math.random() - 0.5) * 160;
+                    vy = (Math.random() - 0.5) * 160 * SLOW_FACTOR;
                 }
 
                 const numVertices = 7;
@@ -882,16 +892,18 @@
             gauntletRowTimer = 0;
             gauntletRowIndex = 0;
 
-            // Perfect-clear streak for Photon Torpedoes: any regular
-            // (destructible) asteroid still standing when the gauntlet
-            // begins was never actually destroyed by the player, so it
-            // breaks the streak, same as one that slipped off-screen.
-            if (asteroids.some(a => !a.indestructible)) intervalPerfectClear = false;
+            // Perfect-clear streak for Photon Torpedoes: any NORMAL
+            // (straight-down-spawned, destructible) asteroid still standing
+            // when the gauntlet begins was never actually destroyed by the
+            // player, so it breaks the streak — same as one that slipped
+            // off the bottom. Crossfire/wall-wave asteroids never count.
+            if (asteroids.some(a => !a.indestructible && !a.eventSpawned)) intervalPerfectClear = false;
 
             let unlockedTorpedoes = false;
             if (intervalPerfectClear && intervalAsteroidsSpawned > 0 && !hasPhotonTorpedoes) {
                 hasPhotonTorpedoes = true;
                 unlockedTorpedoes = true;
+                updateMissileUI();
             }
             intervalPerfectClear = true;
             intervalAsteroidsSpawned = 0;
@@ -1108,7 +1120,7 @@
                     maxHp: ALIEN_SHIP_HP,
                     wobble: Math.random() * Math.PI * 2,
                     hitFlashTimer: 0,
-                    shootTimer: 0.6 + Math.random() * 0.8
+                    shootTimer: 1.2 + Math.random() * 1.6
                 });
             }
             warningText.textContent = alienWaveCount > 1
@@ -1284,7 +1296,7 @@
                 // Fires at the player, ~once per second
                 ship.shootTimer -= dt;
                 if (ship.shootTimer <= 0) {
-                    ship.shootTimer = 1.0;
+                    ship.shootTimer = 2.0;
                     const ang = Math.atan2(player.y - ship.y, player.x - ship.x);
                     enemyBullets.push({
                         x: ship.x, y: ship.y,
@@ -1421,7 +1433,7 @@
                             maxHp: ALIEN_SHIP_HP,
                             wobble: Math.random() * Math.PI * 2,
                             hitFlashTimer: 0,
-                            shootTimer: 1 + Math.random()
+                            shootTimer: 2 + Math.random() * 2
                         });
                     }
                     warningText.textContent = '🛸 THE MOTHERSHIP SPLIT INTO 3 SHIPS!';
@@ -1455,7 +1467,7 @@
             // Fires an aimed shot at the player's current position, ~once per second
             motherShip.shootTimer -= dt;
             if (motherShip.shootTimer <= 0) {
-                motherShip.shootTimer = 1.0;
+                motherShip.shootTimer = 2.0;
                 const ang = Math.atan2(player.y - motherShip.y, player.x - motherShip.x);
                 enemyBullets.push({
                     x: motherShip.x, y: motherShip.y + motherShip.radius * 0.4,
@@ -1718,6 +1730,20 @@
             else crossLaserBtn.classList.add('hidden');
         }
 
+        // Re-rolls how many standalone indestructible asteroids should be
+        // drifting around right now — heavily weighted toward none, with
+        // higher counts increasingly rare. Long dry spells (10-30s) with
+        // zero are completely normal.
+        function rerollIndestructibleTarget() {
+            const r = Math.random();
+            if (r < 0.45) indestructibleTargetCount = 0;
+            else if (r < 0.72) indestructibleTargetCount = 1;
+            else if (r < 0.88) indestructibleTargetCount = 2;
+            else if (r < 0.97) indestructibleTargetCount = 3;
+            else indestructibleTargetCount = 4;
+            indestructibleRerollTimer = 10 + Math.random() * 20;
+        }
+
         function spawnAsteroid() {
             const sizeCategory = Math.random();
             let radius, hp;
@@ -1739,10 +1765,13 @@
                 offsetAngles.push(0.7 + Math.random() * 0.6);
             }
 
-            // ~18% of regular falling asteroids are indestructible — same
-            // rust/orange rocks as the gauntlet walls — so bullets alone
-            // never guarantee a clear path even outside the gauntlet.
-            const indestructible = Math.random() < 0.18;
+            // Indestructible rocks among regular falling asteroids are now
+            // population-capped (at most 4 on screen at once, outside a
+            // gauntlet) and only spawn while under the current re-rolling
+            // target — so there are long stretches with none, and rarely
+            // more than one or two at a time.
+            const currentIndestructibleCount = asteroids.filter(a => a.indestructible).length;
+            const indestructible = currentIndestructibleCount < indestructibleTargetCount && Math.random() < 0.35;
 
             asteroids.push({
                 x: Math.random() * (canvas.width - radius * 2) + radius,
@@ -1828,6 +1857,28 @@
                 missileBtn.classList.remove('hidden');
             } else {
                 missileBtn.classList.add('hidden');
+            }
+
+            // Once Photon Torpedoes are unlocked, the same button/stock
+            // becomes torpedoes permanently — reskin it accordingly.
+            if (hasPhotonTorpedoes) {
+                missileBtn.classList.remove('from-orange-600', 'to-amber-400', 'border-orange-200');
+                missileBtn.classList.add('from-violet-600', 'to-fuchsia-400', 'border-violet-200');
+                missileBtnIcon.className = 'fa-solid fa-meteor text-xl md:text-3xl animate-pulse';
+                missileBtnLabel.textContent = 'TORPEDO [M]';
+                missileBtnLabel.classList.remove('text-orange-300');
+                missileBtnLabel.classList.add('text-violet-300');
+                missileBadge.classList.remove('bg-orange-300');
+                missileBadge.classList.add('bg-violet-300');
+            } else {
+                missileBtn.classList.remove('from-violet-600', 'to-fuchsia-400', 'border-violet-200');
+                missileBtn.classList.add('from-orange-600', 'to-amber-400', 'border-orange-200');
+                missileBtnIcon.className = 'fa-solid fa-rocket text-xl md:text-3xl animate-pulse';
+                missileBtnLabel.textContent = 'MISSILE [M]';
+                missileBtnLabel.classList.remove('text-violet-300');
+                missileBtnLabel.classList.add('text-orange-300');
+                missileBadge.classList.remove('bg-violet-300');
+                missileBadge.classList.add('bg-orange-300');
             }
         }
 
@@ -1972,6 +2023,9 @@
                     spawnTimer = 0;
                     spawnInterval = Math.max(350, 1000 - Math.floor(score / 300) * 50);
                 }
+
+                indestructibleRerollTimer -= dt;
+                if (indestructibleRerollTimer <= 0) rerollIndestructibleTarget();
             }
 
             const asteroidSpeedMultiplier = player.powerups.slow > 0 ? 0.35 : 1.0;
@@ -2612,6 +2666,8 @@
             chestRewardTimer = 0;
             intervalPerfectClear = true;
             intervalAsteroidsSpawned = 0;
+            indestructibleTargetCount = 0;
+            indestructibleRerollTimer = 10 + Math.random() * 20;
 
             alienShips = [];
             alienClock = 0;
