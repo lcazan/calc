@@ -91,6 +91,13 @@
                 <span class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-cyan-300 tracking-wider uppercase whitespace-nowrap">FAN-5 [K]</span>
             </button>
 
+            <!-- Homing Missile Button -->
+            <button id="missile-btn" class="hidden relative group flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-400 border-2 border-orange-200 text-white shadow-xl transition-all duration-200 active:scale-95">
+                <i class="fa-solid fa-rocket text-xl md:text-3xl animate-pulse"></i>
+                <span id="missile-badge" class="absolute -top-2 -right-2 w-5 h-5 md:w-7 md:h-7 rounded-full bg-orange-300 text-slate-950 font-black text-[10px] md:text-sm flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
+                <span class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-orange-300 tracking-wider uppercase whitespace-nowrap">MISSILE [M]</span>
+            </button>
+
             <!-- Score Display -->
             <div class="flex flex-col ml-1 pointer-events-none">
                 <span class="text-[10px] md:text-xs tracking-widest text-indigo-400 uppercase font-semibold">Score</span>
@@ -140,7 +147,7 @@
                 <i class="fa-solid fa-rocket text-2xl text-white"></i>
             </div>
             <h1 class="text-3xl md:text-4xl font-black tracking-tight text-white glow-text mb-2">ASTEROID DASH</h1>
-            <p class="text-slate-400 text-xs md:text-sm mb-5">Full 2D movement. Earn shared Laser Stock Charges every 500 points!</p>
+            <p class="text-slate-400 text-xs md:text-sm mb-5">Full 2D movement. Earn shared Laser Stock Charges every 300 points!</p>
             
             <div class="w-full bg-slate-800/60 rounded-xl p-4 mb-6 text-xs text-slate-300 space-y-2 text-left border border-slate-700/50">
                 <div class="flex items-center gap-2"><i class="fa-solid fa-sitemap text-pink-400 w-4"></i> <span><b>Chain Laser [L]:</b> Branches out recursively up through asteroid clusters.</span></div>
@@ -365,6 +372,8 @@
         const warningText = document.getElementById('warning-text');
         const chainLaserBtn = document.getElementById('chain-laser-btn');
         const crossLaserBtn = document.getElementById('cross-laser-btn');
+        const missileBtn = document.getElementById('missile-btn');
+        const missileBadge = document.getElementById('missile-badge');
         const sharedBadges = document.querySelectorAll('.shared-charge-badge');
         const pauseBtn = document.getElementById('pause-btn');
         const pauseScreen = document.getElementById('pause-screen');
@@ -394,8 +403,9 @@
 
         // Shared Laser Charges Pool
         let sharedLaserCharges = 0;
-        let lastLaserThreshold = 0; // Earn 1 charge per 500 points
+        let lastLaserThreshold = 0; // Earn 1 charge per 300 points
         let missiles = [];
+        let missileStock = 0;
 
         // Laser Animation Visual Timers
         let activeChainBranches = [];
@@ -465,7 +475,7 @@
         let alienClock = 0;   // advances every frame regardless of gauntlet state
         let nextAlienShipTime = 40;
         const ALIEN_SHIP_SPEED = 55;
-        const ALIEN_SHIP_HP = 60;
+        const ALIEN_SHIP_HP = 50;
 
         // Keyboard Controls State
         const keys = { Left: false, Right: false, Up: false, Down: false, Space: false };
@@ -509,6 +519,7 @@
             if (e.code === 'KeyP') togglePause();
             if (e.code === 'KeyL') triggerChainLaser();
             if (e.code === 'KeyK') triggerCrossLaser();
+            if (e.code === 'KeyM') triggerMissile();
         });
 
         window.addEventListener('keyup', (e) => {
@@ -555,6 +566,9 @@
 
         crossLaserBtn.addEventListener('click', (e) => { e.stopPropagation(); triggerCrossLaser(); });
         crossLaserBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); triggerCrossLaser(); });
+
+        missileBtn.addEventListener('click', (e) => { e.stopPropagation(); triggerMissile(); });
+        missileBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); triggerMissile(); });
 
         pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
         resumeBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
@@ -1220,11 +1234,11 @@
             score += pts;
             scoreDisplay.textContent = score;
 
-            // Earn 1 Shared Laser Stock Charge every 500 points
-            if (score >= lastLaserThreshold + 500) {
-                const earned = Math.floor((score - lastLaserThreshold) / 500);
+            // Earn 1 Shared Laser Stock Charge every 300 points
+            if (score >= lastLaserThreshold + 300) {
+                const earned = Math.floor((score - lastLaserThreshold) / 300);
                 sharedLaserCharges += earned;
-                lastLaserThreshold += earned * 500;
+                lastLaserThreshold += earned * 300;
                 sfx.playPowerup();
                 updateLaserUI();
             }
@@ -1299,8 +1313,8 @@
         }
 
         function spawnPowerup(x, y) {
-            // Missile is rarer than the other four (~11% vs ~22% each)
-            const types = ['rapid', 'spread', 'shield', 'slow', 'rapid', 'spread', 'shield', 'slow', 'missile'];
+            // Missile now drops ~3x as often as before (1/3 of drops)
+            const types = ['rapid', 'spread', 'shield', 'slow', 'missile', 'missile'];
             const type = types[Math.floor(Math.random() * types.length)];
             powerups.push({
                 x: x,
@@ -1311,16 +1325,29 @@
             });
         }
 
-        function fireMissile() {
+        function triggerMissile() {
+            if (!isPlaying || isPaused || missileStock <= 0) return;
+
+            missileStock--;
+            updateMissileUI();
             missiles.push({
                 x: player.x,
                 y: player.y - player.radius,
                 vx: 0,
                 vy: -420,
                 radius: 6,
-                target: alienShip // homes in on whatever alien ship was up when fired, if any
+                target: alienShip // homes in on the alien ship if one's visible when fired
             });
             sfx.playShoot();
+        }
+
+        function updateMissileUI() {
+            missileBadge.textContent = missileStock;
+            if (missileStock > 0) {
+                missileBtn.classList.remove('hidden');
+            } else {
+                missileBtn.classList.add('hidden');
+            }
         }
 
         function fireBullet() {
@@ -1644,7 +1671,8 @@
                     } else if (p.type === 'slow') {
                         player.powerups.slow = 60;
                     } else if (p.type === 'missile') {
-                        fireMissile();
+                        missileStock++;
+                        updateMissileUI();
                     } else {
                         player.powerups[p.type] = 7;
                     }
@@ -2022,6 +2050,8 @@
 
             bullets = [];
             missiles = [];
+            missileStock = 0;
+            updateMissileUI();
             asteroids = [];
             particles = [];
             powerups = [];
