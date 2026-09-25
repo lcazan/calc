@@ -175,8 +175,8 @@
             <div class="w-16 h-16 mb-4 rounded-full bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-500">
                 <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
             </div>
-            <h2 class="text-3xl font-black text-rose-500 tracking-wider mb-1">MISSION FAILED</h2>
-            <p class="text-slate-400 text-xs mb-6 uppercase tracking-widest">Ship Hull Destroyed</p>
+            <h2 id="gameover-title" class="text-3xl font-black text-rose-500 tracking-wider mb-1">MISSION FAILED</h2>
+            <p id="gameover-subtitle" class="text-slate-400 text-xs mb-6 uppercase tracking-widest">Ship Hull Destroyed</p>
 
             <div class="w-full bg-slate-800/80 rounded-xl p-4 mb-6 space-y-3">
                 <div class="flex justify-between items-center text-sm">
@@ -371,6 +371,8 @@
         const resumeBtn = document.getElementById('resume-btn');
         const startScreen = document.getElementById('start-screen');
         const gameoverScreen = document.getElementById('gameover-screen');
+        const gameoverTitle = document.getElementById('gameover-title');
+        const gameoverSubtitle = document.getElementById('gameover-subtitle');
         const finalScore = document.getElementById('final-score');
         const finalHighScore = document.getElementById('final-high-score');
         const startBtn = document.getElementById('start-btn');
@@ -438,17 +440,30 @@
         let nextHeartDropTime = 180;
 
         // === Obstacle Course / Gauntlet (first at 45s, then every 1-2 min) ===
+        // The gauntlet is now a dense field of indestructible rock asteroids
+        // forming two walls with a navigable gap — not straight lines.
         let isObstacleCourse = false;
         let obstacleCourseTimer = 0;
-        const OBSTACLE_SCROLL_SPEED = 190;
-        const OBSTACLE_SEGMENT_SPACING = 145;
+        const GAUNTLET_SCROLL_SPEED = 150;      // vy of gauntlet rocks
+        const GAUNTLET_ROW_SPACING = 60;        // vertical px between rows (rows overlap radius-wise -> solid wall)
+        const GAUNTLET_ROCK_RADIUS = 24;
+        const GAUNTLET_ROCK_H_SPACING = 44;      // horizontal px between rock centers within a wall (< 2*radius -> touching)
+        const GAUNTLET_ROW_INTERVAL = GAUNTLET_ROW_SPACING / GAUNTLET_SCROLL_SPEED;
         const COLLISION_FLASH_DURATION = 0.9; // red glow blinks 3 times over this span
         let corridorGapWidth = 175;
-        let obstacleSegments = [];   // [{y, cx}] sorted top→bottom (smallest→largest y)
         let pathSection = null;      // current "road section" being generated (straight/drift/zigzag/bigturn)
+        let gauntletLastCX = 0;      // running corridor-center x, advanced one row at a time
+        let gauntletRowTimer = 0;
         let livesAtCourseStart = 0;
         let nextObstacleCourseTime = 45; // first gauntlet arrives 45s into the run
         let chestRewardTimer = 0;
+
+        // === Alien Ship (once a minute — shoot it down or it reaches Earth) ===
+        let alienShip = null; // {x, y, vx, radius, hp, maxHp, wobble}
+        let alienClock = 0;   // advances every frame regardless of gauntlet state
+        let nextAlienShipTime = 40;
+        const ALIEN_SHIP_SPEED = 55;
+        const ALIEN_SHIP_HP = 8;
 
         // Keyboard Controls State
         const keys = { Left: false, Right: false, Up: false, Down: false, Space: false };
@@ -764,15 +779,14 @@
             livesAtCourseStart = player.lives;
             // Don't wipe existing asteroids/bullets — they keep falling/flying
             // naturally and clear off-screen on their own. Spawning of NEW
-            // asteroids is paused elsewhere while isObstacleCourse is true.
-            // The corridor itself starts entirely above the top edge and
-            // scrolls down at OBSTACLE_SCROLL_SPEED, same as a normal
-            // asteroid wave approaching — nothing pops in on top of the
-            // player, and the collision check (see updateObstacleCourse)
-            // only ever engages once real wall segments have genuinely
-            // scrolled down to the player's row.
+            // regular asteroids is paused elsewhere while isObstacleCourse
+            // is true. The gauntlet itself is built from indestructible rock
+            // asteroids pushed into the same `asteroids` array — spawned row
+            // by row just above the top edge and left to scroll down and
+            // clear naturally, exactly like normal asteroids.
             pathSection = null;
-            generateObstacleSegments();
+            gauntletLastCX = canvas.width / 2;
+            gauntletRowTimer = 0;
 
             warningText.textContent = '⚠️ ASTEROID GAUNTLET! NAVIGATE THE CORRIDOR!';
             waveWarning.classList.remove('hidden');
@@ -823,201 +837,199 @@
             return Math.max(bound, Math.min(canvas.width - bound, prevCX + shift));
         }
 
-        function generateObstacleSegments() {
-            obstacleSegments = [];
-            // Build the corridor entirely ABOVE the top edge (all y <= 0), so
-            // nothing appears on-screen the instant it's generated. Only the
-            // very last segment sits right at y≈0 — barely visible at the
-            // top edge — and updateObstacleCourse() scrolls it down from
-            // there, so the entrance gradually approaches the ship instead
-            // of popping in mid-screen.
-            const leadIn = canvas.height;
-            const numSeg = Math.floor(leadIn / OBSTACLE_SEGMENT_SPACING) + 1;
-            let cx = canvas.width / 2;
+        function spawnGauntletRow() {
+            gauntletLastCX = nextCorridorCX(gauntletLastCX);
+            const leftWall = gauntletLastCX - corridorGapWidth / 2;
+            const rightWall = gauntletLastCX + corridorGapWidth / 2;
+            const y = -GAUNTLET_ROCK_RADIUS - 10;
 
-            for (let i = 0; i < numSeg; i++) {
-                const y = -leadIn + i * OBSTACLE_SEGMENT_SPACING;
-                if (i > 0) cx = nextCorridorCX(cx);
-                obstacleSegments.push({ y, cx });
+            const makeRock = (x, yy) => {
+                const numVertices = 7 + Math.floor(Math.random() * 4);
+                const offsetAngles = Array(numVertices).fill(0).map(() => 0.7 + Math.random() * 0.6);
+                asteroids.push({
+                    x: x + (Math.random() - 0.5) * 6,
+                    y: yy + (Math.random() - 0.5) * 10,
+                    radius: GAUNTLET_ROCK_RADIUS + (Math.random() - 0.5) * 6,
+                    vx: 0,
+                    vy: GAUNTLET_SCROLL_SPEED,
+                    rotation: Math.random() * Math.PI * 2,
+                    vRot: (Math.random() - 0.5) * 1.2,
+                    hp: 1,
+                    maxHp: 1,
+                    points: 0,
+                    numVertices,
+                    offsetAngles,
+                    indestructible: true
+                });
+            };
+
+            for (let x = GAUNTLET_ROCK_RADIUS; x <= leftWall - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
+                makeRock(x, y);
+            }
+            for (let x = rightWall + GAUNTLET_ROCK_RADIUS; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
+                makeRock(x, y);
             }
         }
 
         function updateObstacleCourse(dt) {
             obstacleCourseTimer -= dt;
 
-            // Scroll all segments downward
-            for (const seg of obstacleSegments) seg.y += OBSTACLE_SCROLL_SPEED * dt;
-
-            // Remove bottom segments that went off-screen
-            while (obstacleSegments.length > 0 && obstacleSegments[obstacleSegments.length - 1].y > canvas.height + OBSTACLE_SEGMENT_SPACING) {
-                obstacleSegments.pop();
+            // Spawn new rows of wall rocks just above the top edge as time
+            // passes — they then fall and clear the screen through the
+            // exact same movement/collision/cleanup code as any other
+            // asteroid (see the main asteroid update loop).
+            gauntletRowTimer += dt;
+            while (gauntletRowTimer >= GAUNTLET_ROW_INTERVAL) {
+                gauntletRowTimer -= GAUNTLET_ROW_INTERVAL;
+                spawnGauntletRow();
             }
 
-            // Add new top segments as corridor scrolls in
-            while (obstacleSegments.length === 0 || obstacleSegments[0].y > -OBSTACLE_SEGMENT_SPACING) {
-                const prevY  = obstacleSegments.length > 0 ? obstacleSegments[0].y : 0;
-                const prevCX = obstacleSegments.length > 0 ? obstacleSegments[0].cx : canvas.width / 2;
-                const newCX = nextCorridorCX(prevCX);
-                obstacleSegments.unshift({ y: prevY - OBSTACLE_SEGMENT_SPACING, cx: newCX });
-            }
-
-            // Collision: find corridor boundaries at player.y. Both a real
-            // "above" AND a real "below" segment must exist — i.e. the
-            // corridor must have genuinely scrolled down to bracket the
-            // player's row — otherwise there's nothing to collide with yet.
-            // (Using just one side let the corridor "extrapolate" a wall
-            // through the player's position before it had visually arrived,
-            // which caused instant hits the moment the gauntlet triggered.)
-            let above = null, below = null;
-            for (let i = 0; i < obstacleSegments.length; i++) {
-                if (obstacleSegments[i].y <= player.y) above = obstacleSegments[i];
-                else { below = obstacleSegments[i]; break; }
-            }
-
-            if (above && below) {
-                const t = (player.y - above.y) / (below.y - above.y);
-                const corridorCX = above.cx + (below.cx - above.cx) * t;
-
-                const leftWall  = corridorCX - corridorGapWidth / 2;
-                const rightWall = corridorCX + corridorGapWidth / 2;
-
-                if (player.invulnerableTimer <= 0 &&
-                    (player.x - player.radius < leftWall || player.x + player.radius > rightWall)) {
-                    player.collisionFlashTimer = COLLISION_FLASH_DURATION;
-                    if (player.powerups.shield > 0) {
-                        player.powerups.shield = 0;
-                        player.invulnerableTimer = 1.0;
-                        createExplosion(player.x, player.y, '#38bdf8', 12);
-                        sfx.playHit();
-                    } else {
-                        player.lives--;
-                        updateLivesUI();
-                        createExplosion(player.x, player.y, '#ef4444', 18);
-                        sfx.playHit();
-                        player.invulnerableTimer = 1.5;
-                        if (player.lives <= 0) { gameOver(); return; }
-                    }
-                }
-            }
-
-            // End of gauntlet
+            // End of gauntlet (new rows stop spawning; existing rocks scroll off naturally)
             if (obstacleCourseTimer <= 0) endObstacleCourse();
         }
 
         function endObstacleCourse() {
             isObstacleCourse = false;
-            obstacleSegments = [];
             pathSection = null;
             nextObstacleCourseTime = eventClock + 60 + Math.random() * 60; // next one in 1-2 min
 
             const survived = player.lives >= livesAtCourseStart;
             if (survived) {
                 if (player.maxLives < 5) {
+                    // First time reaching max hearts — celebrate it.
                     player.maxLives = 5;
-                    player.lives = Math.min(player.lives + 2, player.maxLives);
+                    player.lives = player.maxLives;
                     updateLivesUI();
                     sfx.playGauntletSuccess();
                     warningText.textContent = '🎁 GAUNTLET CLEARED! MAX HEARTS UPGRADED TO 5!';
-                } else {
-                    sfx.playGauntletSuccess();
-                    warningText.textContent = '🎁 PERFECT GAUNTLET RUN! +2 HEARTS!';
-                    player.lives = Math.min(player.lives + 2, player.maxLives);
+                    waveWarning.classList.remove('hidden');
+                    setTimeout(() => waveWarning.classList.add('hidden'), 3200);
+                    chestRewardTimer = 4.5;
+                } else if (player.lives < player.maxLives) {
+                    // Already upgraded before — just top hearts off quietly.
+                    player.lives = player.maxLives;
                     updateLivesUI();
                 }
-                chestRewardTimer = 4.5;
             } else {
                 warningText.textContent = '💔 GAUNTLET FAILED — HEARTS LOST!';
+                waveWarning.classList.remove('hidden');
+                setTimeout(() => waveWarning.classList.add('hidden'), 3200);
             }
+        }
+
+        // ---- Alien Ship: once a minute, shoot it down or lose the game ----
+
+        function spawnAlienShip() {
+            alienShip = {
+                x: canvas.width / 2 + (Math.random() - 0.5) * 200,
+                y: -50,
+                radius: 32,
+                hp: ALIEN_SHIP_HP,
+                maxHp: ALIEN_SHIP_HP,
+                wobble: Math.random() * Math.PI * 2
+            };
+            warningText.textContent = '🛸 ALIEN SHIP INBOUND — SHOOT IT DOWN!';
             waveWarning.classList.remove('hidden');
             setTimeout(() => waveWarning.classList.add('hidden'), 3200);
         }
 
-        // ---- Render Helpers for new features ----
+        function updateAlienShip(dt) {
+            if (!alienShip) {
+                if (alienClock >= nextAlienShipTime) spawnAlienShip();
+                return;
+            }
 
-        function renderObstacleCourse() {
-            if (obstacleSegments.length < 2) return;
+            alienShip.wobble += dt * 1.5;
+            alienShip.x += Math.sin(alienShip.wobble) * 45 * dt;
+            alienShip.x = Math.max(alienShip.radius, Math.min(canvas.width - alienShip.radius, alienShip.x));
+            alienShip.y += ALIEN_SHIP_SPEED * dt;
+
+            // Reaches the bottom edge = Earth is defenseless. Game over, no matter how many hearts remain.
+            if (alienShip.y - alienShip.radius > canvas.height) {
+                gameOver('alien');
+                return;
+            }
+
+            // Ramming it costs you a hit (shield/heart), but only bullets destroy it.
+            const distToPlayer = Math.hypot(alienShip.x - player.x, alienShip.y - player.y);
+            if (distToPlayer < alienShip.radius + player.radius && player.invulnerableTimer <= 0) {
+                player.collisionFlashTimer = COLLISION_FLASH_DURATION;
+                if (player.powerups.shield > 0) {
+                    player.powerups.shield = 0;
+                    player.invulnerableTimer = 1.0;
+                    createExplosion(player.x, player.y, '#38bdf8', 14);
+                    sfx.playHit();
+                } else {
+                    player.lives--;
+                    updateLivesUI();
+                    createExplosion(player.x, player.y, '#ef4444', 20);
+                    sfx.playHit();
+                    player.invulnerableTimer = 1.5;
+                    if (player.lives <= 0) { gameOver(); return; }
+                }
+            }
+
+            // Bullets vs alien ship
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                const b = bullets[j];
+                const dist = Math.hypot(alienShip.x - b.x, alienShip.y - b.y);
+                if (dist < alienShip.radius + b.radius) {
+                    bullets.splice(j, 1);
+                    alienShip.hp--;
+                    createExplosion(b.x, b.y, '#a855f7', 6);
+                    if (alienShip.hp <= 0) {
+                        createExplosion(alienShip.x, alienShip.y, '#a3e635', 26);
+                        sfx.playExplosion(true);
+                        addScore(150);
+                        alienShip = null;
+                        nextAlienShipTime = alienClock + 60;
+                    }
+                    break;
+                }
+            }
+        }
+
+        function renderAlienShip() {
+            if (!alienShip) return;
             ctx.save();
+            ctx.translate(alienShip.x, alienShip.y);
+
+            // Saucer hull
+            ctx.fillStyle = '#3f2a5c';
+            ctx.strokeStyle = '#c084fc';
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = '#a855f7';
+            ctx.shadowBlur = 16;
             ctx.beginPath();
-            ctx.rect(0, 0, canvas.width, canvas.height);
-            ctx.clip();
-
-            // Dark overlay tint — only over the span the corridor currently
-            // occupies on-screen, so it grows in as the corridor scrolls
-            // down instead of darkening the whole screen instantly.
-            const tintTop = Math.max(0, obstacleSegments[0].y);
-            const tintBottom = Math.min(canvas.height, obstacleSegments[obstacleSegments.length - 1].y);
-            if (tintBottom > tintTop) {
-                ctx.fillStyle = 'rgba(20, 6, 0, 0.35)';
-                ctx.fillRect(0, tintTop, canvas.width, tintBottom - tintTop);
-            }
-
-            // Fill left + right wall trapezoids between each pair of segments
-            ctx.fillStyle = '#0c111e';
-            for (let i = 0; i < obstacleSegments.length - 1; i++) {
-                const s1 = obstacleSegments[i];
-                const s2 = obstacleSegments[i + 1];
-                if (s2.y < -80 || s1.y > canvas.height + 80) continue;
-
-                const l1 = s1.cx - corridorGapWidth / 2;
-                const r1 = s1.cx + corridorGapWidth / 2;
-                const l2 = s2.cx - corridorGapWidth / 2;
-                const r2 = s2.cx + corridorGapWidth / 2;
-
-                // Left wall
-                ctx.beginPath();
-                ctx.moveTo(0, s1.y); ctx.lineTo(l1, s1.y);
-                ctx.lineTo(l2, s2.y); ctx.lineTo(0, s2.y);
-                ctx.closePath(); ctx.fill();
-
-                // Right wall
-                ctx.beginPath();
-                ctx.moveTo(canvas.width, s1.y); ctx.lineTo(r1, s1.y);
-                ctx.lineTo(r2, s2.y); ctx.lineTo(canvas.width, s2.y);
-                ctx.closePath(); ctx.fill();
-            }
-
-            // Neon inner edges (corridor boundaries)
-            const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 250);
-            ctx.strokeStyle = `rgba(249,115,22,${pulse})`;
-            ctx.lineWidth = 4;
-            ctx.shadowColor = '#f97316';
-            ctx.shadowBlur = 14;
-
-            ctx.beginPath();
-            let first = true;
-            for (const seg of obstacleSegments) {
-                const lx = seg.cx - corridorGapWidth / 2;
-                if (first) { ctx.moveTo(lx, seg.y); first = false; }
-                else ctx.lineTo(lx, seg.y);
-            }
+            ctx.ellipse(0, 0, alienShip.radius, alienShip.radius * 0.55, 0, 0, Math.PI * 2);
+            ctx.fill();
             ctx.stroke();
 
+            // Dome
+            ctx.fillStyle = '#a3e635';
             ctx.beginPath();
-            first = true;
-            for (const seg of obstacleSegments) {
-                const rx = seg.cx + corridorGapWidth / 2;
-                if (first) { ctx.moveTo(rx, seg.y); first = false; }
-                else ctx.lineTo(rx, seg.y);
-            }
+            ctx.arc(0, -alienShip.radius * 0.25, alienShip.radius * 0.4, Math.PI, 0);
+            ctx.fill();
             ctx.stroke();
-
-            // Dashed center guide
-            ctx.strokeStyle = 'rgba(249,115,22,0.18)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([18, 18]);
-            ctx.shadowBlur = 0;
-            ctx.beginPath();
-            first = true;
-            for (const seg of obstacleSegments) {
-                if (first) { ctx.moveTo(seg.cx, seg.y); first = false; }
-                else ctx.lineTo(seg.cx, seg.y);
-            }
-            ctx.stroke();
-            ctx.setLineDash([]);
-
             ctx.restore();
 
-            // Countdown timer
+            // HP bar
+            const barW = 60, barH = 6;
+            const bx = alienShip.x - barW / 2, by = alienShip.y - alienShip.radius - 16;
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(bx, by, barW, barH);
+            ctx.fillStyle = '#a855f7';
+            ctx.fillRect(bx, by, barW * (alienShip.hp / alienShip.maxHp), barH);
+            ctx.restore();
+        }
+
+        // ---- Render Helpers for new features ----
+
+        function renderGauntletHUD() {
+            // No walls, no tint here — the gauntlet's boundaries are the
+            // rock asteroids themselves (rendered in the normal asteroid
+            // pass, in a distinct color). This just shows the countdown.
             const secs = Math.ceil(obstacleCourseTimer);
             ctx.save();
             ctx.textAlign = 'center';
@@ -1370,6 +1382,12 @@
                 player.shootTimer = currentShootInterval;
             }
 
+            // Alien Ship — runs on its own clock so it keeps threatening
+            // Earth even while a gauntlet is in progress.
+            alienClock += dt;
+            updateAlienShip(dt);
+            if (!isPlaying) return; // updateAlienShip may have ended the game
+
             // Asteroid Spawning Logic (skip during gauntlet)
             if (!isObstacleCourse) {
                 spawnTimer += dt * 1000;
@@ -1406,9 +1424,9 @@
                         player.powerups.shield = 0;
                         player.invulnerableTimer = 1.0;
                         player.collisionFlashTimer = COLLISION_FLASH_DURATION;
-                        createExplosion(a.x, a.y, '#38bdf8', 15);
-                        asteroids.splice(i, 1);
+                        createExplosion(a.x, a.y, a.indestructible ? '#f97316' : '#38bdf8', a.indestructible ? 12 : 15);
                         sfx.playHit();
+                        if (!a.indestructible) asteroids.splice(i, 1);
                         continue;
                     } else if (player.invulnerableTimer <= 0) {
                         player.lives--;
@@ -1441,6 +1459,13 @@
 
                     if (distToBullet < a.radius + b.radius) {
                         bullets.splice(j, 1);
+
+                        if (a.indestructible) {
+                            // Gauntlet wall rock — impervious. Bullet just sparks off.
+                            createExplosion(b.x, b.y, '#fb923c', 4);
+                            break;
+                        }
+
                         a.hp--;
                         createExplosion(b.x, b.y, '#f59e0b', 5);
 
@@ -1660,8 +1685,12 @@
                 ctx.restore();
             });
 
-            // Render Obstacle Course Walls (behind asteroids)
-            if (isObstacleCourse) renderObstacleCourse();
+            // Render Alien Ship
+            renderAlienShip();
+
+            // Render Gauntlet countdown HUD (the walls themselves are drawn
+            // below, as ordinary asteroids — just colored differently)
+            if (isObstacleCourse) renderGauntletHUD();
 
             // Render Chest Reward
             if (chestRewardTimer > 0) renderChestReward();
@@ -1671,9 +1700,17 @@
                 ctx.save();
                 ctx.translate(a.x, a.y);
                 ctx.rotate(a.rotation);
-                ctx.strokeStyle = '#94a3b8';
-                ctx.lineWidth = 2;
-                ctx.fillStyle = '#1e293b';
+                if (a.indestructible) {
+                    ctx.strokeStyle = '#fb923c';
+                    ctx.lineWidth = 2.5;
+                    ctx.fillStyle = '#4c1d0a';
+                    ctx.shadowColor = '#f97316';
+                    ctx.shadowBlur = 10;
+                } else {
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 2;
+                    ctx.fillStyle = '#1e293b';
+                }
 
                 ctx.beginPath();
                 const angleStep = (Math.PI * 2) / a.numVertices;
@@ -1833,10 +1870,13 @@
             nextHeartDropTime = 180;
             isObstacleCourse = false;
             obstacleCourseTimer = 0;
-            obstacleSegments = [];
             pathSection = null;
+            gauntletRowTimer = 0;
             nextObstacleCourseTime = 45;
             chestRewardTimer = 0;
+            alienShip = null;
+            alienClock = 0;
+            nextAlienShipTime = 40;
             player.maxLives = 3;
             spawnTimer = 0;
             spawnInterval = 1000;
@@ -1855,11 +1895,19 @@
             isPlaying = true;
         }
 
-        function gameOver() {
+        function gameOver(reason) {
             isPlaying = false;
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem('asteroid_highscore', highScore.toString());
+            }
+
+            if (reason === 'alien') {
+                gameoverTitle.textContent = 'GAME OVER';
+                gameoverSubtitle.textContent = 'Alien Ship Destroyed The Earth';
+            } else {
+                gameoverTitle.textContent = 'MISSION FAILED';
+                gameoverSubtitle.textContent = 'Ship Hull Destroyed';
             }
 
             finalScore.textContent = score;
