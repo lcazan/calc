@@ -449,7 +449,7 @@
 
         // === Falling Heart Drops (every ~3 minutes) ===
         let fallingHearts = [];
-        let nextHeartDropTime = 180;
+        let nextHeartDropTime = 60 + Math.random() * 30; // first drop in 60-90s
 
         // === Obstacle Course / Gauntlet (first at 45s, then every 1-2 min) ===
         // The gauntlet is now a dense field of indestructible rock asteroids
@@ -808,13 +808,20 @@
             }
         }
 
-        // === EVENT 3: Falling Heart Drops (~every 3 min) ===
+        // === EVENT 3: Falling Heart Drops (~every 1-1.5 min) ===
         function triggerHeartDrop() {
             const count = Math.random() < 0.5 ? 1 : 2;
             for (let i = 0; i < count; i++) {
+                // Second heart lands in the opposite half of the screen and
+                // starts well further above it, so it arrives noticeably
+                // later — the two are never a simultaneous freebie side by side.
+                const x = count === 2
+                    ? (i === 0 ? canvas.width * (0.12 + Math.random() * 0.28) : canvas.width * (0.6 + Math.random() * 0.28))
+                    : canvas.width * (0.15 + Math.random() * 0.7);
+                const startY = i === 0 ? -35 : -35 - (260 + Math.random() * 220); // staggers arrival by ~1-2s
                 fallingHearts.push({
-                    x: canvas.width * (0.15 + Math.random() * 0.7),
-                    y: -35,
+                    x: x,
+                    y: startY,
                     vy: 240,          // ~2× average asteroid speed
                     radius: 18,
                     wobble: Math.random() * Math.PI * 2
@@ -831,8 +838,10 @@
             obstacleCourseTimer = 45 + Math.random() * 15; // varies 45-60s each time (3x longer)
             // Guarantee at least 3 full ship-widths of clear passage, plus a
             // buffer to absorb the per-rock position/size jitter below.
-            const minGap = player.radius * 2 * 3 + 40;
-            corridorGapWidth = Math.max(minGap, Math.min(canvas.width * 0.28, canvas.width - 200));
+            // Narrowed by roughly one rock-width from the previous version —
+            // still a hard floor of well over 2 ship-widths.
+            const minGap = player.radius * 2 * 2.5 + 30;
+            corridorGapWidth = Math.max(minGap, Math.min(canvas.width * 0.28, canvas.width - 200) - GAUNTLET_ROCK_H_SPACING);
             livesAtCourseStart = player.lives;
             // Don't wipe existing asteroids/bullets — they keep falling/flying
             // naturally and clear off-screen on their own. Spawning of NEW
@@ -861,7 +870,10 @@
         // driving-road game: alternating stretches of straight road, gentle
         // drifts, sharp zigzags, and big full-width transitions.
         function pickPathSection() {
-            const types = ['straight', 'drift', 'zigzag', 'bigturn'];
+            // Weighted so straight, do-nothing stretches are less common
+            // and shorter — the corridor should read as "winding with
+            // occasional straight breathers", not "mostly straight".
+            const types = ['zigzag', 'zigzag', 'drift', 'bigturn', 'straight'];
             const type = types[Math.floor(Math.random() * types.length)];
             const dir = Math.random() < 0.5 ? 1 : -1;
             let segmentsLeft, stepAmount, alternate = false;
@@ -875,7 +887,7 @@
 
             switch (type) {
                 case 'straight':
-                    segmentsLeft = 3 + Math.floor(Math.random() * 3); // 3-5 segments, no drift
+                    segmentsLeft = 2 + Math.floor(Math.random() * 2); // 2-3 segments, no drift
                     stepAmount = 0;
                     break;
                 case 'drift':
@@ -908,11 +920,15 @@
             return Math.max(bound, Math.min(canvas.width - bound, prevCX + shift));
         }
 
-        function spawnGauntletRow() {
+        function spawnGauntletRow(yOffset) {
             gauntletLastCX = nextCorridorCX(gauntletLastCX);
             const leftWall = gauntletLastCX - corridorGapWidth / 2;
             const rightWall = gauntletLastCX + corridorGapWidth / 2;
-            const y = -GAUNTLET_ROCK_RADIUS - 10;
+            // yOffset (defaults to 0) nudges this row further along its fall
+            // in case the catch-up loop below ever spawns more than one row
+            // in the same frame — guarantees no two rows can ever land on
+            // the exact same y and visually double up.
+            const y = -GAUNTLET_ROCK_RADIUS - 10 - (yOffset || 0);
             gauntletRowIndex++;
             const stagger = (gauntletRowIndex % 2 === 0) ? 0 : GAUNTLET_ROCK_H_SPACING / 2;
 
@@ -942,6 +958,21 @@
             for (let x = rightWall + GAUNTLET_ROCK_RADIUS + stagger; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
                 makeRock(x, y);
             }
+
+            // Every now and then, drop a single rock out in the open gap
+            // itself — forces a left/right choice through wide sections
+            // instead of just flying straight down the middle — while
+            // always leaving a lane on the other side comfortably wider
+            // than the ship.
+            const minPassGap = player.radius * 2 * 2.2 + 20;
+            if (corridorGapWidth > minPassGap * 2 + GAUNTLET_ROCK_RADIUS * 2 && Math.random() < 0.16) {
+                const islandR = GAUNTLET_ROCK_RADIUS - 2 + Math.random() * 4;
+                const nearLeft = Math.random() < 0.5;
+                const islandX = nearLeft
+                    ? leftWall + islandR + 14 + Math.random() * 14
+                    : rightWall - islandR - 14 - Math.random() * 14;
+                makeRock(islandX, y);
+            }
         }
 
         function updateObstacleCourse(dt) {
@@ -954,7 +985,7 @@
             gauntletRowTimer += dt;
             while (gauntletRowTimer >= GAUNTLET_ROW_INTERVAL) {
                 gauntletRowTimer -= GAUNTLET_ROW_INTERVAL;
-                spawnGauntletRow();
+                spawnGauntletRow(gauntletRowTimer * GAUNTLET_SCROLL_SPEED);
             }
 
             // End of gauntlet (new rows stop spawning; existing rocks scroll off naturally)
@@ -1484,10 +1515,10 @@
                 }
             }
 
-            // Falling Heart Drops (~every 3 min)
+            // Falling Heart Drops (random every 1-1.5 min)
             if (!isObstacleCourse && eventClock >= nextHeartDropTime) {
                 triggerHeartDrop();
-                nextHeartDropTime += 180;
+                nextHeartDropTime += 60 + Math.random() * 30;
             }
 
             // Obstacle Course trigger (every 2-3 min)
@@ -2139,7 +2170,7 @@
             particles = [];
             powerups = [];
             fallingHearts = [];
-            nextHeartDropTime = 180;
+            nextHeartDropTime = 60 + Math.random() * 30;
             isObstacleCourse = false;
             obstacleCourseTimer = 0;
             pathSection = null;
