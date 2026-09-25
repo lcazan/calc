@@ -457,7 +457,7 @@
         let isObstacleCourse = false;
         let obstacleCourseTimer = 0;
         const GAUNTLET_SCROLL_SPEED = 150;      // vy of gauntlet rocks
-        const GAUNTLET_ROW_SPACING = 60;        // vertical px between rows (rows overlap radius-wise -> solid wall)
+        const GAUNTLET_ROW_SPACING = 82;        // vertical px between rows — bigger than a rock's diameter (~48-54) so rows never stack on top of each other, even in straight/gentle-drift stretches
         const GAUNTLET_ROCK_RADIUS = 24;
         const GAUNTLET_ROCK_H_SPACING = 60;      // horizontal px between rock centers within a wall (edge gap stays well under a ship-width, still impassable)
         const GAUNTLET_ROW_INTERVAL = GAUNTLET_ROW_SPACING / GAUNTLET_SCROLL_SPEED;
@@ -466,6 +466,7 @@
         let pathSection = null;      // current "road section" being generated (straight/drift/zigzag/bigturn)
         let gauntletLastCX = 0;      // running corridor-center x, advanced one row at a time
         let gauntletRowTimer = 0;
+        let gauntletRowIndex = 0;
         let livesAtCourseStart = 0;
         let nextObstacleCourseTime = 45; // first gauntlet arrives 45s into the run
         let chestRewardTimer = 0;
@@ -843,6 +844,7 @@
             pathSection = null;
             gauntletLastCX = canvas.width / 2;
             gauntletRowTimer = 0;
+            gauntletRowIndex = 0;
 
             // Clear out any regular asteroids still in flight from before the
             // trigger — otherwise they linger near the top and stack with
@@ -911,6 +913,8 @@
             const leftWall = gauntletLastCX - corridorGapWidth / 2;
             const rightWall = gauntletLastCX + corridorGapWidth / 2;
             const y = -GAUNTLET_ROCK_RADIUS - 10;
+            gauntletRowIndex++;
+            const stagger = (gauntletRowIndex % 2 === 0) ? 0 : GAUNTLET_ROCK_H_SPACING / 2;
 
             const makeRock = (x, yy) => {
                 const numVertices = 7 + Math.floor(Math.random() * 4);
@@ -932,10 +936,10 @@
                 });
             };
 
-            for (let x = GAUNTLET_ROCK_RADIUS; x <= leftWall - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
+            for (let x = GAUNTLET_ROCK_RADIUS + stagger; x <= leftWall - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
                 makeRock(x, y);
             }
-            for (let x = rightWall + GAUNTLET_ROCK_RADIUS; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
+            for (let x = rightWall + GAUNTLET_ROCK_RADIUS + stagger; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
                 makeRock(x, y);
             }
         }
@@ -1015,16 +1019,33 @@
 
             if (alienShip.hitFlashTimer > 0) alienShip.hitFlashTimer -= dt;
 
-            // Keep the ship's hull clear of asteroids — plow through
-            // (destroy) any destructible asteroid that touches it, and
-            // nudge off anything indestructible it can't destroy, so it
-            // never visually overlaps the rock field.
+            // Keep the ship's hull clear of asteroids, and it takes real
+            // damage for smashing into them — destructible ones explode on
+            // contact, and gauntlet rocks it can't destroy get shoved out
+            // to its edge (each rock only damages it once, not every frame
+            // it stays in contact).
             for (let k = asteroids.length - 1; k >= 0; k--) {
                 const a = asteroids[k];
                 const dx = a.x - alienShip.x, dy = a.y - alienShip.y;
                 const dist = Math.hypot(dx, dy);
                 const minDist = a.radius + alienShip.radius;
                 if (dist >= minDist) continue;
+
+                if (!a._hitAlienShip) {
+                    a._hitAlienShip = true;
+                    const dmg = Math.max(1, Math.round(a.radius / 8));
+                    alienShip.hp -= dmg;
+                    alienShip.hitFlashTimer = Math.max(alienShip.hitFlashTimer, 0.15);
+                    createExplosion((a.x + alienShip.x) / 2, (a.y + alienShip.y) / 2, '#f97316', 8);
+                    if (alienShip.hp <= 0) {
+                        createExplosion(alienShip.x, alienShip.y, '#a3e635', 26);
+                        sfx.playExplosion(true);
+                        addScore(150);
+                        alienShip = null;
+                        nextAlienShipTime = alienClock + 60;
+                        break;
+                    }
+                }
 
                 if (a.indestructible) {
                     // Push the asteroid out to the ship's edge instead of destroying it
@@ -1036,6 +1057,8 @@
                     asteroids.splice(k, 1);
                 }
             }
+
+            if (!alienShip) return; // destroyed by asteroid/rock impact above
 
             // Reaches the bottom edge = Earth is defenseless. Game over, no matter how many hearts remain.
             if (alienShip.y - alienShip.radius > canvas.height) {
@@ -2121,6 +2144,7 @@
             obstacleCourseTimer = 0;
             pathSection = null;
             gauntletRowTimer = 0;
+            gauntletRowIndex = 0;
             nextObstacleCourseTime = 45;
             chestRewardTimer = 0;
             alienShip = null;
