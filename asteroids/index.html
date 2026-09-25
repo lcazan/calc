@@ -975,14 +975,17 @@
             }
         }
 
-        function updateObstacleCourse(dt) {
+        function updateObstacleCourse(dt, speedMultiplier) {
             obstacleCourseTimer -= dt;
 
             // Spawn new rows of wall rocks just above the top edge as time
             // passes — they then fall and clear the screen through the
             // exact same movement/collision/cleanup code as any other
-            // asteroid (see the main asteroid update loop).
-            gauntletRowTimer += dt;
+            // asteroid (see the main asteroid update loop). The spawn
+            // cadence is scaled by the same slow-motion multiplier as the
+            // rocks' own fall speed, so rows stay evenly spaced on screen
+            // instead of bunching up when the Slow powerup is active.
+            gauntletRowTimer += dt * speedMultiplier;
             while (gauntletRowTimer >= GAUNTLET_ROW_INTERVAL) {
                 gauntletRowTimer -= GAUNTLET_ROW_INTERVAL;
                 spawnGauntletRow(gauntletRowTimer * GAUNTLET_SCROLL_SPEED);
@@ -1829,7 +1832,7 @@
             }
 
             // === Update Obstacle Course ===
-            if (isObstacleCourse) updateObstacleCourse(dt);
+            if (isObstacleCourse) updateObstacleCourse(dt, asteroidSpeedMultiplier);
 
             updatePowerupBadgesUI();
         }
