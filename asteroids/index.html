@@ -774,7 +774,7 @@
         // === EVENT 4: Obstacle Course / Gauntlet ===
         function startObstacleCourse() {
             isObstacleCourse = true;
-            obstacleCourseTimer = 15 + Math.random() * 5; // varies 15-20s each time
+            obstacleCourseTimer = 45 + Math.random() * 15; // varies 45-60s each time (3x longer)
             // Guarantee at least 3 full ship-widths of clear passage, plus a
             // buffer to absorb the per-rock position/size jitter below.
             const minGap = player.radius * 2 * 3 + 40;
@@ -805,23 +805,30 @@
             const dir = Math.random() < 0.5 ? 1 : -1;
             let segmentsLeft, stepAmount, alternate = false;
 
+            // Scale turn sharpness to the actual gap width so a turn can
+            // never out-pace the passage itself. Capping each row's shift
+            // well under the gap width guarantees consecutive rows' gaps
+            // overlap by a wide margin — no zigzag chicane narrower than
+            // the ship can fit through.
+            const unit = corridorGapWidth * 0.22;
+
             switch (type) {
                 case 'straight':
-                    segmentsLeft = 2 + Math.floor(Math.random() * 3); // 2-4 segments, no drift
+                    segmentsLeft = 3 + Math.floor(Math.random() * 3); // 3-5 segments, no drift
                     stepAmount = 0;
                     break;
                 case 'drift':
-                    segmentsLeft = 3 + Math.floor(Math.random() * 3); // 3-5 segments
-                    stepAmount = 18 + Math.random() * 18;              // gentle, same direction
+                    segmentsLeft = 4 + Math.floor(Math.random() * 3); // 4-6 segments
+                    stepAmount = unit * (0.35 + Math.random() * 0.3);   // gentle, same direction
                     break;
                 case 'zigzag':
-                    segmentsLeft = 4 + Math.floor(Math.random() * 4); // 4-7 segments
-                    stepAmount = 55 + Math.random() * 45;              // sharp, flips every segment
+                    segmentsLeft = 5 + Math.floor(Math.random() * 4); // 5-8 segments
+                    stepAmount = unit * (0.55 + Math.random() * 0.3);   // flips every segment, still gentle per-row
                     alternate = true;
                     break;
                 case 'bigturn':
-                    segmentsLeft = 3 + Math.floor(Math.random() * 2); // 3-4 segments
-                    stepAmount = 50 + Math.random() * 30;              // large, one sustained direction
+                    segmentsLeft = 4 + Math.floor(Math.random() * 2); // 4-5 segments
+                    stepAmount = unit * (0.5 + Math.random() * 0.3);    // sustained but gradual sweep
                     break;
             }
             return { type, segmentsLeft, dir, stepAmount, alternate };
