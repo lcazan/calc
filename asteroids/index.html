@@ -437,19 +437,17 @@
         let fallingHearts = [];
         let nextHeartDropTime = 180;
 
-        // === Obstacle Course / Gauntlet (every 2-3 minutes) ===
+        // === Obstacle Course / Gauntlet (first at 45s, then every 1-2 min) ===
         let isObstacleCourse = false;
         let obstacleCourseTimer = 0;
-        let obstacleCourseWarmup = 0; // seconds of empty sky before the corridor starts scrolling in
-        const OBSTACLE_COURSE_WARMUP_TIME = 5; // no asteroids/corridor visible for this long after trigger
-        const OBSTACLE_SCROLL_SPEED = 230;
+        const OBSTACLE_SCROLL_SPEED = 190;
         const OBSTACLE_SEGMENT_SPACING = 145;
         const COLLISION_FLASH_DURATION = 0.9; // red glow blinks 3 times over this span
         let corridorGapWidth = 175;
         let obstacleSegments = [];   // [{y, cx}] sorted top→bottom (smallest→largest y)
         let pathSection = null;      // current "road section" being generated (straight/drift/zigzag/bigturn)
         let livesAtCourseStart = 0;
-        let nextObstacleCourseTime = 120 + Math.random() * 60; // 2-3 min initial
+        let nextObstacleCourseTime = 45; // first gauntlet arrives 45s into the run
         let chestRewardTimer = 0;
 
         // Keyboard Controls State
@@ -762,18 +760,19 @@
         function startObstacleCourse() {
             isObstacleCourse = true;
             obstacleCourseTimer = 15 + Math.random() * 5; // varies 15-20s each time
-            obstacleCourseWarmup = OBSTACLE_COURSE_WARMUP_TIME;
             corridorGapWidth = Math.max(145, Math.min(190, canvas.width * 0.19));
             livesAtCourseStart = player.lives;
             // Don't wipe existing asteroids/bullets — they keep falling/flying
             // naturally and clear off-screen on their own. Spawning of NEW
             // asteroids is paused elsewhere while isObstacleCourse is true.
-            // The corridor itself isn't generated yet — updateObstacleCourse()
-            // waits out obstacleCourseWarmup first, so the screen is briefly
-            // clear of both regular asteroids and the gauntlet before the
-            // corridor's entrance scrolls in from the top edge.
+            // The corridor itself starts entirely above the top edge and
+            // scrolls down at OBSTACLE_SCROLL_SPEED, same as a normal
+            // asteroid wave approaching — nothing pops in on top of the
+            // player, and the collision check (see updateObstacleCourse)
+            // only ever engages once real wall segments have genuinely
+            // scrolled down to the player's row.
             pathSection = null;
-            obstacleSegments = [];
+            generateObstacleSegments();
 
             warningText.textContent = '⚠️ ASTEROID GAUNTLET! NAVIGATE THE CORRIDOR!';
             waveWarning.classList.remove('hidden');
@@ -844,13 +843,6 @@
         }
 
         function updateObstacleCourse(dt) {
-            // Silent gap: no asteroids, no corridor, nothing on screen yet.
-            if (obstacleCourseWarmup > 0) {
-                obstacleCourseWarmup -= dt;
-                if (obstacleCourseWarmup <= 0) generateObstacleSegments();
-                return;
-            }
-
             obstacleCourseTimer -= dt;
 
             // Scroll all segments downward
@@ -869,21 +861,22 @@
                 obstacleSegments.unshift({ y: prevY - OBSTACLE_SEGMENT_SPACING, cx: newCX });
             }
 
-            // Collision: find corridor boundaries at player.y
+            // Collision: find corridor boundaries at player.y. Both a real
+            // "above" AND a real "below" segment must exist — i.e. the
+            // corridor must have genuinely scrolled down to bracket the
+            // player's row — otherwise there's nothing to collide with yet.
+            // (Using just one side let the corridor "extrapolate" a wall
+            // through the player's position before it had visually arrived,
+            // which caused instant hits the moment the gauntlet triggered.)
             let above = null, below = null;
             for (let i = 0; i < obstacleSegments.length; i++) {
                 if (obstacleSegments[i].y <= player.y) above = obstacleSegments[i];
                 else { below = obstacleSegments[i]; break; }
             }
 
-            if (above || below) {
-                let corridorCX;
-                if (!above)       corridorCX = below.cx;
-                else if (!below)  corridorCX = above.cx;
-                else {
-                    const t = (player.y - above.y) / (below.y - above.y);
-                    corridorCX = above.cx + (below.cx - above.cx) * t;
-                }
+            if (above && below) {
+                const t = (player.y - above.y) / (below.y - above.y);
+                const corridorCX = above.cx + (below.cx - above.cx) * t;
 
                 const leftWall  = corridorCX - corridorGapWidth / 2;
                 const rightWall = corridorCX + corridorGapWidth / 2;
@@ -914,9 +907,8 @@
         function endObstacleCourse() {
             isObstacleCourse = false;
             obstacleSegments = [];
-            obstacleCourseWarmup = 0;
             pathSection = null;
-            nextObstacleCourseTime = eventClock + 120 + Math.random() * 60;
+            nextObstacleCourseTime = eventClock + 60 + Math.random() * 60; // next one in 1-2 min
 
             const survived = player.lives >= livesAtCourseStart;
             if (survived) {
@@ -1841,10 +1833,9 @@
             nextHeartDropTime = 180;
             isObstacleCourse = false;
             obstacleCourseTimer = 0;
-            obstacleCourseWarmup = 0;
             obstacleSegments = [];
             pathSection = null;
-            nextObstacleCourseTime = 120 + Math.random() * 60;
+            nextObstacleCourseTime = 45;
             chestRewardTimer = 0;
             player.maxLives = 3;
             spawnTimer = 0;
