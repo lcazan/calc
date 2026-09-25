@@ -844,6 +844,12 @@
             gauntletLastCX = canvas.width / 2;
             gauntletRowTimer = 0;
 
+            // Clear out any regular asteroids still in flight from before the
+            // trigger — otherwise they linger near the top and stack with
+            // the new gauntlet rocks, making the entrance look far denser
+            // than the rest of the course.
+            asteroids = asteroids.filter(a => a.indestructible);
+
             warningText.textContent = '⚠️ ASTEROID GAUNTLET! NAVIGATE THE CORRIDOR!';
             waveWarning.classList.remove('hidden');
             setTimeout(() => waveWarning.classList.add('hidden'), 3200);
@@ -967,7 +973,6 @@
                     warningText.textContent = '🎁 GAUNTLET CLEARED! MAX HEARTS UPGRADED TO 5!';
                     waveWarning.classList.remove('hidden');
                     setTimeout(() => waveWarning.classList.add('hidden'), 3200);
-                    chestRewardTimer = 4.5;
                 } else if (player.lives < player.maxLives) {
                     // Already upgraded before — just top hearts off quietly.
                     player.lives = player.maxLives;
@@ -1378,8 +1383,8 @@
             missiles.push({
                 x: player.x,
                 y: player.y - player.radius,
-                vx: 0,
-                vy: -420,
+                angle: -Math.PI / 2, // heading, radians (0 = right, -PI/2 = up)
+                speed: 380,
                 radius: 6,
                 target: alienShip // homes in on the alien ship if one's visible when fired
             });
@@ -1508,10 +1513,10 @@
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius + topMargin, Math.min(canvas.height - player.radius - bottomMargin, player.y));
 
-            // Auto-Firing System
+            // Auto-Firing System (paused during the gauntlet — nothing to shoot at, just navigate)
             player.shootTimer -= dt;
             const currentShootInterval = player.powerups.rapid > 0 ? player.shootInterval / 2.2 : player.shootInterval;
-            if ((isTouching || keys.Space || true) && player.shootTimer <= 0) {
+            if (!isObstacleCourse && (isTouching || keys.Space || true) && player.shootTimer <= 0) {
                 fireBullet();
                 player.shootTimer = currentShootInterval;
             }
@@ -1548,19 +1553,22 @@
             for (let i = missiles.length - 1; i >= 0; i--) {
                 const m = missiles[i];
 
-                // Home in on the alien ship, if it's the one this missile was fired at and it's still alive
+                // Home in on the alien ship, if it's the one this missile was fired
+                // at and it's still alive. This steers the missile's heading
+                // directly toward the target at a fast, fixed turn rate — not a
+                // gentle velocity nudge — so it can loop around or even fly
+                // backward to run the target down, like a real seeker missile.
                 if (m.target && alienShip === m.target) {
-                    const dx = alienShip.x - m.x, dy = alienShip.y - m.y;
-                    const dist = Math.hypot(dx, dy) || 1;
-                    m.vx += (dx / dist) * 260 * dt;
-                    m.vy += (dy / dist) * 260 * dt;
-                    const spd = Math.hypot(m.vx, m.vy);
-                    const maxSpd = 520;
-                    if (spd > maxSpd) { m.vx = m.vx / spd * maxSpd; m.vy = m.vy / spd * maxSpd; }
+                    const desiredAngle = Math.atan2(alienShip.y - m.y, alienShip.x - m.x);
+                    let diff = desiredAngle - m.angle;
+                    diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // normalize to [-PI, PI]
+                    const maxTurn = 4.2 * dt; // ~240°/s — tight enough to reverse course quickly
+                    if (Math.abs(diff) <= maxTurn) m.angle = desiredAngle;
+                    else m.angle += Math.sign(diff) * maxTurn;
                 }
 
-                m.x += m.vx * dt;
-                m.y += m.vy * dt;
+                m.x += Math.cos(m.angle) * m.speed * dt;
+                m.y += Math.sin(m.angle) * m.speed * dt;
 
                 let hit = false;
 
@@ -1885,7 +1893,7 @@
             missiles.forEach(m => {
                 ctx.save();
                 ctx.translate(m.x, m.y);
-                const ang = Math.atan2(m.vy, m.vx) + Math.PI / 2;
+                const ang = m.angle + Math.PI / 2;
                 ctx.rotate(ang);
                 ctx.shadowColor = '#f97316';
                 ctx.shadowBlur = 12;
