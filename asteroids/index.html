@@ -460,9 +460,9 @@
         const GAUNTLET_ROW_SPACING = 82;        // vertical px between rows — bigger than a rock's diameter (~48-54) so rows never stack on top of each other, even in straight/gentle-drift stretches
         const GAUNTLET_ROCK_RADIUS = 24;
         const GAUNTLET_ROCK_H_SPACING = 78;      // horizontal px between rock centers within a wall — guarantees a real visible gap (~20px+) between neighbors, not just "not overlapping"
-        const GAUNTLET_ROW_INTERVAL = GAUNTLET_ROW_SPACING / GAUNTLET_SCROLL_SPEED;
         const COLLISION_FLASH_DURATION = 0.9; // red glow blinks 3 times over this span
         let corridorGapWidth = 175;
+        let gauntletCorridorFactor = 1; // 0 = sparse pegboard, 1 = full packed corridor
         let pathSection = null;      // current "road section" being generated (straight/drift/zigzag/bigturn)
         let gauntletLastCX = 0;      // running corridor-center x, advanced one row at a time
         let gauntletRowTimer = 0;
@@ -835,7 +835,12 @@
         // === EVENT 4: Obstacle Course / Gauntlet ===
         function startObstacleCourse() {
             isObstacleCourse = true;
-            obstacleCourseTimer = 45 + Math.random() * 15; // varies 45-60s each time (3x longer)
+            obstacleCourseTimer = 5 + Math.random() * 40; // varies 5-45s each time
+            // Short gauntlets (<=10s) read as a sparse "pegboard" of
+            // individual rocks to weave around; long ones (45s) are a full
+            // packed corridor. This factor blends smoothly between them —
+            // used by spawnGauntletRow() below.
+            gauntletCorridorFactor = Math.max(0, Math.min(1, (obstacleCourseTimer - 10) / 35));
             // Guarantee at least 3 full ship-widths of clear passage, plus a
             // buffer to absorb the per-rock position/size jitter below.
             // Narrowed by roughly one rock-width from the previous version —
@@ -922,15 +927,27 @@
 
         function spawnGauntletRow(yOffset) {
             gauntletLastCX = nextCorridorCX(gauntletLastCX);
-            const leftWall = gauntletLastCX - corridorGapWidth / 2;
-            const rightWall = gauntletLastCX + corridorGapWidth / 2;
+            const f = gauntletCorridorFactor; // 0 = pegboard, 1 = full corridor
+
+            // Blend the "protected" open gap and rock spacing/density by
+            // duration: at f=0 the gap collapses to nothing, so rocks are
+            // considered across the FULL width, and with wide spacing plus
+            // a low fill chance that reads as a sparse pegboard to weave
+            // through rather than a defined lane. At f=1 it's the normal
+            // dense two-wall corridor with a real protected gap.
+            const gap = corridorGapWidth * f;
+            const spacing = 170 - (170 - GAUNTLET_ROCK_H_SPACING) * f;
+            const fillChance = 0.3 + 0.7 * f;
+
+            const leftWall = gauntletLastCX - gap / 2;
+            const rightWall = gauntletLastCX + gap / 2;
             // yOffset (defaults to 0) nudges this row further along its fall
             // in case the catch-up loop below ever spawns more than one row
             // in the same frame — guarantees no two rows can ever land on
             // the exact same y and visually double up.
             const y = -GAUNTLET_ROCK_RADIUS - 10 - (yOffset || 0);
             gauntletRowIndex++;
-            const stagger = (gauntletRowIndex % 2 === 0) ? 0 : GAUNTLET_ROCK_H_SPACING / 2;
+            const stagger = (gauntletRowIndex % 2 === 0) ? 0 : spacing / 2;
 
             const makeRock = (x, yy) => {
                 const numVertices = 7 + Math.floor(Math.random() * 4);
@@ -952,20 +969,22 @@
                 });
             };
 
-            for (let x = GAUNTLET_ROCK_RADIUS + stagger; x <= leftWall - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
-                makeRock(x, y);
+            for (let x = GAUNTLET_ROCK_RADIUS + stagger; x <= leftWall - GAUNTLET_ROCK_RADIUS; x += spacing) {
+                if (Math.random() < fillChance) makeRock(x, y);
             }
-            for (let x = rightWall + GAUNTLET_ROCK_RADIUS + stagger; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += GAUNTLET_ROCK_H_SPACING) {
-                makeRock(x, y);
+            for (let x = rightWall + GAUNTLET_ROCK_RADIUS + stagger; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += spacing) {
+                if (Math.random() < fillChance) makeRock(x, y);
             }
 
-            // Every now and then, drop a single rock out in the open gap
-            // itself — forces a left/right choice through wide sections
-            // instead of just flying straight down the middle — while
-            // always leaving a lane on the other side comfortably wider
-            // than the ship.
+            // Only in corridor-ish territory: every now and then drop a
+            // single rock out in the open gap itself — forces a left/right
+            // choice through wide sections instead of just flying straight
+            // down the middle — while always leaving a lane on the other
+            // side comfortably wider than the ship. (At low f, the row loop
+            // above already scatters rocks across the whole width, so this
+            // island trick is redundant there.)
             const minPassGap = player.radius * 2 * 2.2 + 20;
-            if (corridorGapWidth > minPassGap * 2 + GAUNTLET_ROCK_RADIUS * 2 && Math.random() < 0.16) {
+            if (f > 0.5 && gap > minPassGap * 2 + GAUNTLET_ROCK_RADIUS * 2 && Math.random() < 0.16) {
                 const islandR = GAUNTLET_ROCK_RADIUS - 2 + Math.random() * 4;
                 const nearLeft = Math.random() < 0.5;
                 const islandX = nearLeft
@@ -985,9 +1004,14 @@
             // cadence is scaled by the same slow-motion multiplier as the
             // rocks' own fall speed, so rows stay evenly spaced on screen
             // instead of bunching up when the Slow powerup is active.
+            // Rows are also spaced further apart vertically at low
+            // gauntletCorridorFactor, so short pegboard-style gauntlets
+            // read as a genuinely sparse field, not just a thinner corridor.
+            const rowSpacing = 190 - (190 - GAUNTLET_ROW_SPACING) * gauntletCorridorFactor;
+            const rowInterval = rowSpacing / GAUNTLET_SCROLL_SPEED;
             gauntletRowTimer += dt * speedMultiplier;
-            while (gauntletRowTimer >= GAUNTLET_ROW_INTERVAL) {
-                gauntletRowTimer -= GAUNTLET_ROW_INTERVAL;
+            while (gauntletRowTimer >= rowInterval) {
+                gauntletRowTimer -= rowInterval;
                 spawnGauntletRow(gauntletRowTimer * GAUNTLET_SCROLL_SPEED);
             }
 
