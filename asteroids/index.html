@@ -989,7 +989,8 @@
                 radius: 32,
                 hp: ALIEN_SHIP_HP,
                 maxHp: ALIEN_SHIP_HP,
-                wobble: Math.random() * Math.PI * 2
+                wobble: Math.random() * Math.PI * 2,
+                hitFlashTimer: 0
             };
             warningText.textContent = '🛸 ALIEN SHIP INBOUND — SHOOT IT DOWN!';
             waveWarning.classList.remove('hidden');
@@ -1006,6 +1007,30 @@
             alienShip.x += Math.sin(alienShip.wobble) * 45 * dt;
             alienShip.x = Math.max(alienShip.radius, Math.min(canvas.width - alienShip.radius, alienShip.x));
             alienShip.y += ALIEN_SHIP_SPEED * dt;
+
+            if (alienShip.hitFlashTimer > 0) alienShip.hitFlashTimer -= dt;
+
+            // Keep the ship's hull clear of asteroids — plow through
+            // (destroy) any destructible asteroid that touches it, and
+            // nudge off anything indestructible it can't destroy, so it
+            // never visually overlaps the rock field.
+            for (let k = asteroids.length - 1; k >= 0; k--) {
+                const a = asteroids[k];
+                const dx = a.x - alienShip.x, dy = a.y - alienShip.y;
+                const dist = Math.hypot(dx, dy);
+                const minDist = a.radius + alienShip.radius;
+                if (dist >= minDist) continue;
+
+                if (a.indestructible) {
+                    // Push the asteroid out to the ship's edge instead of destroying it
+                    const nx = dist > 0 ? dx / dist : 0, ny = dist > 0 ? dy / dist : -1;
+                    a.x = alienShip.x + nx * minDist;
+                    a.y = alienShip.y + ny * minDist;
+                } else {
+                    createExplosion(a.x, a.y, '#94a3b8', Math.floor(a.radius / 2));
+                    asteroids.splice(k, 1);
+                }
+            }
 
             // Reaches the bottom edge = Earth is defenseless. Game over, no matter how many hearts remain.
             if (alienShip.y - alienShip.radius > canvas.height) {
@@ -1054,14 +1079,20 @@
 
         function renderAlienShip() {
             if (!alienShip) return;
+            const hpFrac = Math.max(0, alienShip.hp / alienShip.maxHp);
+            // Green when healthy, sliding through yellow to red as it's whittled down
+            const hullColor = `hsl(${Math.round(130 * hpFrac)}, 65%, 34%)`;
+            const domeColor  = `hsl(${Math.round(130 * hpFrac)}, 75%, 58%)`;
+            const glowColor  = `hsl(${Math.round(130 * hpFrac)}, 80%, 50%)`;
+
             ctx.save();
             ctx.translate(alienShip.x, alienShip.y);
 
-            // Solid green hull
-            ctx.fillStyle = '#15803d';
-            ctx.strokeStyle = '#166534';
+            // Solid hull — color reflects remaining health
+            ctx.fillStyle = hullColor;
+            ctx.strokeStyle = '#0f2417';
             ctx.lineWidth = 2;
-            ctx.shadowColor = '#22c55e';
+            ctx.shadowColor = glowColor;
             ctx.shadowBlur = 16;
             ctx.beginPath();
             ctx.ellipse(0, 0, alienShip.radius, alienShip.radius * 0.55, 0, 0, Math.PI * 2);
@@ -1069,11 +1100,25 @@
             ctx.stroke();
 
             // Dome
-            ctx.fillStyle = '#4ade80';
+            ctx.fillStyle = domeColor;
             ctx.beginPath();
             ctx.arc(0, -alienShip.radius * 0.25, alienShip.radius * 0.4, Math.PI, 0);
             ctx.fill();
             ctx.stroke();
+
+            // Missile-hit flash — bright white overlay that quickly fades
+            if (alienShip.hitFlashTimer > 0) {
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, alienShip.hitFlashTimer / 0.25) * 0.9;
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, alienShip.radius * 1.15, alienShip.radius * 0.65, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
             ctx.restore();
 
             // HP bar
@@ -1082,8 +1127,8 @@
             ctx.save();
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.fillRect(bx, by, barW, barH);
-            ctx.fillStyle = '#22c55e';
-            ctx.fillRect(bx, by, barW * (alienShip.hp / alienShip.maxHp), barH);
+            ctx.fillStyle = glowColor;
+            ctx.fillRect(bx, by, barW * hpFrac, barH);
             ctx.restore();
         }
 
@@ -1523,7 +1568,9 @@
                     const d = Math.hypot(alienShip.x - m.x, alienShip.y - m.y);
                     if (d < alienShip.radius + m.radius) {
                         alienShip.hp -= Math.ceil(alienShip.maxHp * 0.25); // missile = 25% of alien max HP
+                        alienShip.hitFlashTimer = 0.25;
                         createExplosion(m.x, m.y, '#f97316', 22);
+                        createExplosion(m.x, m.y, '#ffffff', 14);
                         sfx.playExplosion(true);
                         if (alienShip.hp <= 0) {
                             createExplosion(alienShip.x, alienShip.y, '#a3e635', 26);
