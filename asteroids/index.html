@@ -922,12 +922,13 @@
         }
 
         // Weighted gauntlet duration: mostly short "pegboard" bursts, with
-        // longer full corridors increasingly rare.
+        // longer full corridors increasingly rare. Each tier is exactly
+        // half as common as the one before it (57.1% / 28.6% / 14.3%).
         function pickGauntletDuration() {
             const r = Math.random();
-            if (r < 0.6) return 5 + Math.random() * 5;     // 5-10s (60%)
-            if (r < 0.9) return 10 + Math.random() * 20;    // 10-30s (30% — half as common)
-            return 30 + Math.random() * 15;                  // 30-45s (10% — rarer still)
+            if (r < 0.571) return 5 + Math.random() * 5;     // 5-10s
+            if (r < 0.857) return 10 + Math.random() * 20;    // 10-30s — half as common
+            return 30 + Math.random() * 15;                    // 30-45s — half as common again
         }
 
         // Picks the next "road section" behavior, mimicking an overhead
@@ -995,8 +996,8 @@
             // through rather than a defined lane. At f=1 it's the normal
             // dense two-wall corridor with a real protected gap.
             const gap = corridorGapWidth * f;
-            const spacing = 170 - (170 - GAUNTLET_ROCK_H_SPACING) * f;
-            const fillChance = 0.3 + 0.7 * f;
+            const spacing = 140 - (140 - GAUNTLET_ROCK_H_SPACING) * f;
+            const fillChance = 0.5 + 0.5 * f;
 
             const leftWall = gauntletLastCX - gap / 2;
             const rightWall = gauntletLastCX + gap / 2;
@@ -1028,11 +1029,20 @@
                 });
             };
 
-            for (let x = GAUNTLET_ROCK_RADIUS + stagger; x <= leftWall - GAUNTLET_ROCK_RADIUS; x += spacing) {
-                if (Math.random() < fillChance) makeRock(x, y);
-            }
-            for (let x = rightWall + GAUNTLET_ROCK_RADIUS + stagger; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += spacing) {
-                if (Math.random() < fillChance) makeRock(x, y);
+            const validXs = [];
+            for (let x = GAUNTLET_ROCK_RADIUS + stagger; x <= leftWall - GAUNTLET_ROCK_RADIUS; x += spacing) validXs.push(x);
+            for (let x = rightWall + GAUNTLET_ROCK_RADIUS + stagger; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += spacing) validXs.push(x);
+
+            let rockCount = 0;
+            validXs.forEach(x => {
+                if (Math.random() < fillChance) { makeRock(x, y); rockCount++; }
+            });
+
+            // A gauntlet row with literally nothing in it reads as a broken,
+            // empty "gauntlet" — never let that happen. If every roll above
+            // missed, force at least one rock through.
+            if (rockCount === 0 && validXs.length > 0) {
+                makeRock(validXs[Math.floor(Math.random() * validXs.length)], y);
             }
 
             // Only in corridor-ish territory: every now and then drop a
@@ -1108,9 +1118,16 @@
 
         // ---- Alien Ship: once a minute, shoot it down or lose the game ----
 
+        function pickAlienWaveSize() {
+            const r = Math.random();
+            if (r < 0.68) return 1;   // most of the time
+            if (r < 0.92) return 2;   // every now and then
+            return 3;                  // very rarely
+        }
+
         function spawnAlienShip() {
             if (motherShip) return; // mothership fights are exclusive
-            alienWaveCount = Math.min(3, alienWaveCount + 1);
+            alienWaveCount = pickAlienWaveSize();
             for (let i = 0; i < alienWaveCount; i++) {
                 alienShips.push({
                     x: canvas.width * (0.2 + Math.random() * 0.6),
@@ -1393,7 +1410,9 @@
                 hp: MOTHER_SHIP_HP,
                 maxHp: MOTHER_SHIP_HP,
                 hitFlashTimer: 0,
-                shootTimer: 1
+                shootTimer: 1,
+                driftDir: Math.random() < 0.5 ? 1 : -1,
+                driftSpeed: 55 + Math.random() * 25
             };
             warningText.textContent = '🛸 ALIEN MOTHERSHIP DETECTED — ALL HANDS TO BATTLE STATIONS!';
             waveWarning.classList.remove('hidden');
@@ -1452,6 +1471,17 @@
             }
 
             if (motherShip.hitFlashTimer > 0) motherShip.hitFlashTimer -= dt;
+
+            // Drifts left and right across the top of the screen, bouncing
+            // off the edges, instead of sitting fixed in the center.
+            motherShip.x += motherShip.driftDir * motherShip.driftSpeed * dt;
+            if (motherShip.x < motherShip.radius + 20) {
+                motherShip.x = motherShip.radius + 20;
+                motherShip.driftDir = 1;
+            } else if (motherShip.x > canvas.width - motherShip.radius - 20) {
+                motherShip.x = canvas.width - motherShip.radius - 20;
+                motherShip.driftDir = -1;
+            }
 
             // Bullets vs mothership
             for (let j = bullets.length - 1; j >= 0; j--) {
@@ -1778,7 +1808,7 @@
                 y: -radius - 10,
                 radius: radius,
                 vx: (Math.random() - 0.5) * 60,
-                vy: Math.random() * 80 + 80 + (score / 1000) * 10,
+                vy: Math.min(Math.random() * 80 + 80 + (score / 1000) * 10, 210),
                 rotation: 0,
                 vRot: (Math.random() - 0.5) * 2,
                 hp: indestructible ? 1 : hp,
@@ -1810,8 +1840,9 @@
         }
 
         function spawnPowerup(x, y) {
-            // Missile now drops ~3x as often as before (1/3 of drops)
-            const types = ['rapid', 'spread', 'shield', 'slow', 'missile', 'missile'];
+            // Missile drops ~2x as often as rapid/spread/shield; Slow (H) is
+            // bumped up too since there's a lot going on to keep pace with.
+            const types = ['rapid', 'spread', 'shield', 'slow', 'slow', 'missile', 'missile'];
             const type = types[Math.floor(Math.random() * types.length)];
             powerups.push({
                 x: x,
@@ -1860,20 +1891,25 @@
             }
 
             // Once Photon Torpedoes are unlocked, the same button/stock
-            // becomes torpedoes permanently — reskin it accordingly.
+            // becomes torpedoes permanently — reskin it accordingly. Uses
+            // inline styles (not Tailwind utility classes) so the new
+            // colors are guaranteed to render even though they weren't
+            // present in the page at load time.
             if (hasPhotonTorpedoes) {
-                missileBtn.classList.remove('from-orange-600', 'to-amber-400', 'border-orange-200');
-                missileBtn.classList.add('from-violet-600', 'to-fuchsia-400', 'border-violet-200');
+                missileBtn.style.background = 'linear-gradient(to top right, #7c3aed, #d946ef)';
+                missileBtn.style.borderColor = '#e9d5ff';
                 missileBtnIcon.className = 'fa-solid fa-meteor text-xl md:text-3xl animate-pulse';
+                missileBtnIcon.style.transform = 'scaleX(-1)'; // reads as a distinct streaking-projectile silhouette, not a rocket
                 missileBtnLabel.textContent = 'TORPEDO [M]';
                 missileBtnLabel.classList.remove('text-orange-300');
                 missileBtnLabel.classList.add('text-violet-300');
                 missileBadge.classList.remove('bg-orange-300');
                 missileBadge.classList.add('bg-violet-300');
             } else {
-                missileBtn.classList.remove('from-violet-600', 'to-fuchsia-400', 'border-violet-200');
-                missileBtn.classList.add('from-orange-600', 'to-amber-400', 'border-orange-200');
+                missileBtn.style.background = '';
+                missileBtn.style.borderColor = '';
                 missileBtnIcon.className = 'fa-solid fa-rocket text-xl md:text-3xl animate-pulse';
+                missileBtnIcon.style.transform = '';
                 missileBtnLabel.textContent = 'MISSILE [M]';
                 missileBtnLabel.classList.remove('text-violet-300');
                 missileBtnLabel.classList.add('text-orange-300');
