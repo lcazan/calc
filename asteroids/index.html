@@ -88,7 +88,7 @@
             <button id="cross-laser-btn" class="hidden relative group flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-cyan-600 to-teal-400 border-2 border-cyan-200 text-white shadow-xl transition-all duration-200 active:scale-95 laser-btn-cross">
                 <i class="fa-solid fa-arrows-to-dot text-xl md:text-3xl animate-pulse"></i>
                 <span class="shared-charge-badge absolute -top-2 -right-2 w-5 h-5 md:w-7 md:h-7 rounded-full bg-pink-400 text-slate-950 font-black text-[10px] md:text-sm flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
-                <span class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-cyan-300 tracking-wider uppercase whitespace-nowrap">4-WAY [K]</span>
+                <span class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-cyan-300 tracking-wider uppercase whitespace-nowrap">FAN-5 [K]</span>
             </button>
 
             <!-- Score Display -->
@@ -140,7 +140,7 @@
                 <i class="fa-solid fa-rocket text-2xl text-white"></i>
             </div>
             <h1 class="text-3xl md:text-4xl font-black tracking-tight text-white glow-text mb-2">ASTEROID DASH</h1>
-            <p class="text-slate-400 text-xs md:text-sm mb-5">Full 2D movement. Earn shared Laser Stock Charges every 300 points!</p>
+            <p class="text-slate-400 text-xs md:text-sm mb-5">Full 2D movement. Earn shared Laser Stock Charges every 500 points!</p>
             
             <div class="w-full bg-slate-800/60 rounded-xl p-4 mb-6 text-xs text-slate-300 space-y-2 text-left border border-slate-700/50">
                 <div class="flex items-center gap-2"><i class="fa-solid fa-sitemap text-pink-400 w-4"></i> <span><b>Chain Laser [L]:</b> Branches out recursively up through asteroid clusters.</span></div>
@@ -394,12 +394,14 @@
 
         // Shared Laser Charges Pool
         let sharedLaserCharges = 0;
-        let lastLaserThreshold = 0; // Earn 1 charge per 300 points
+        let lastLaserThreshold = 0; // Earn 1 charge per 500 points
+        let missiles = [];
 
         // Laser Animation Visual Timers
         let activeChainBranches = [];
         let chainLaserAnimTimer = 0;
         let crossLaserAnimTimer = 0;
+        let crossLaserBeamAngles = [];
         let screenShake = 0;
 
         // Touch Control Variables (Relative 2D Drag)
@@ -447,7 +449,7 @@
         const GAUNTLET_SCROLL_SPEED = 150;      // vy of gauntlet rocks
         const GAUNTLET_ROW_SPACING = 60;        // vertical px between rows (rows overlap radius-wise -> solid wall)
         const GAUNTLET_ROCK_RADIUS = 24;
-        const GAUNTLET_ROCK_H_SPACING = 44;      // horizontal px between rock centers within a wall (< 2*radius -> touching)
+        const GAUNTLET_ROCK_H_SPACING = 60;      // horizontal px between rock centers within a wall (edge gap stays well under a ship-width, still impassable)
         const GAUNTLET_ROW_INTERVAL = GAUNTLET_ROW_SPACING / GAUNTLET_SCROLL_SPEED;
         const COLLISION_FLASH_DURATION = 0.9; // red glow blinks 3 times over this span
         let corridorGapWidth = 175;
@@ -645,22 +647,59 @@
             sfx.playCrossLaser();
             screenShake = 0.6;
 
-            const beamThickness = 28;
-            const px = player.x;
-            const py = player.y;
+            const beamThickness = 24;
+            const beamCount = 5;
+            const spreadDeg = 70; // total fan angle
+            const px = player.x, py = player.y;
+            const beamLen = Math.max(canvas.width, canvas.height) * 1.5;
 
-            // Destroy all asteroids caught in UP, DOWN, LEFT, or RIGHT laser corridors
+            // 5 straight beams fanning upward from the ship, evenly spread
+            // across spreadDeg. Store the angles so render() can draw the
+            // same fan during the beam flash.
+            crossLaserBeamAngles = [];
+            for (let i = 0; i < beamCount; i++) {
+                const t = i / (beamCount - 1);
+                const deg = -spreadDeg / 2 + t * spreadDeg;
+                crossLaserBeamAngles.push(deg * Math.PI / 180);
+            }
+
+            const beamHitsPoint = (tx, ty, radius) => {
+                const rx = tx - px, ry = ty - py;
+                for (const ang of crossLaserBeamAngles) {
+                    const dx = Math.sin(ang), dy = -Math.cos(ang);
+                    const t = rx * dx + ry * dy;
+                    if (t < 0 || t > beamLen) continue;
+                    const perpX = rx - t * dx, perpY = ry - t * dy;
+                    if (Math.hypot(perpX, perpY) < radius + beamThickness / 2) return true;
+                }
+                return false;
+            };
+
+            // Destroy destructible asteroids caught in any beam; indestructible
+            // gauntlet rocks just spark.
             for (let i = asteroids.length - 1; i >= 0; i--) {
                 const a = asteroids[i];
-                const hitUp = (Math.abs(a.x - px) < a.radius + beamThickness) && (a.y <= py);
-                const hitDown = (Math.abs(a.x - px) < a.radius + beamThickness) && (a.y >= py);
-                const hitLeft = (Math.abs(a.y - py) < a.radius + beamThickness) && (a.x <= px);
-                const hitRight = (Math.abs(a.y - py) < a.radius + beamThickness) && (a.x >= px);
+                if (!beamHitsPoint(a.x, a.y, a.radius)) continue;
 
-                if (hitUp || hitDown || hitLeft || hitRight) {
-                    addScore(a.points);
-                    createExplosion(a.x, a.y, '#22d3ee', 16);
-                    asteroids.splice(i, 1);
+                if (a.indestructible) {
+                    createExplosion(a.x, a.y, '#fb923c', 4);
+                    continue;
+                }
+                addScore(a.points);
+                createExplosion(a.x, a.y, '#22d3ee', 16);
+                asteroids.splice(i, 1);
+            }
+
+            // Damage the alien ship if it's caught in the fan
+            if (alienShip && beamHitsPoint(alienShip.x, alienShip.y, alienShip.radius)) {
+                alienShip.hp -= 6;
+                createExplosion(alienShip.x, alienShip.y, '#4ade80', 10);
+                if (alienShip.hp <= 0) {
+                    createExplosion(alienShip.x, alienShip.y, '#a3e635', 26);
+                    sfx.playExplosion(true);
+                    addScore(150);
+                    alienShip = null;
+                    nextAlienShipTime = alienClock + 60;
                 }
             }
 
@@ -945,7 +984,7 @@
 
         function updateAlienShip(dt) {
             if (!alienShip) {
-                if (alienClock >= nextAlienShipTime) spawnAlienShip();
+                if (!isObstacleCourse && alienClock >= nextAlienShipTime) spawnAlienShip();
                 return;
             }
 
@@ -1181,11 +1220,11 @@
             score += pts;
             scoreDisplay.textContent = score;
 
-            // Earn 1 Shared Laser Stock Charge every 300 points
-            if (score >= lastLaserThreshold + 300) {
-                const earned = Math.floor((score - lastLaserThreshold) / 300);
+            // Earn 1 Shared Laser Stock Charge every 500 points
+            if (score >= lastLaserThreshold + 500) {
+                const earned = Math.floor((score - lastLaserThreshold) / 500);
                 sharedLaserCharges += earned;
-                lastLaserThreshold += earned * 300;
+                lastLaserThreshold += earned * 500;
                 sfx.playPowerup();
                 updateLaserUI();
             }
@@ -1260,7 +1299,8 @@
         }
 
         function spawnPowerup(x, y) {
-            const types = ['rapid', 'spread', 'shield', 'slow'];
+            // Missile is rarer than the other four (~11% vs ~22% each)
+            const types = ['rapid', 'spread', 'shield', 'slow', 'rapid', 'spread', 'shield', 'slow', 'missile'];
             const type = types[Math.floor(Math.random() * types.length)];
             powerups.push({
                 x: x,
@@ -1269,6 +1309,18 @@
                 radius: 14,
                 vy: 90
             });
+        }
+
+        function fireMissile() {
+            missiles.push({
+                x: player.x,
+                y: player.y - player.radius,
+                vx: 0,
+                vy: -420,
+                radius: 6,
+                target: alienShip // homes in on whatever alien ship was up when fired, if any
+            });
+            sfx.playShoot();
         }
 
         function fireBullet() {
@@ -1420,6 +1472,71 @@
                 }
             }
 
+            // Update Missiles
+            for (let i = missiles.length - 1; i >= 0; i--) {
+                const m = missiles[i];
+
+                // Home in on the alien ship, if it's the one this missile was fired at and it's still alive
+                if (m.target && alienShip === m.target) {
+                    const dx = alienShip.x - m.x, dy = alienShip.y - m.y;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    m.vx += (dx / dist) * 260 * dt;
+                    m.vy += (dy / dist) * 260 * dt;
+                    const spd = Math.hypot(m.vx, m.vy);
+                    const maxSpd = 520;
+                    if (spd > maxSpd) { m.vx = m.vx / spd * maxSpd; m.vy = m.vy / spd * maxSpd; }
+                }
+
+                m.x += m.vx * dt;
+                m.y += m.vy * dt;
+
+                let hit = false;
+
+                if (alienShip) {
+                    const d = Math.hypot(alienShip.x - m.x, alienShip.y - m.y);
+                    if (d < alienShip.radius + m.radius) {
+                        alienShip.hp -= Math.ceil(alienShip.maxHp * 0.25); // missile = 25% of alien max HP
+                        createExplosion(m.x, m.y, '#f97316', 22);
+                        sfx.playExplosion(true);
+                        if (alienShip.hp <= 0) {
+                            createExplosion(alienShip.x, alienShip.y, '#a3e635', 26);
+                            addScore(150);
+                            alienShip = null;
+                            nextAlienShipTime = alienClock + 60;
+                        }
+                        hit = true;
+                    }
+                }
+
+                if (!hit) {
+                    for (let j = asteroids.length - 1; j >= 0; j--) {
+                        const a = asteroids[j];
+                        const d = Math.hypot(a.x - m.x, a.y - m.y);
+                        if (d < a.radius + m.radius) {
+                            createExplosion(m.x, m.y, '#f97316', 20);
+                            sfx.playExplosion(a.radius > 30);
+                            // Splash-clears nearby destructible asteroids (gauntlet rocks are immune)
+                            const splashR = 70;
+                            for (let k = asteroids.length - 1; k >= 0; k--) {
+                                const a2 = asteroids[k];
+                                if (a2.indestructible) continue;
+                                if (Math.hypot(a2.x - m.x, a2.y - m.y) < splashR) {
+                                    addScore(a2.points);
+                                    createExplosion(a2.x, a2.y, '#94a3b8', Math.floor(a2.radius / 2));
+                                    asteroids.splice(k, 1);
+                                }
+                            }
+                            hit = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hit || m.y < -30 || m.x < -30 || m.x > canvas.width + 30 || m.y > canvas.height + 30) {
+                    missiles.splice(i, 1);
+                }
+            }
+
             // Update Asteroids & Collisions
             for (let i = asteroids.length - 1; i >= 0; i--) {
                 const a = asteroids[i];
@@ -1526,6 +1643,8 @@
                         player.powerups.shield = 8;
                     } else if (p.type === 'slow') {
                         player.powerups.slow = 60;
+                    } else if (p.type === 'missile') {
+                        fireMissile();
                     } else {
                         player.powerups[p.type] = 7;
                     }
@@ -1635,28 +1754,32 @@
                 ctx.restore();
             }
 
-            // 2. Render 4-Way Cross Laser Beams
-            if (crossLaserAnimTimer > 0) {
+            // 2. Render 5-Beam Fan Laser
+            if (crossLaserAnimTimer > 0 && crossLaserBeamAngles.length > 0) {
                 const alpha = Math.min(1, crossLaserAnimTimer / 0.45);
                 ctx.save();
                 ctx.globalAlpha = alpha;
                 ctx.shadowColor = '#22d3ee';
                 ctx.shadowBlur = 25;
 
-                const beamW = 28;
+                const beamW = 24;
                 const px = player.x;
                 const py = player.y;
+                const beamLen = Math.max(canvas.width, canvas.height) * 1.5;
 
-                ctx.fillStyle = '#06b6d4';
-                // Vertical Column (Up & Down)
-                ctx.fillRect(px - beamW / 2, 0, beamW, canvas.height);
-                // Horizontal Row (Left & Right)
-                ctx.fillRect(0, py - beamW / 2, canvas.width, beamW);
+                crossLaserBeamAngles.forEach(ang => {
+                    const dx = Math.sin(ang), dy = -Math.cos(ang);
+                    const ex = px + dx * beamLen, ey = py + dy * beamLen;
 
-                // Inner White Core
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(px - 4, 0, 8, canvas.height);
-                ctx.fillRect(0, py - 4, canvas.width, 8);
+                    ctx.save();
+                    ctx.translate(px, py);
+                    ctx.rotate(ang);
+                    ctx.fillStyle = '#06b6d4';
+                    ctx.fillRect(-beamW / 2, -beamLen, beamW, beamLen);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(-4, -beamLen, 8, beamLen);
+                    ctx.restore();
+                });
 
                 ctx.restore();
             }
@@ -1665,7 +1788,7 @@
             powerups.forEach(p => {
                 ctx.save();
                 ctx.translate(p.x, p.y);
-                const colorMap = { rapid: '#f43f5e', spread: '#38bdf8', shield: '#a855f7', slow: '#f59e0b' };
+                const colorMap = { rapid: '#f43f5e', spread: '#38bdf8', shield: '#a855f7', slow: '#f59e0b', missile: '#f97316' };
                 const color = colorMap[p.type] || '#ffffff';
                 ctx.shadowColor = color;
                 ctx.shadowBlur = 10;
@@ -1678,8 +1801,33 @@
                 ctx.font = 'bold 11px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                const labelMap = { rapid: 'R', spread: 'S', shield: '🛡', slow: 'H' };
+                const labelMap = { rapid: 'R', spread: 'S', shield: '🛡', slow: 'H', missile: '🚀' };
                 ctx.fillText(labelMap[p.type] || '?', 0, 1);
+                ctx.restore();
+            });
+
+            // Render Missiles
+            missiles.forEach(m => {
+                ctx.save();
+                ctx.translate(m.x, m.y);
+                const ang = Math.atan2(m.vy, m.vx) + Math.PI / 2;
+                ctx.rotate(ang);
+                ctx.shadowColor = '#f97316';
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = '#fb923c';
+                ctx.beginPath();
+                ctx.moveTo(0, -12);
+                ctx.lineTo(5, 8);
+                ctx.lineTo(-5, 8);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#fde68a';
+                ctx.beginPath();
+                ctx.moveTo(-3, 8);
+                ctx.lineTo(3, 8);
+                ctx.lineTo(0, 8 + 6 + Math.random() * 6);
+                ctx.closePath();
+                ctx.fill();
                 ctx.restore();
             });
 
@@ -1873,6 +2021,7 @@
             waveWarning.classList.add('hidden');
 
             bullets = [];
+            missiles = [];
             asteroids = [];
             particles = [];
             powerups = [];
