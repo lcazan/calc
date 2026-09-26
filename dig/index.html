@@ -209,9 +209,9 @@ function genMine(){
   vein(6,30,28,D,2,5);   // gold: deeper
   vein(7,18,55,D,1,3);   // diamond: deep & rare
   const sx=W>>1;
+  for(let x=0;x<W;x++) g[x]=EMPTY; // surface row: a clear walkway, no digging needed to move along it
   [[sx-2,1],[sx-2,2],[sx-3,2],[sx-2,3]].forEach(([x,y])=>g[x+y*W]=3);
   [[sx+2,3],[sx+3,3],[sx+3,4]].forEach(([x,y])=>g[x+y*W]=4);
-  g[sx]=EMPTY;
   return {g,sx};
 }
 function reveal(x,y){for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx>=0&&nx<W&&ny>=0&&ny<D)S.rev[nx+ny*W]=1;}}
@@ -255,6 +255,9 @@ function resize(){
   $('ring').style.width=$('ring').style.height=(k-8)+'px';
 }
 window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',()=>{resize();setTimeout(resize,150);setTimeout(resize,400);});
+if(window.visualViewport) visualViewport.addEventListener('resize',resize);
+new ResizeObserver(resize).observe($('stage')); // catches layout settling that a load-time measurement can miss
 
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();c.fill();}
 function circ(c,x,y,r){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();}
