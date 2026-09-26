@@ -1,6 +1,6 @@
 // Deep Dig service worker: always prefers the latest version over anything cached.
 // Bump VERSION whenever you change index.html so old installs pick up the update immediately.
-const VERSION = 'deepdig-v3';
+const VERSION = 'deepdig-v4';
 const SHELL = [
   './',
   './index.html',

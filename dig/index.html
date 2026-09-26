@@ -33,7 +33,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 
 #app{position:fixed;inset:0;display:flex;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:var(--wood-dk)}
 #stage{position:relative;flex:1;min-width:0;overflow:hidden;background:var(--bg)}
-#cv{position:absolute;inset:0;display:block}
+#cv{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 
 #hud{position:absolute;top:6px;left:6px;right:6px;display:flex;justify-content:space-between;gap:6px;pointer-events:none}
 .pillrow{display:flex;gap:4px;background:var(--pill);border-radius:12px;padding:4px 8px;align-items:center;flex-wrap:wrap}
@@ -255,8 +255,8 @@ let dpr=1,vw=0,vh=0,cs=36,cam={x:0,y:0},camInit=false;
 function resize(){
   const st=$('stage'); vw=st.clientWidth; vh=st.clientHeight;
   dpr=Math.min(3,window.devicePixelRatio||1);
-  cv.width=Math.round(vw*dpr); cv.height=Math.round(vh*dpr);
-  cs=Math.max(4,Math.floor(vh/8.5)); camInit=false;
+  cv.width=Math.round(vw*dpr); cv.height=Math.round(vh*dpr); cv.style.width=vw+'px'; cv.style.height=vh+'px';
+  cs=Math.max(16,Math.floor(vh/8.5)); camInit=false;
   const pad=$('pad'); const k=parseFloat(getComputedStyle(pad).gridTemplateColumns)||54;
   $('ring').style.width=$('ring').style.height=(k-8)+'px';
 }
@@ -296,8 +296,6 @@ for(let s=0;s<SCREENS;s++){
 }
 function drawSky(now){
   const gy=SKY*cs, ww=W*cs;
-  const g=ctx.createLinearGradient(0,0,0,gy); g.addColorStop(0,'#58b1ee'); g.addColorStop(1,'#c8ebff');
-  ctx.fillStyle=g; ctx.fillRect(0,0,ww,gy);
   ctx.fillStyle='rgba(255,243,176,.35)'; circ(ctx,ww*.62,gy*.32,cs*.9);
   ctx.fillStyle='#fff3b0'; circ(ctx,ww*.62,gy*.32,cs*.55);
   for(let i=0;i<7;i++){
@@ -549,13 +547,16 @@ function render(now,dt){
   ctx.fillStyle='#120b07'; ctx.fillRect(0,0,vw,vh);
   const [rx,ry]=playerPos(now);
   let tx=(rx+.5)*cs-vw/2, ty=(SKY+ry+.5)*cs-vh/2;
-  tx=W*cs<vw?(W*cs-vw)/2:clamp(tx,0,W*cs-vw);
-  ty=clamp(ty,0,Math.max(0,(SKY+D)*cs-vh));
   cam.x=tx; cam.y=ty; camInit=true; // snapped every frame: the player is always exactly centered, nothing to drift or get stuck
   let shx=0,shy=0; if(S.dig&&S.tool>0){shx=(Math.random()-.5)*S.tool*.7;shy=(Math.random()-.5)*S.tool*.7;}
   ctx.translate(-Math.round(cam.x)+shx,-Math.round(cam.y)+shy);
 
-  if(cam.y<SKY*cs) drawSky(now);
+  const gyl=SKY*cs;
+  if(cam.y<gyl){const g=ctx.createLinearGradient(0,0,0,gyl);g.addColorStop(0,'#58b1ee');g.addColorStop(1,'#c8ebff');ctx.fillStyle=g;ctx.fillRect(cam.x-2,cam.y-2,vw+4,gyl-cam.y+2);}
+  ctx.fillStyle='#231f29';
+  if(cam.x<0) ctx.fillRect(cam.x-2,Math.max(gyl,cam.y),-cam.x+2,vh+4);
+  if(cam.x+vw>W*cs) ctx.fillRect(W*cs,Math.max(gyl,cam.y),cam.x+vw-W*cs+2,vh+4);
+  if(cam.y<gyl) drawSky(now);
   const c0=Math.max(0,Math.floor(cam.x/cs)), c1=Math.min(W-1,Math.floor((cam.x+vw)/cs));
   const r0=Math.max(0,Math.floor(cam.y/cs)-SKY), r1=Math.min(D-1,Math.floor((cam.y+vh)/cs)-SKY);
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
