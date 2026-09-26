@@ -256,7 +256,7 @@ function resize(){
   const st=$('stage'); vw=st.clientWidth; vh=st.clientHeight;
   dpr=Math.min(3,window.devicePixelRatio||1);
   cv.width=Math.round(vw*dpr); cv.height=Math.round(vh*dpr);
-  cs=Math.max(26,Math.floor(vh/8.5)); camInit=false;
+  cs=Math.max(4,Math.floor(vh/8.5)); camInit=false;
   const pad=$('pad'); const k=parseFloat(getComputedStyle(pad).gridTemplateColumns)||54;
   $('ring').style.width=$('ring').style.height=(k-8)+'px';
 }
@@ -695,7 +695,7 @@ if('serviceWorker' in navigator){
           if(nw.state==='installed' && navigator.serviceWorker.controller) nw.postMessage('skip');
         });
       });
-      setInterval(()=>reg.update(),60000); // check for a newer version every minute while open
+      setInterval(()=>reg.update(),60000);
     }).catch(e=>console.warn('Service worker failed:',e));
     let refreshed=false;
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
