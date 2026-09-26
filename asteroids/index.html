@@ -502,9 +502,6 @@
         // Tracks whether every regular (destructible) asteroid spawned since
         // the last gauntlet (or game start) was destroyed by the player —
         // a perfect clear unlocks permanent Photon Torpedoes.
-        let intervalPerfectClear = true;
-        let intervalAsteroidsSpawned = 0;
-
         // Standalone indestructible asteroids (outside gauntlets): population
         // target re-rolls every 10-30s, weighted heavily toward 0-1 at a time,
         // capped at 4. spawnAsteroid() only makes one indestructible while the
@@ -892,31 +889,13 @@
             gauntletRowTimer = 0;
             gauntletRowIndex = 0;
 
-            // Perfect-clear streak for Photon Torpedoes: any NORMAL
-            // (straight-down-spawned, destructible) asteroid still standing
-            // when the gauntlet begins was never actually destroyed by the
-            // player, so it breaks the streak — same as one that slipped
-            // off the bottom. Crossfire/wall-wave asteroids never count.
-            if (asteroids.some(a => !a.indestructible && !a.eventSpawned)) intervalPerfectClear = false;
-
-            let unlockedTorpedoes = false;
-            if (intervalPerfectClear && intervalAsteroidsSpawned > 0 && !hasPhotonTorpedoes) {
-                hasPhotonTorpedoes = true;
-                unlockedTorpedoes = true;
-                updateMissileUI();
-            }
-            intervalPerfectClear = true;
-            intervalAsteroidsSpawned = 0;
-
             // Clear out any regular asteroids still in flight from before the
             // trigger — otherwise they linger near the top and stack with
             // the new gauntlet rocks, making the entrance look far denser
             // than the rest of the course.
             asteroids = asteroids.filter(a => a.indestructible);
 
-            warningText.textContent = unlockedTorpedoes
-                ? '🚀 PHOTON TORPEDOES UNLOCKED — PERMANENT MISSILE UPGRADE!'
-                : '⚠️ ASTEROID GAUNTLET! NAVIGATE THE CORRIDOR!';
+            warningText.textContent = '⚠️ ASTEROID GAUNTLET! NAVIGATE THE CORRIDOR!';
             waveWarning.classList.remove('hidden');
             setTimeout(() => waveWarning.classList.add('hidden'), 3200);
         }
@@ -1746,6 +1725,23 @@
                 updateChainLaserUI();
                 updateFanLaserUI();
             }
+
+            // Photon Torpedoes unlock permanently at 10,000 points
+            if (!hasPhotonTorpedoes && score >= 10000) {
+                hasPhotonTorpedoes = true;
+                updateMissileUI();
+                warningText.textContent = '🚀 PHOTON TORPEDOES UNLOCKED — PERMANENT MISSILE UPGRADE!';
+                waveWarning.classList.remove('hidden');
+                setTimeout(() => waveWarning.classList.add('hidden'), 3200);
+            }
+        }
+
+        // How many torpedoes fire per stock unit used — scales up at
+        // higher score milestones, without changing how much stock is spent.
+        function getTorpedoVolleySize() {
+            if (score >= 100000) return 4;
+            if (score >= 50000) return 2;
+            return 1;
         }
 
         function updateChainLaserUI() {
@@ -1819,7 +1815,6 @@
                 indestructible: indestructible
             });
 
-            if (!indestructible) intervalAsteroidsSpawned++;
         }
 
         function createExplosion(x, y, color, count = 12) {
@@ -1870,15 +1865,21 @@
                 if (d < bestDist) { bestDist = d; target = motherShip; }
             }
 
-            missiles.push({
-                x: player.x,
-                y: player.y - player.radius,
-                angle: -Math.PI / 2, // heading, radians (0 = right, -PI/2 = up)
-                speed: 380,
-                radius: 6,
-                target: target, // homes in on the nearest alien target, if any, when fired
-                isTorpedo: hasPhotonTorpedoes // permanent upgrade, baked in at fire time
-            });
+            // One stock unit fires a whole volley once Photon Torpedoes have
+            // scaled up (2 at 50k points, 4 at 100k) — stock spent stays the same.
+            const volleySize = hasPhotonTorpedoes ? getTorpedoVolleySize() : 1;
+            for (let v = 0; v < volleySize; v++) {
+                const spread = volleySize > 1 ? (v - (volleySize - 1) / 2) * 0.18 : 0;
+                missiles.push({
+                    x: player.x + (v - (volleySize - 1) / 2) * 10,
+                    y: player.y - player.radius,
+                    angle: -Math.PI / 2 + spread, // heading, radians (0 = right, -PI/2 = up)
+                    speed: 380,
+                    radius: 6,
+                    target: target, // homes in on the nearest alien target, if any, when fired
+                    isTorpedo: hasPhotonTorpedoes // permanent upgrade, baked in at fire time
+                });
+            }
             sfx.playShoot();
         }
 
@@ -2197,14 +2198,6 @@
                 if (a.x < -100 || a.x > canvas.width + 100 || a.y < -100 || a.y > canvas.height + 100) {
                     // Check if it moved far enough out to splice
                     if (a.y > canvas.height + a.radius || a.y < -a.radius - 80 || a.x < -a.radius - 80 || a.x > canvas.width + a.radius + 80) {
-                        // Only a normal, straight-down-spawned asteroid slipping
-                        // off the BOTTOM undestroyed breaks the photon-torpedo
-                        // streak — left/right exits, indestructible rocks, and
-                        // crossfire/wall-wave asteroids (which enter from all
-                        // sides) never count against it.
-                        if (!a.indestructible && !a.eventSpawned && a.y > canvas.height + a.radius) {
-                            intervalPerfectClear = false;
-                        }
                         asteroids.splice(i, 1);
                         continue;
                     }
@@ -2700,8 +2693,6 @@
             gauntletRowIndex = 0;
             nextObstacleCourseTime = 45;
             chestRewardTimer = 0;
-            intervalPerfectClear = true;
-            intervalAsteroidsSpawned = 0;
             indestructibleTargetCount = 0;
             indestructibleRerollTimer = 10 + Math.random() * 20;
 
