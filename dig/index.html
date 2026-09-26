@@ -56,6 +56,8 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #panel{width:clamp(150px,23vw,210px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(8px,3vh,16px);padding:8px;background:linear-gradient(90deg,#2c1f15,var(--wood) 30%,#33241a);border-left:3px solid var(--wood-ln)}
 #upg{width:100%;max-width:168px;border:none;border-radius:14px;padding:9px 6px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 4px 0 #9a6400,inset 0 2px 0 rgba(255,255,255,.5);font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}
 #upg:active{transform:translateY(3px);box-shadow:0 1px 0 #9a6400}
+#findme{width:100%;max-width:168px;border:none;border-radius:12px;padding:7px 6px;background:linear-gradient(#4a90d9,#2a63a6);color:#eaf4ff;box-shadow:0 3px 0 #1a3f6b,inset 0 2px 0 rgba(255,255,255,.35);font-size:14px;display:flex;align-items:center;justify-content:center;gap:5px}
+#findme:active{transform:translateY(2px);box-shadow:0 1px 0 #1a3f6b}
 #pad{--k:min(54px,15.5vh);display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
 .db{border:none;border-radius:14px;background:linear-gradient(#8a6a52,#5e4533);box-shadow:0 4px 0 #2e2016,inset 0 2px 0 rgba(255,255,255,.2);display:grid;place-items:center;touch-action:none}
 .db svg{width:55%;height:55%;fill:var(--ink)}
@@ -131,6 +133,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button class="db" data-dir="2" aria-label="Dig down"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
       <span></span>
     </div>
+    <button id="findme" class="disp" aria-label="Center the screen on your miner">📍 Find me</button>
   </div>
 </div>
 
@@ -160,7 +163,8 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 
 <script>
 (()=>{
-const W=40, D=160, SKY=3;
+const SCREEN_W=14, SCREENS=7, SPAWN_SCREEN=3; // 3 screens left of spawn, 3 right, spawn in the middle
+const W=SCREEN_W*SCREENS, D=160, SKY=3;
 const EMPTY=0, EARTH=1, BEDROCK=2;
 const UP=0, RIGHT=1, DOWN=2, LEFT=3;
 const DX=[0,1,0,-1], DY=[-1,0,1,0];
@@ -203,29 +207,31 @@ function genMine(){
       }
     }
   }
-  vein(3,85,1,95,4,9);   // coal: shallow & common
-  vein(4,60,6,D,3,7);    // iron
-  vein(5,45,14,D,3,6);   // copper
-  vein(6,30,28,D,2,5);   // gold: deeper
-  vein(7,18,55,D,1,3);   // diamond: deep & rare
-  const sx=W>>1;
+  const WR=W/40; // scale ore density to the wider map
+  vein(3,Math.round(85*WR),1,95,4,9);   // coal: shallow & common
+  vein(4,Math.round(60*WR),6,D,3,7);    // iron
+  vein(5,Math.round(45*WR),14,D,3,6);   // copper
+  vein(6,Math.round(30*WR),28,D,2,5);   // gold: deeper
+  vein(7,Math.round(18*WR),55,D,1,3);   // diamond: deep & rare
+  const sx=SPAWN_SCREEN*SCREEN_W+(SCREEN_W>>1);
   for(let x=0;x<W;x++) g[x]=EMPTY; // surface row: a clear walkway, no digging needed to move along it
   [[sx-2,1],[sx-2,2],[sx-3,2],[sx-2,3]].forEach(([x,y])=>g[x+y*W]=3);
   [[sx+2,3],[sx+3,3],[sx+3,4]].forEach(([x,y])=>g[x+y*W]=4);
   return {g,sx};
 }
 function reveal(x,y){for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx>=0&&nx<W&&ny>=0&&ny<D)S.rev[nx+ny*W]=1;}}
-function newGame(keep){
+function newGame(keep,sameMine){
   const {g,sx}=genMine();
   S={grid:g,rev:new Uint8Array(W*D),px:sx,py:0,
      inv:keep?keep.inv:{coal:0,iron:0,copper:0,gold:0,diamond:0},
      coins:keep?keep.coins:0,tool:keep?keep.tool:0,owned:keep?keep.owned:[true,false,false],
-     mine:keep?(keep.mine||1)+1:1,dig:null};
+     mine:keep?(sameMine?(keep.mine||1):(keep.mine||1)+1):1,dig:null};
   reveal(sx,0); anim=null; camInit=false; save();
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify({v:1,g:Array.from(S.grid).join(''),r:Array.from(S.rev).join(''),px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,mine:S.mine}))}catch(e){}}
 function load(){try{
-  const d=JSON.parse(localStorage.getItem(KEY)); if(!d||d.v!==1||d.g.length!==W*D) return false;
+  const d=JSON.parse(localStorage.getItem(KEY)); if(!d||d.v!==1) return false;
+  if(d.g.length!==W*D) return {inv:d.inv,coins:d.coins,tool:d.tool,owned:d.owned,mine:d.mine||1}; // older/different map size: keep coins & tools, regenerate the map
   const g=new Uint8Array(W*D), r=new Uint8Array(W*D);
   for(let i=0;i<W*D;i++){g[i]=d.g.charCodeAt(i)-48;r[i]=d.r.charCodeAt(i)-48;}
   S={grid:g,rev:r,px:d.px,py:d.py,inv:d.inv,coins:d.coins,tool:d.tool,owned:d.owned,mine:d.mine||1,dig:null};
@@ -263,9 +269,31 @@ function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);
 function circ(c,x,y,r){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();}
 function ell(c,x,y,a,b){c.beginPath();c.ellipse(x,y,a,b,0,0,Math.PI*2);c.fill();}
 
-/* ---------- surface ---------- */
-const HOUSES=[[4,0],[13,1],[27,2],[35,0]];
-const TREES=[[1,0],[2.4,1],[7,0],[9,1],[10.6,0],[17,1],[23,0],[24.5,1],[31,0],[32.4,1],[38,0],[39.2,1]];
+/* ---------- surface: 7 screens (3 left of spawn, spawn, 3 right), each a different biome ---------- */
+const BIOME=['quarry','forest','farm','town','meadow','forest','quarry'];
+const HOUSES=[], TREES=[], ROCKS=[], FENCES=[], STACKS=[];
+for(let s=0;s<SCREENS;s++){
+  const biome=BIOME[s], base=s*SCREEN_W;
+  for(let i=0;i<SCREEN_W;i++){
+    const col=base+i, h=hsh(col,0,501);
+    if(biome==='town'){
+      if(i%4===1&&h<0.85) HOUSES.push([col,Math.floor(hsh(col,1,502)*3)]);
+      else if(h<0.55) TREES.push([col+hsh(col,2,503)*.4-.2,h<0.28?0:1]);
+    } else if(biome==='forest'){
+      if(h<0.78) TREES.push([col+hsh(col,2,503)*.3-.15,hsh(col,3,504)<0.5?0:1]);
+    } else if(biome==='farm'){
+      if(i%5===0) FENCES.push(col);
+      else if(h<0.22) STACKS.push(col);
+      else if(h<0.4) TREES.push([col,1]);
+    } else if(biome==='meadow'){
+      if(h<0.3) TREES.push([col,1]);
+      else if(h<0.42) STACKS.push(col);
+    } else if(biome==='quarry'){
+      if(h<0.55) ROCKS.push([col,.45+hsh(col,4,505)*.5]);
+      else if(h<0.65) TREES.push([col,0]);
+    }
+  }
+}
 function drawSky(now){
   const gy=SKY*cs, ww=W*cs;
   const g=ctx.createLinearGradient(0,0,0,gy); g.addColorStop(0,'#58b1ee'); g.addColorStop(1,'#c8ebff');
@@ -281,8 +309,11 @@ function drawSky(now){
   for(let x=0;x<=ww;x+=cs/2) ctx.lineTo(x,gy-cs*.5-Math.sin(x/(cs*3.1))*cs*.28-Math.sin(x/(cs*1.3))*cs*.08);
   ctx.lineTo(ww,gy); ctx.fill();
   TREES.forEach(([c,v])=>tree((c+.5)*cs,gy,v));
+  ROCKS.forEach(([c,sc])=>rock((c+.5)*cs,gy,sc));
+  FENCES.forEach(c=>fence((c+.5)*cs,gy));
+  STACKS.forEach(c=>stack((c+.5)*cs,gy));
   HOUSES.forEach(([c,v])=>house((c+.5)*cs,gy,v));
-  sign(((W>>1)+.5)*cs+cs*.55,gy);
+  sign((SPAWN_SCREEN*SCREEN_W+(SCREEN_W>>1)+.5)*cs+cs*.55,gy);
 }
 function tree(cx,gy,v){
   ctx.fillStyle='#7a4a26'; ctx.fillRect(cx-cs*.07,gy-cs*.75,cs*.14,cs*.78);
@@ -297,6 +328,24 @@ function house(cx,gy,v){
   ctx.fillStyle='#7a4a26'; rr(ctx,x+w*.58,y+h*.42,w*.22,h*.58,cs*.05);
   ctx.fillStyle='#fff1a8'; ctx.fillRect(x+w*.13,y+h*.25,w*.28,h*.3);
   ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x+w*.13+w*.135,y+h*.25,w*.012+1,h*.3);
+}
+function rock(cx,gy,sc){
+  const s=cs*sc;
+  ctx.fillStyle='#8a8478';
+  ctx.beginPath(); ctx.moveTo(cx-s,gy); ctx.lineTo(cx-s*.8,gy-s*.55); ctx.lineTo(cx-s*.2,gy-s*.85);
+  ctx.lineTo(cx+s*.5,gy-s*.6); ctx.lineTo(cx+s,gy-s*.1); ctx.lineTo(cx+s*.7,gy); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#a9a294'; ctx.beginPath(); ctx.moveTo(cx-s*.2,gy-s*.85); ctx.lineTo(cx+s*.5,gy-s*.6); ctx.lineTo(cx,gy-s*.35); ctx.closePath(); ctx.fill();
+}
+function fence(cx,gy){
+  ctx.strokeStyle='#8a6a45'; ctx.lineWidth=cs*.06; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(cx-cs*.32,gy); ctx.lineTo(cx-cs*.32,gy-cs*.42); ctx.moveTo(cx+cs*.32,gy); ctx.lineTo(cx+cs*.32,gy-cs*.42); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-cs*.4,gy-cs*.34); ctx.lineTo(cx+cs*.4,gy-cs*.3); ctx.moveTo(cx-cs*.4,gy-cs*.14); ctx.lineTo(cx+cs*.4,gy-cs*.1); ctx.stroke();
+}
+function stack(cx,gy){
+  ctx.fillStyle='#d9a83b'; ctx.beginPath(); ctx.ellipse(cx,gy-cs*.28,cs*.34,cs*.3,0,Math.PI,0); ctx.fill();
+  ctx.fillRect(cx-cs*.34,gy-cs*.28,cs*.68,cs*.28);
+  ctx.strokeStyle='#b3822a'; ctx.lineWidth=cs*.02;
+  for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(cx+i*cs*.1,gy-cs*.05);ctx.lineTo(cx+i*cs*.1+cs*.04,gy-cs*.5);ctx.stroke();}
 }
 function sign(cx,gy){
   ctx.fillStyle='#6b3f25'; ctx.fillRect(cx-cs*.04,gy-cs*.7,cs*.08,cs*.72);
@@ -430,7 +479,7 @@ function drawMiner(cx,cy,now){
 }
 
 /* ---------- effects ---------- */
-let parts=[], floats=[];
+let parts=[], floats=[], ping=null;
 function dust(x,y,col,n,burst){
   for(let i=0;i<n;i++) parts.push({x,y,vx:(Math.random()-.5)*cs*(burst?5:2.4),vy:-Math.random()*cs*(burst?4:2.2),life:.5+Math.random()*.5,t:0,c:col,s:cs*(.04+Math.random()*.06)});
 }
@@ -499,11 +548,10 @@ function render(now,dt){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.fillStyle='#120b07'; ctx.fillRect(0,0,vw,vh);
   const [rx,ry]=playerPos(now);
-  let tx=(rx+.5)*cs-vw/2, ty=(SKY+ry+.5)*cs-vh*.55;
+  let tx=(rx+.5)*cs-vw/2, ty=(SKY+ry+.5)*cs-vh/2;
   tx=W*cs<vw?(W*cs-vw)/2:clamp(tx,0,W*cs-vw);
   ty=clamp(ty,0,Math.max(0,(SKY+D)*cs-vh));
-  if(!camInit){cam.x=tx;cam.y=ty;camInit=true;}
-  cam.x+=(tx-cam.x)*Math.min(1,dt*7); cam.y+=(ty-cam.y)*Math.min(1,dt*7);
+  cam.x=tx; cam.y=ty; camInit=true; // snapped every frame: the player is always exactly centered, nothing to drift or get stuck
   let shx=0,shy=0; if(S.dig&&S.tool>0){shx=(Math.random()-.5)*S.tool*.7;shy=(Math.random()-.5)*S.tool*.7;}
   ctx.translate(-Math.round(cam.x)+shx,-Math.round(cam.y)+shy);
 
@@ -526,6 +574,14 @@ function render(now,dt){
   parts.forEach(p=>{ctx.globalAlpha=1-p.t/p.life;ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s);});
   ctx.globalAlpha=1;
   drawMiner((rx+.5)*cs,(SKY+ry+.5)*cs,now);
+  if(ping){
+    const k=(now-ping)/900;
+    if(k<1){
+      const px=(rx+.5)*cs,py=(SKY+ry+.5)*cs;
+      ctx.strokeStyle=`rgba(74,144,217,${1-k})`; ctx.lineWidth=cs*.08;
+      ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*(.6+k*1.6),0,Math.PI*2); ctx.stroke();
+    } else ping=null;
+  }
   ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.round(cs*.36)}px "Lilita One","Arial Black",sans-serif`; ctx.lineWidth=cs*.1; ctx.lineJoin='round';
   floats.forEach(f=>{const k=(now-f.t0)/1300;ctx.globalAlpha=1-k*k;const y=f.y-k*cs*.9;ctx.strokeStyle='#1a0f07';ctx.strokeText(f.text,f.x,y);ctx.fillStyle=f.col;ctx.fillText(f.text,f.x,y);});
   ctx.globalAlpha=1;
@@ -571,6 +627,7 @@ function setTool(i){
 function openShop(){modalOpen=true;held=null;$('modal').hidden=false;renderShop();$('close').focus();}
 function closeShop(){modalOpen=false;$('modal').hidden=true;armNew(false);}
 $('upg').addEventListener('click',openShop);
+$('findme').addEventListener('click',()=>{ping=performance.now();toast('There you are — your miner is right in the middle of the screen.');});
 $('close').addEventListener('click',closeShop);
 $('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeShop();});
 $('sell').addEventListener('click',e=>{
@@ -617,7 +674,9 @@ document.addEventListener('contextmenu',e=>e.preventDefault());
 
 /* ---------- boot ---------- */
 const hadSave=load();
-if(!hadSave) newGame(null);
+if(hadSave===true){/* loaded fully */}
+else if(hadSave){newGame(hadSave,true); toast('Your mine map was updated — coins and tools carried over.',3200);}
+else newGame(null);
 resize(); updateHUD();
 if(!hadSave) setTimeout(()=>toast('Tap an arrow to start digging',3000),400);
 let last=performance.now();
@@ -627,7 +686,22 @@ requestAnimationFrame(frame);
 </script>
 <script>
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(e=>console.warn('Service worker failed:',e));});
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      if(reg.waiting) reg.waiting.postMessage('skip');
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        nw && nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed' && navigator.serviceWorker.controller) nw.postMessage('skip');
+        });
+      });
+      setInterval(()=>reg.update(),60000); // check for a newer version every minute while open
+    }).catch(e=>console.warn('Service worker failed:',e));
+    let refreshed=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(refreshed) return; refreshed=true; location.reload();
+    });
+  });
 }
 </script>
 </body>
