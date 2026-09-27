@@ -60,7 +60,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 @media (orientation:portrait){
   #app{flex-direction:column}
   #panel{width:100%;max-width:none;flex-direction:row;flex-wrap:wrap;align-content:flex-start;justify-content:center;gap:6px;padding:6px;max-height:38vh;border-left:none;border-top:3px solid var(--wood-ln)}
-  #panel #pad{--k:min(46px,8vh);order:1}
+  #panel #pad{--k:min(46px,8vh);order:1;margin-left:auto;margin-right:max(6px,env(safe-area-inset-right,0px))}
   #panel #upg{order:0;flex:1 1 100%}
   #panel #supportbtn,#panel #buildbtn{width:auto;max-width:none;flex:1 1 auto;font-size:12.5px;padding:6px 8px}
   #panel #matpick{width:auto;max-width:none;flex:1 1 100%}
@@ -104,7 +104,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 .mat[data-mat="stone"]{background:radial-gradient(ellipse 30% 20% at 28% 22%,#a9a39a 95%,transparent),radial-gradient(ellipse 22% 20% at 76% 22%,#8a857e 95%,transparent),radial-gradient(ellipse 25% 19% at 18% 55%,#b3ada3 95%,transparent),radial-gradient(ellipse 28% 19% at 66% 55%,#958e82 95%,transparent),radial-gradient(ellipse 30% 18% at 35% 86%,#9a948c 95%,transparent),radial-gradient(ellipse 18% 16% at 85% 86%,#7f7a73 95%,transparent),#4d4843}
 .mat[data-mat="water"]{background:repeating-linear-gradient(170deg,transparent 0 6px,rgba(255,255,255,.22) 6px 8px),#1c5f8a}
 .mat[data-mat="glass"]{background:linear-gradient(135deg,transparent 30%,rgba(255,255,255,.75) 32%,transparent 40%,transparent 55%,rgba(255,255,255,.5) 57%,transparent 63%),rgba(190,230,255,.35);border-color:#dff2ff}
-#pad{--k:min(50px,14vh);display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
+#pad{--k:min(50px,14vh);align-self:flex-end;margin-right:4px;display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
 .db{border:none;border-radius:14px;background:linear-gradient(#8a6a52,#5e4533);box-shadow:0 4px 0 #2e2016,inset 0 2px 0 rgba(255,255,255,.2);display:grid;place-items:center;touch-action:none}
 .db svg{width:55%;height:55%;fill:var(--ink)}
 .db.on,.db:active{transform:translateY(3px);box-shadow:0 1px 0 #2e2016;background:linear-gradient(#a07a5c,#6f513b)}
@@ -114,9 +114,11 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #ring{border-radius:50%;margin:4px;display:grid;place-items:center;background:rgba(0,0,0,.25);position:relative}
 #ring::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--wood)}
 #ring span{position:relative;z-index:1;font-family:'Lilita One','Arial Black',sans-serif;font-size:13px}
-#fillbtn{position:absolute;inset:7px;z-index:2;border:none;border-radius:50%;display:none;align-items:center;justify-content:center;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);font-size:1.15em;line-height:1;padding:0;box-shadow:inset 0 2px 0 rgba(255,255,255,.5)}
+#fillbtn{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:50%;z-index:4;width:clamp(64px,11vmin,88px);height:clamp(64px,11vmin,88px);border:3px solid #9a6400;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 5px 0 #9a6400,0 6px 14px rgba(0,0,0,.35),inset 0 2px 0 rgba(255,255,255,.5);touch-action:none}
+#fillbtn span{font-size:clamp(24px,4.5vmin,34px);line-height:1}
+#fillbtn small{font-size:12px;line-height:1.1}
 #fillbtn.show{display:flex}
-#fillbtn:active{transform:translateY(2px)}
+#fillbtn:active{transform:translateY(4px);box-shadow:0 1px 0 #9a6400,0 2px 6px rgba(0,0,0,.35)}
 
 #modal,#menu,#splash,#pumpmodal,#supportmodal,#matmodal,#coinmodal,#pilemodal,#confirmmodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
 #splash{z-index:8}
@@ -196,6 +198,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
     </div>
     <div id="info">Depth <b id="depth">0 m</b> &nbsp;<span id="toolinfo"></span></div>
     <div id="toast"></div>
+    <button id="fillbtn" class="disp" aria-label="Place a block on the highlighted square"><span>🧱</span><small>Place</small></button>
   </div>
   <div id="panel">
     <button id="upg" class="disp" aria-label="Open the trading post to sell ore and upgrade tools">⛏️ Upgrade</button>
@@ -204,7 +207,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button class="db" data-dir="0" aria-label="Dig up"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
       <span></span>
       <button class="db" data-dir="3" aria-label="Dig left"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
-      <div id="ring"><span id="ringt"></span><button id="fillbtn" class="disp" aria-label="Fill the highlighted square">🧱</button></div>
+      <div id="ring"><span id="ringt"></span></div>
       <button class="db" data-dir="1" aria-label="Dig right"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
       <span></span>
       <button class="db" data-dir="2" aria-label="Dig down"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
@@ -662,6 +665,12 @@ for(let y=0;y<D;y++){
 /* ---------- canvas ---------- */
 const cv=$('cv'), ctx=cv.getContext('2d');
 let dpr=1,vw=0,vh=0,cs=36,cam={x:0,y:0},camInit=false;
+// Keep the Place button on the same horizontal line as the centre of the D-pad.
+function placeFillBtn(){
+  const b=$('fillbtn'); if(!b.classList.contains('show')) return;
+  const r=$('pad').getBoundingClientRect(), h=b.getBoundingClientRect().height;
+  b.style.top=Math.round(r.top+r.height/2-h/2)+'px';
+}
 function resize(){
   const st=$('stage'); vw=st.clientWidth; vh=st.clientHeight;
   dpr=Math.min(3,window.devicePixelRatio||1);
@@ -674,7 +683,10 @@ function resize(){
 window.addEventListener('resize',resize);
 window.addEventListener('orientationchange',()=>{resize();setTimeout(resize,150);setTimeout(resize,400);});
 if(window.visualViewport) visualViewport.addEventListener('resize',resize);
-new ResizeObserver(resize).observe($('stage')); // catches layout settling that a load-time measurement can miss
+new ResizeObserver(resize).observe($('stage'));
+new ResizeObserver(()=>placeFillBtn()).observe($('panel'));
+window.addEventListener('resize',()=>requestAnimationFrame(placeFillBtn));
+$('panel').addEventListener('scroll',placeFillBtn); // catches layout settling that a load-time measurement can miss
 
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();c.fill();}
 function circ(c,x,y,r){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();}
@@ -1058,8 +1070,7 @@ function beamRun(x0,x1,th,capA,capB,pal){
   ctx.fillStyle=pal.cap; const c=Math.max(1.2,h*.08);
   if(capA) ctx.fillRect(x0,-h/2,c,h); if(capB) ctx.fillRect(x1-c,-h/2,c,h);
 }
-// Beams made of ¼ pieces. Pieces side by side or stacked join as before; pieces touching
-// only corner to corner are joined by a diagonal beam running between their centres.
+// Beams made of ¼ pieces, joined into one continuous beam when side by side or stacked.
 function drawBeamPieces(c0,c1,rTop,r1){
   const q=cs/4, th=q*.78, half=q*Math.SQRT2/2;
   for(const [idx,str] of S.pieces){
@@ -1070,12 +1081,7 @@ function drawBeamPieces(c0,c1,rTop,r1){
       const fq=c==='5'?steelQ:woodQ, pal=c==='6'?BEAM_WOOD:BEAM_STEEL;
       const qx=x*4+k%4, qy=y*4+((k/4)|0), X=qx*q, Y=SKY*cs+qy*q, cx=X+q/2, cy=Y+q/2;
       const L=fq(qx-1,qy), R=fq(qx+1,qy), U=fq(qx,qy-1), Dn=fq(qx,qy+1);
-      const diags=[[1,-1],[-1,-1],[1,1],[-1,1]].filter(([dx,dy])=>fq(qx+dx,qy+dy)&&!fq(qx+dx,qy)&&!fq(qx,qy+dy));
-      if(L||R||U||Dn||!diags.length) drawBeam(X,Y,q,L,R,U,Dn,pal);
-      for(const [dx,dy] of diags){ ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.atan2(dy,dx)); beamRun(-q*.05,half+q*.05,th,false,false,pal); ctx.restore(); }
-      if(!(L||R||U||Dn) && diags.length===1){ // the loose end of a diagonal gets a short capped stub
-        const [dx,dy]=diags[0]; ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.atan2(-dy,-dx)); beamRun(-q*.05,q*.42,th,false,true,pal); ctx.restore();
-      }
+      drawBeam(X,Y,q,L,R,U,Dn,pal);
     }
   }
 }
@@ -2259,14 +2265,14 @@ function toggleBuildMode(){
   b.textContent=buildMode?'⛏️ Dig':'🧱 Build';
   b.setAttribute('aria-label',buildMode?'Switch to dig mode':'Switch to build mode');
   $('matpick').hidden=!buildMode;
-  $('fillbtn').classList.toggle('show',buildMode);
+  $('fillbtn').classList.toggle('show',buildMode); requestAnimationFrame(placeFillBtn);
   $('pad').classList.toggle('buildmode',buildMode);
   if(buildMode) setMatBtns(); else setQuarter(false);
   updateHUD();
-  toast(buildMode?'Build mode — aim with the arrows, tap the middle to fill':'Back to digging',2400);
+  toast(buildMode?'Build mode — aim with the arrows, tap Place on the left to build':'Back to digging',2400);
 }
 $('buildbtn').addEventListener('click',toggleBuildMode);
-$('qbtn').addEventListener('click',()=>{ setQuarter(!quarterMode); toast(quarterMode?'¼ pieces — the arrows move the little box':'Whole blocks',1600); });
+$('qbtn').addEventListener('click',()=>{ setQuarter(!quarterMode); toast(quarterMode?'¼ pieces — the arrows move the little box, Place puts a piece there':'Whole blocks',1600); });
 $('matgrid').innerHTML=Object.keys(MATNAME).map(k=>`<button class="mattile" data-mat="${k}"><span class="mat" data-mat="${k}"></span>${MATNAME[k]}${k==='door'?`<small>${DOOR_COST} coins</small>`:''}</button>`).join('');
 function openMats(){ modalOpen=true; held=null; setMatBtns(); $('matmodal').hidden=false; }
 function closeMats(){ $('matmodal').hidden=true; modalOpen=false; }
@@ -2282,7 +2288,7 @@ $('matgrid').addEventListener('click',e=>{
 $('coinquick').addEventListener('click',e=>{ const b=e.target.closest('[data-amt]'); if(!b) return; $('coinamt').value=b.dataset.amt==='all'?S.coins:b.dataset.amt; });
 $('coinok').addEventListener('click',()=>{
   const v=Math.floor(+$('coinamt').value); coinDrop=v>0?v:1000;
-  $('coinmodal').hidden=true; modalOpen=false; updateHUD(); toast(`Dropping ${coinDrop} coins per pile — aim and tap the middle button.`,2400);
+  $('coinmodal').hidden=true; modalOpen=false; updateHUD(); toast(`Dropping ${coinDrop} coins per pile — aim and tap Place.`,2400);
 });
 $('pileleave').addEventListener('click',closePile);
 $('confirmno').addEventListener('click',closeConfirm);
@@ -2290,7 +2296,7 @@ $('confirmyes').addEventListener('click',()=>{ const cb=confirmCb; closeConfirm(
 $('confirmmodal').addEventListener('click',e=>{ if(e.target.id==='confirmmodal'&&performance.now()-lastCanvasTap>500) closeConfirm(); });
 $('piletake').addEventListener('click',pickUpPile);
 $('pilemodal').addEventListener('click',e=>{ if(e.target.id==='pilemodal'&&performance.now()-lastCanvasTap>500) closePile(); });
-$('fillbtn').addEventListener('click',fillHighlighted);
+$('fillbtn').addEventListener('pointerdown',e=>{ e.preventDefault(); fillHighlighted(); });
 $('close').addEventListener('click',closeShop);
 $('modal').addEventListener('click',e=>{if(e.target.id==='modal'&&performance.now()-lastCanvasTap>500)closeShop();});
 $('sell').addEventListener('click',e=>{
