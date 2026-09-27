@@ -1,2823 +1,1180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#06b6d4">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Asteroid Dash">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <title>Asteroid Shooter Arcade - Ultimate Edition</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            box-sizing: border-box;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
-        }
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #050510;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        .glow-text {
-            text-shadow: 0 0 10px rgba(59, 130, 246, 0.8), 0 0 20px rgba(147, 51, 234, 0.6);
-        }
-        .glow-btn {
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
-        }
-        .glow-btn:active {
-            transform: scale(0.95);
-        }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#23170f">
+<meta name="description" content="Dig underground, follow ore veins, sell your haul and upgrade your tools.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deep Dig">
+<title>Deep Dig</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --wood:#3b2a1d; --wood-dk:#23170f; --wood-ln:#6b4a2f;
+  --ink:#fff4e0; --muted:#d2b894; --lamp:#ffc21a; --lamp-ink:#3a2400;
+  --pill:rgba(24,14,7,.74); --bg:#120b07;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --pill:rgba(18,10,5,.8); } }
+:root[data-theme="dark"]{ --pill:rgba(18,10,5,.8); }
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+.disp{font-family:'Lilita One','Arial Black',Impact,sans-serif;font-weight:400;letter-spacing:.3px}
 
-        /* Pulse Animations for Weapon Buttons */
-        @keyframes laserGlowPink {
-            0%, 100% { box-shadow: 0 0 12px rgba(236, 72, 153, 0.8), inset 0 0 8px rgba(236, 72, 153, 0.5); }
-            50% { box-shadow: 0 0 24px rgba(244, 114, 182, 1), inset 0 0 14px rgba(244, 114, 182, 0.8); }
-        }
-        @keyframes laserGlowCyan {
-            0%, 100% { box-shadow: 0 0 12px rgba(6, 182, 212, 0.8), inset 0 0 8px rgba(6, 182, 212, 0.5); }
-            50% { box-shadow: 0 0 24px rgba(34, 211, 238, 1), inset 0 0 14px rgba(34, 211, 238, 0.8); }
-        }
-        .laser-btn-chain {
-            animation: laserGlowPink 1.2s infinite ease-in-out;
-        }
-        .laser-btn-cross {
-            animation: laserGlowCyan 1.2s infinite ease-in-out;
-        }
+#app{position:fixed;inset:0;display:flex;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:var(--wood-dk)}
+#stage{position:relative;flex:1;min-width:0;overflow:hidden;background:var(--bg)}
+#cv{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 
-        /* Warning Banner Pulse */
-        @keyframes warningPulse {
-            0%, 100% { opacity: 0.2; transform: scale(0.98); }
-            50% { opacity: 1; transform: scale(1.02); }
-        }
-        .warning-banner {
-            animation: warningPulse 0.5s infinite ease-in-out;
-        }
-    </style>
+#hud{position:absolute;top:6px;left:6px;right:6px;display:flex;justify-content:space-between;gap:6px;pointer-events:none}
+.hudleft{display:flex;gap:6px;align-items:center}
+#menubtn{pointer-events:auto;border:none;background:var(--pill);color:var(--ink);width:34px;height:34px;border-radius:10px;font-size:16px;flex:none}
+.pillrow{display:flex;gap:4px;background:var(--pill);border-radius:12px;padding:4px 8px;align-items:center;flex-wrap:wrap}
+.ri{display:flex;align-items:center;gap:4px;min-width:38px}
+.ri b,.coins b{font-family:'Lilita One','Arial Black',sans-serif;font-weight:400;font-size:15px;line-height:1}
+.ri.zero b{opacity:.45}
+.ic{display:inline-block;width:16px;height:16px;flex:none;background:radial-gradient(circle at 35% 30%,var(--h) 0 20%,var(--c) 58%);clip-path:polygon(30% 0,76% 6%,100% 46%,82% 96%,24% 100%,0 55%)}
+.ic.gem{clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%)}
+.coin{display:inline-block;width:17px;height:17px;border-radius:50%;flex:none;background:radial-gradient(circle at 38% 34%,#fff6b8 0 14%,#ffcf2e 30%,#d68f00 78%);box-shadow:inset 0 0 0 2px #b77400}
+.coin.sm{width:13px;height:13px}
+.coins{display:flex;align-items:center;gap:5px}
+.pop{animation:pop .35s ease-out}
+@keyframes pop{40%{transform:scale(1.35)}}
+
+#info{position:absolute;left:6px;bottom:6px;background:var(--pill);border-radius:10px;padding:4px 9px;font-size:12px;color:var(--muted);pointer-events:none}
+#info b{color:var(--ink)}
+#toast{position:absolute;left:50%;top:48px;transform:translateX(-50%);background:rgba(24,14,7,.9);border:2px solid var(--lamp);color:var(--ink);padding:6px 14px;border-radius:12px;font-weight:800;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:90%;text-align:center;white-space:normal}
+#toast.show{opacity:1}
+
+#panel{width:clamp(150px,23vw,210px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2.4vh,14px);padding:8px;background:linear-gradient(90deg,#2c1f15,var(--wood) 30%,#33241a);border-left:3px solid var(--wood-ln);overflow-y:auto}
+#upg{width:100%;max-width:168px;border:none;border-radius:14px;padding:9px 6px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 4px 0 #9a6400,inset 0 2px 0 rgba(255,255,255,.5);font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}
+#upg:active{transform:translateY(3px);box-shadow:0 1px 0 #9a6400}
+#findme,#supportbtn{width:100%;max-width:168px;border:none;border-radius:12px;padding:7px 6px;color:#eaf4ff;box-shadow:0 3px 0 #1a3f6b,inset 0 2px 0 rgba(255,255,255,.35);font-size:14px;display:flex;align-items:center;justify-content:center;gap:5px}
+#findme{background:linear-gradient(#4a90d9,#2a63a6)}
+#supportbtn{background:linear-gradient(#8a6a52,#5e4533);color:var(--ink);box-shadow:0 3px 0 #2e2016}
+#findme:active,#supportbtn:active{transform:translateY(2px)}
+#pad{--k:min(50px,14vh);display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
+.db{border:none;border-radius:14px;background:linear-gradient(#8a6a52,#5e4533);box-shadow:0 4px 0 #2e2016,inset 0 2px 0 rgba(255,255,255,.2);display:grid;place-items:center;touch-action:none}
+.db svg{width:55%;height:55%;fill:var(--ink)}
+.db.on,.db:active{transform:translateY(3px);box-shadow:0 1px 0 #2e2016;background:linear-gradient(#a07a5c,#6f513b)}
+.db[data-dir="1"] svg{transform:rotate(90deg)} .db[data-dir="2"] svg{transform:rotate(180deg)} .db[data-dir="3"] svg{transform:rotate(-90deg)}
+#ring{border-radius:50%;margin:4px;display:grid;place-items:center;background:rgba(0,0,0,.25);position:relative}
+#ring::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--wood)}
+#ring span{position:relative;z-index:1;font-family:'Lilita One','Arial Black',sans-serif;font-size:13px}
+
+#modal,#menu{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
+#modal[hidden],#menu[hidden]{display:none}
+.sheet{width:min(780px,100%);max-height:100%;overflow:auto;background:linear-gradient(#3a2819,#2a1c12);border:3px solid var(--wood-ln);border-radius:18px;padding:10px 14px 12px;touch-action:pan-y}
+.sheet header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.sheet h2{margin:0;font-size:24px;flex:1}
+.sheet h3{margin:0 0 6px;font-size:16px;color:var(--muted);font-family:'Nunito',sans-serif;font-weight:900}
+.sheet h3 small{font-weight:700;opacity:.8}
+.bigcoins{background:rgba(0,0,0,.3);border-radius:12px;padding:5px 12px}
+.bigcoins b{font-size:20px}
+#close,#menuclose{border:none;background:rgba(255,255,255,.1);width:36px;height:36px;border-radius:50%;font-size:18px}
+.cols{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}
+#sell{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tile{border:2px solid #5a3e28;background:#4a3322;border-radius:12px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:1px}
+.tile .ic{width:26px;height:26px;margin-bottom:2px}
+.tile .nm{font-weight:900;font-size:13px}
+.tile .ct{font-family:'Lilita One','Arial Black',sans-serif;font-size:16px}
+.tile .pr{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px}
+.tile:disabled{opacity:.38;cursor:default}
+.tile:not(:disabled):active{background:#5b3f29}
+#sellall{margin-top:8px;width:100%;border:none;border-radius:12px;padding:9px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);font-weight:900;box-shadow:0 3px 0 #9a6400}
+#sellall:disabled{filter:grayscale(1);opacity:.5}
+#tools{display:flex;flex-direction:column;gap:6px}
+.tool{display:flex;align-items:center;gap:8px;background:#4a3322;border:2px solid #5a3e28;border-radius:12px;padding:5px 8px}
+.tool.cur{border-color:var(--lamp)}
+.tool canvas{width:72px;height:40px;flex:none}
+.tt{flex:1;display:flex;flex-direction:column;line-height:1.15}
+.tt b{font-size:14px}
+.tt span{font-size:11.5px;color:var(--muted)}
+.buy{border:none;border-radius:10px;padding:7px 10px;background:#6fbf4a;color:#10240a;font-weight:900;display:flex;align-items:center;gap:4px;box-shadow:0 3px 0 #3d7a24;white-space:nowrap}
+.buy.sm{padding:4px 7px;font-size:11px;background:#5aa8d6;box-shadow:0 2px 0 #2a6d94}
+.buy:disabled{background:#6b5a4b;color:#bda88f;box-shadow:0 3px 0 #3a2c20;cursor:default}
+.tag{font-size:12px;font-weight:900;color:var(--lamp);padding:0 4px}
+.toolbtns{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.sheet footer{margin-top:10px;display:flex;justify-content:flex-end}
+#newmine{border:2px solid var(--wood-ln);background:transparent;border-radius:10px;padding:6px 12px;font-weight:800;font-size:13px;color:var(--muted)}
+#newmine.arm{border-color:#e0563f;color:#ffb3a5}
+#floods:empty,#detect:empty{display:none}
+
+#rotate{display:none;position:fixed;inset:0;z-index:9;background:var(--wood-dk);flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px}
+#rotate .phone{width:46px;height:78px;border:4px solid var(--lamp);border-radius:10px;animation:turn 2s ease-in-out infinite}
+@keyframes turn{50%,100%{transform:rotate(-90deg)}}
+@media (orientation:portrait) and (max-width:700px){#rotate{display:flex}}
+@media (prefers-reduced-motion:reduce){#rotate .phone{animation:none;transform:rotate(-90deg)}.pop{animation:none}}
+</style>
 </head>
-<body class="relative flex flex-col items-center justify-center min-h-screen bg-slate-950 text-white overflow-hidden">
-
-    <!-- HUD Layer -->
-    <div id="hud" class="absolute top-0 left-0 w-full p-3 md:p-4 pointer-events-none z-10 flex justify-between items-start">
-        
-        <!-- Top-Left: Shared Super Laser Weapon Triggers -->
-        <div class="flex items-center gap-2 md:gap-3 pointer-events-auto">
-            <!-- Cascading Chain Laser Button -->
-            <button id="chain-laser-btn" class="hidden relative group flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-fuchsia-600 to-pink-500 border-2 border-pink-300 text-white shadow-xl transition-all duration-200 active:scale-95 laser-btn-chain">
-                <i class="fa-solid fa-sitemap text-xl md:text-3xl rotate-180 animate-pulse"></i>
-                <span id="chain-badge" class="absolute -top-2 -right-2 w-5 h-5 md:w-7 md:h-7 rounded-full bg-cyan-400 text-slate-950 font-black text-[10px] md:text-sm flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
-                <span class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-pink-300 tracking-wider uppercase whitespace-nowrap">CHAIN [L]</span>
-            </button>
-
-            <!-- 4-Way Cross Laser Button -->
-            <button id="cross-laser-btn" class="hidden relative group flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-cyan-600 to-teal-400 border-2 border-cyan-200 text-white shadow-xl transition-all duration-200 active:scale-95 laser-btn-cross">
-                <i class="fa-solid fa-arrows-to-dot text-xl md:text-3xl animate-pulse"></i>
-                <span id="fan-badge" class="absolute -top-2 -right-2 w-5 h-5 md:w-7 md:h-7 rounded-full bg-pink-400 text-slate-950 font-black text-[10px] md:text-sm flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
-                <span class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-cyan-300 tracking-wider uppercase whitespace-nowrap">FAN-5 [K]</span>
-            </button>
-
-            <!-- Homing Missile / Photon Torpedo Button -->
-            <button id="missile-btn" class="hidden relative group flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-400 border-2 border-orange-200 text-white shadow-xl transition-all duration-200 active:scale-95">
-                <i id="missile-btn-icon" class="fa-solid fa-rocket text-xl md:text-3xl animate-pulse"></i>
-                <span id="missile-badge" class="absolute -top-2 -right-2 w-5 h-5 md:w-7 md:h-7 rounded-full bg-orange-300 text-slate-950 font-black text-[10px] md:text-sm flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
-                <span id="missile-btn-label" class="absolute -bottom-4 text-[9px] md:text-[10px] font-bold text-orange-300 tracking-wider uppercase whitespace-nowrap">MISSILE [M]</span>
-            </button>
-
-            <!-- Score Display -->
-            <div class="flex flex-col ml-1 pointer-events-none">
-                <span class="text-[10px] md:text-xs tracking-widest text-indigo-400 uppercase font-semibold">Score</span>
-                <span id="score-display" class="text-xl md:text-3xl font-black text-cyan-300 tracking-wider">0</span>
-                <span id="high-score-display" class="text-[10px] md:text-xs text-slate-400">High: 0</span>
-            </div>
-        </div>
-
-        <!-- Center: Wave Event Countdown & Active Badges -->
-        <div class="flex flex-col items-center gap-1 pointer-events-none">
-            <div id="wave-timer-display" class="text-[10px] md:text-xs font-bold text-amber-400 bg-amber-950/70 border border-amber-500/40 px-2.5 py-1 rounded-full shadow-md">
-                EVENT: 30s
-            </div>
-            <div id="powerup-badge-container" class="flex flex-wrap gap-1 max-w-[180px] justify-center"></div>
-        </div>
-
-        <!-- Top-Right: Pause Button & Health/Shield Display -->
-        <div class="flex flex-col items-end gap-2 pointer-events-auto">
-            <button id="pause-btn" class="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-200 text-xs md:text-sm font-bold shadow-lg hover:bg-slate-700 active:scale-95 transition-all">
-                <i class="fa-solid fa-pause text-cyan-400"></i>
-                <span class="hidden md:inline">PAUSE</span>
-            </button>
-            <div class="flex flex-col items-end pointer-events-none">
-                <span class="text-[10px] md:text-xs tracking-widest text-indigo-400 uppercase font-semibold">Hull</span>
-                <div id="lives-container" class="flex gap-1 mt-0.5 text-base md:text-lg text-rose-500">
-                    <i class="fa-solid fa-heart"></i>
-                    <i class="fa-solid fa-heart"></i>
-                    <i class="fa-solid fa-heart"></i>
-                </div>
-            </div>
-        </div>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="hud">
+      <div class="hudleft">
+        <button id="menubtn" aria-label="Menu">☰</button>
+        <div class="pillrow" id="res"></div>
+      </div>
+      <div class="pillrow coins"><span class="coin"></span><b id="coins">0</b></div>
     </div>
-
-    <!-- Event Warning Banners -->
-    <div id="wave-warning" class="hidden absolute top-20 inset-x-0 z-10 flex items-center justify-center pointer-events-none px-4">
-        <div id="warning-box" class="warning-banner bg-rose-600/90 text-white border-2 border-amber-300 px-4 md:px-6 py-2 rounded-2xl shadow-2xl flex items-center gap-2 md:gap-3 text-center">
-            <i class="fa-solid fa-triangle-exclamation text-amber-300 text-lg md:text-xl"></i>
-            <span id="warning-text" class="font-black text-xs md:text-base tracking-widest uppercase">WARNING!</span>
-            <i class="fa-solid fa-triangle-exclamation text-amber-300 text-lg md:text-xl"></i>
-        </div>
+    <div id="info">Depth <b id="depth">0 m</b> &nbsp;<span id="toolinfo"></span></div>
+    <div id="toast"></div>
+  </div>
+  <div id="panel">
+    <button id="upg" class="disp" aria-label="Open the trading post to sell ore and upgrade tools">⛏️ Upgrade</button>
+    <div id="pad">
+      <span></span>
+      <button class="db" data-dir="0" aria-label="Dig up"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
+      <span></span>
+      <button class="db" data-dir="3" aria-label="Dig left"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
+      <div id="ring"><span id="ringt"></span></div>
+      <button class="db" data-dir="1" aria-label="Dig right"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
+      <span></span>
+      <button class="db" data-dir="2" aria-label="Dig down"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
+      <span></span>
     </div>
+    <button id="findme" class="disp" aria-label="Center the screen on your miner">📍 Find me</button>
+    <button id="supportbtn" class="disp" aria-label="Place a mine support here for 5 coins">🪵 Support · 5</button>
+  </div>
+</div>
 
-    <!-- Start Screen Modal -->
-    <div id="start-screen" class="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-slate-950/85 backdrop-blur-md">
-        <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl text-center flex flex-col items-center">
-            <div class="w-16 h-16 mb-4 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                <i class="fa-solid fa-rocket text-2xl text-white"></i>
-            </div>
-            <h1 class="text-3xl md:text-4xl font-black tracking-tight text-white glow-text mb-2">ASTEROID DASH</h1>
-            <p id="start-highscore" class="text-slate-400 text-sm md:text-base mb-6">High Score: 0</p>
-
-            <button id="start-btn" class="w-full py-3.5 px-6 rounded-xl font-bold text-lg bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white glow-btn transition-all duration-200">
-                PLAY NOW
-            </button>
-            <button id="view-leaderboard-btn" class="mt-3 text-xs text-slate-400 hover:text-cyan-300 underline underline-offset-2">View Top 10</button>
-        </div>
+<div id="modal" hidden>
+  <div class="sheet" role="dialog" aria-label="Trading post">
+    <header>
+      <h2 class="disp">Trading Post</h2>
+      <div class="coins bigcoins"><span class="coin"></span><b id="scoins" class="disp">0</b></div>
+      <button id="close" aria-label="Close">✕</button>
+    </header>
+    <div class="cols">
+      <section>
+        <h3>Sell ore <small>· tap one to sell all of it</small></h3>
+        <div id="sell"></div>
+        <button id="sellall">Sell everything</button>
+      </section>
+      <section>
+        <h3>Tools</h3>
+        <div id="tools"></div>
+        <h3 style="margin-top:10px">Surveying</h3>
+        <button id="scanbtn" class="buy" style="width:100%;justify-content:center">🗺️ 21×21 area scan, centered on you · <span class="coin sm"></span>1000</button>
+        <div id="detect" style="margin-top:6px"></div>
+        <div id="floods"></div>
+      </section>
     </div>
+    <footer><button id="newmine">Start a new mine</button></footer>
+  </div>
+</div>
 
-    <!-- New High Score Name Entry Modal -->
-    <div id="name-entry-screen" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
-        <div class="max-w-xs w-full bg-slate-900 border border-amber-500/40 p-6 rounded-2xl shadow-2xl text-center flex flex-col items-center">
-            <i class="fa-solid fa-trophy text-4xl text-amber-400 mb-3"></i>
-            <h2 class="text-xl font-black text-white tracking-wider mb-1">NEW HIGH SCORE!</h2>
-            <p id="name-entry-score" class="text-cyan-300 text-2xl font-black mb-4">0</p>
-            <input id="name-entry-input" maxlength="12" placeholder="Your name" class="w-full mb-4 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-center focus:outline-none focus:border-cyan-400" />
-            <button id="name-entry-btn" class="w-full py-3 px-6 rounded-xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white glow-btn transition-all duration-200">SAVE</button>
-        </div>
+<div id="menu" hidden>
+  <div class="sheet" style="max-width:340px" role="dialog" aria-label="Menu">
+    <header><h2 class="disp">Menu</h2><button id="menuclose" aria-label="Close">✕</button></header>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button id="savefile" class="buy" style="justify-content:center">💾 Save to file</button>
+      <button id="loadfilebtn" class="buy" style="justify-content:center;background:#5aa8d6;box-shadow:0 3px 0 #2a6d94">📂 Load from file</button>
+      <button id="quitbtn" class="buy" style="justify-content:center;background:#c24a3a;box-shadow:0 3px 0 #7a2c20">🚪 Quit</button>
     </div>
+    <input type="file" id="loadinput" accept="application/json" style="display:none">
+  </div>
+</div>
 
-    <!-- Leaderboard (Top 10) Modal -->
-    <div id="leaderboard-screen" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
-        <div class="max-w-xs w-full bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl text-center flex flex-col items-center">
-            <h2 class="text-xl font-black text-white tracking-wider mb-4">TOP 10</h2>
-            <ol id="leaderboard-list" class="w-full text-left text-sm text-slate-300 space-y-1.5 mb-5"></ol>
-            <button id="leaderboard-close-btn" class="w-full py-3 px-6 rounded-xl font-bold bg-gradient-to-r from-cyan-500 to-indigo-600 text-white glow-btn transition-all duration-200">CLOSE</button>
-        </div>
-    </div>
+<div id="rotate"><div class="phone"></div><div class="disp" style="font-size:22px">Turn your phone sideways</div><div style="color:var(--muted)">Deep Dig plays in landscape.</div></div>
 
-    <!-- Pause Screen Modal -->
-    <div id="pause-screen" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
-        <div class="max-w-xs w-full bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl text-center flex flex-col items-center">
-            <i class="fa-solid fa-circle-pause text-5xl text-cyan-400 mb-3 animate-pulse"></i>
-            <h2 class="text-2xl font-black text-white tracking-wider mb-1">GAME PAUSED</h2>
-            <p class="text-slate-400 text-xs mb-6">Take a breather, Commander!</p>
-            <button id="resume-btn" class="w-full py-3 px-6 rounded-xl font-bold text-base bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white glow-btn transition-all duration-200">
-                RESUME
-            </button>
-        </div>
-    </div>
+<script>
+(()=>{
+const SCREEN_W=14, SCREENS=7, SPAWN_SCREEN=3; // 3 screens left of spawn, 3 right, spawn in the middle
+const W=SCREEN_W*SCREENS, D=160, SKY=3;
+const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10;
+const UP=0, RIGHT=1, DOWN=2, LEFT=3;
+const DX=[0,1,0,-1], DY=[-1,0,1,0];
+const ORES=[
+  {id:'coal',     key:3,  name:'Coal',     value:8,   c:'#2c2b31', h:'#8a8a96', gem:false, sparkle:false},
+  {id:'iron',     key:4,  name:'Iron',     value:15,  c:'#a9785c', h:'#f0d2bd', gem:false, sparkle:false},
+  {id:'copper',   key:5,  name:'Copper',   value:25,  c:'#cf6a26', h:'#ffb57a', gem:false, sparkle:false},
+  {id:'silver',   key:11, name:'Silver',   value:40,  c:'#b9c2c9', h:'#f2f6f8', gem:false, sparkle:false},
+  {id:'gold',     key:6,  name:'Gold',     value:60,  c:'#f0b30a', h:'#fff38a', gem:false, sparkle:true},
+  {id:'platinum', key:12, name:'Platinum', value:120, c:'#8fa3ad', h:'#e8f3f7', gem:false, sparkle:true},
+  {id:'diamond',  key:7,  name:'Diamond',  value:200, c:'#3fcfe8', h:'#eaffff', gem:true,  sparkle:true},
+];
+const OREBY={}; ORES.forEach(o=>OREBY[o.key]=o);
+const ORECFG={
+  coal:{w:85,d0:1, d1:95,s0:4,s1:9}, iron:{w:60,d0:6, d1:D,s0:3,s1:7}, copper:{w:45,d0:14,d1:D,s0:3,s1:6},
+  silver:{w:35,d0:10,d1:D,s0:2,s1:5}, gold:{w:30,d0:28,d1:D,s0:2,s1:5},
+  platinum:{w:16,d0:45,d1:D,s0:1,s1:4}, diamond:{w:18,d0:55,d1:D,s0:1,s1:3},
+};
+const OREDEF=ORES.map(o=>({k:o.key,...ORECFG[o.id]}));
+const TOOLS=[
+  {name:'Shovel',           levels:[{time:10, price:0}]},
+  {name:'Pickaxe',          levels:[{time:7,  price:200},{time:6.5,price:66}, {time:5.5,price:66}]},
+  {name:'Jackhammer',       levels:[{time:5,  price:1000},{time:4.5,price:330},{time:3.5,price:330}]},
+  {name:'Drilling Machine', levels:[{time:3,  price:5000},{time:2.5,price:1650},{time:1.5,price:1650}]},
+];
+const curTime=i=>S.dur[i]>0?TOOLS[i].levels[S.dur[i]-1].time:Infinity;
+const KEY='deepdig-save-v1';
+const $=id=>document.getElementById(id);
 
-    <!-- Game Over Screen Modal -->
-    <div id="gameover-screen" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
-        <div class="max-w-md w-full bg-slate-900/90 border border-rose-950/50 p-6 md:p-8 rounded-2xl shadow-2xl text-center flex flex-col items-center">
-            <div class="w-16 h-16 mb-4 rounded-full bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-500">
-                <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
-            </div>
-            <h2 id="gameover-title" class="text-3xl font-black text-rose-500 tracking-wider mb-1">MISSION FAILED</h2>
-            <p id="gameover-subtitle" class="text-slate-400 text-xs mb-6 uppercase tracking-widest">Ship Hull Destroyed</p>
+let S=null;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hsh(x,y,k){let n=(Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(k,1442695041))|0;n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967296}
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 
-            <div class="w-full bg-slate-800/80 rounded-xl p-4 mb-6 space-y-3">
-                <div class="flex justify-between items-center text-sm">
-                    <span class="text-slate-400">Final Score:</span>
-                    <span id="final-score" class="text-2xl font-black text-cyan-400">0</span>
-                </div>
-                <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-700/60">
-                    <span class="text-slate-400">Best Score:</span>
-                    <span id="final-high-score" class="text-lg font-bold text-slate-200">0</span>
-                </div>
-            </div>
+/* ---------- world generation ---------- */
+function genMine(){
+  const rnd=mulberry32((Math.random()*2147483647)|0);
+  const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
+  const g=new Uint8Array(W*D).fill(EARTH);
+  for(let x=0;x<W;x++) g[x+(D-1)*W]=BEDROCK;
+  const spawnCol=SPAWN_SCREEN*SCREEN_W+(SCREEN_W>>1);
+  function carve(k,x,y,size){
+    const cells=[[x,y]]; g[x+y*W]=k; let dir=ri(0,3);
+    for(let n=0;n<size*4&&cells.length<size;n++){
+      const b=rnd()<0.6?cells[cells.length-1]:cells[ri(0,cells.length-1)];
+      if(rnd()<0.35) dir=ri(0,3);
+      const nx=b[0]+DX[dir], ny=b[1]+DY[dir];
+      if(nx<0||nx>=W||ny<0||ny>=D-1||g[nx+ny*W]!==EARTH) continue;
+      g[nx+ny*W]=k; cells.push([nx,ny]);
+    }
+    return cells;
+  }
+  const WR=W/40; // scale ore density to the wider map
+  const fossils=[];
+  const totalVeins=Math.round(OREDEF.reduce((a,o)=>a+o.w,0)*WR);
+  for(let n=0;n<totalVeins;n++){
+    const y=ri(1,D-2), elig=OREDEF.filter(o=>y>=o.d0&&y<=Math.min(o.d1,D-2));
+    if(!elig.length) continue;
+    const weights=elig.map(o=>o.w), sum0=weights.reduce((a,b)=>a+b,0);
+    // every 10m of depth shifts 5% more of the odds from coal onto everything pricier than it
+    const bonus=Math.min(0.85,Math.floor(y/10)*0.05), ci=elig.findIndex(o=>o.k===3);
+    if(ci>=0&&elig.length>1){
+      const othersW=sum0-weights[ci], shiftAmt=Math.min(weights[ci],bonus*sum0);
+      if(othersW>0&&shiftAmt>0){
+        weights[ci]-=shiftAmt;
+        for(let j=0;j<weights.length;j++) if(j!==ci) weights[j]+=shiftAmt*(elig[j].w/othersW);
+      }
+    }
+    let r=rnd()*weights.reduce((a,b)=>a+b,0), pick=elig[elig.length-1];
+    for(let j=0;j<elig.length;j++){ if(r<weights[j]){pick=elig[j];break;} r-=weights[j]; }
+    // density & vein length both grow ~2% per meter of depth
+    const depthFactor=1+0.02*y;
+    const size=Math.max(1,Math.round(ri(pick.s0,pick.s1)*depthFactor));
+    const vx=ri(0,W-1);
+    const cells=carve(pick.k, vx, y, size);
+    if(pick.k===3 && cells.length && rnd()<0.13){ // occasional fossil near a coal seam
+      const [cx0,cy0]=cells[ri(0,cells.length-1)];
+      const nb=[[cx0-1,cy0],[cx0+1,cy0],[cx0,cy0-1],[cx0,cy0+1]].filter(([nx,ny])=>nx>=0&&nx<W&&ny>=0&&ny<D-1&&g[nx+ny*W]===EARTH);
+      if(nb.length){ const [fx,fy]=nb[ri(0,nb.length-1)]; fossils.push({idx:fx+fy*W}); }
+    }
+    if(rnd()<Math.min(0.6,0.02*y)){ // deeper ground is also more likely to grow a second vein right alongside
+      const y2=clamp(y+ri(-2,2),1,D-2);
+      carve(pick.k, clamp(vx+ri(-3,3),0,W-1), y2, Math.max(1,Math.round(ri(pick.s0,pick.s1)*depthFactor*.6)));
+    }
+  }
+  // groundwater pockets, sealed behind an impenetrable rock shell
+  const pockets=[];
+  const POCKET_TRIES=Math.max(6, Math.round(SCREENS*1.3));
+  for(let p=0;p<POCKET_TRIES;p++){
+    const py0=ri(15,D-8), px0=ri(2,W-3);
+    if(Math.abs(px0-spawnCol)<5) continue;
+    const size=ri(1,10);
+    const cells=[[px0,py0]]; let dir=ri(0,3);
+    for(let n=0;n<size*5&&cells.length<size;n++){
+      const b=rnd()<0.6?cells[cells.length-1]:cells[ri(0,cells.length-1)];
+      if(rnd()<0.35) dir=ri(0,3);
+      const nx=b[0]+DX[dir], ny=b[1]+DY[dir];
+      if(nx<1||nx>=W-1||ny<1||ny>=D-2||g[nx+ny*W]!==EARTH) continue;
+      if(cells.some(c=>c[0]===nx&&c[1]===ny)) continue;
+      cells.push([nx,ny]);
+    }
+    if(!cells.length) continue;
+    const cellIdx=cells.map(([x,y])=>x+y*W), cellSet=new Set(cellIdx), shellSet=new Set();
+    cells.forEach(([x,y])=>{
+      [[x-1,y],[x+1,y],[x,y-1],[x,y+1]].forEach(([nx,ny])=>{
+        if(nx<0||nx>=W||ny<0||ny>=D-1) return;
+        const i2=nx+ny*W; if(!cellSet.has(i2)&&g[i2]===EARTH) shellSet.add(i2);
+      });
+    });
+    if(!shellSet.size) continue;
+    const oreCount=cells.length>=3?ri(0,2):0, ore=[];
+    for(let k=0;k<oreCount;k++){
+      const [ox,oy]=cells[ri(0,cells.length-1)];
+      if(ore.some(o=>o.x===ox&&o.y===oy)) continue;
+      const roll=rnd(); const oreKey=roll<0.55?7:(roll<0.8?12:6); // usually diamond, sometimes platinum or gold
+      ore.push({x:ox,y:oy,k:oreKey});
+    }
+    const id=pockets.length;
+    cellIdx.forEach(i=>g[i]=WATER);
+    shellSet.forEach(i=>g[i]=WALL);
+    ore.forEach(o=>g[o.x+o.y*W]=o.k);
+    pockets.push({id,cells:cellIdx,shell:[...shellSet],ore,y:py0,breached:false,drained:false,floodedCells:[],pumpCost:0});
+  }
+  // random impenetrable boulders scattered through the dirt
+  const rockTries=Math.round(W*D*0.0045);
+  for(let i=0;i<rockTries;i++){
+    const x=ri(0,W-1), y=ri(4,D-2);
+    if(g[x+y*W]!==EARTH) continue;
+    carve(ROCK,x,y,ri(1,3));
+  }
+  const sx=spawnCol;
+  for(let x=0;x<W;x++) g[x]=EMPTY; // surface row: a clear walkway, no digging needed to move along it
+  [[sx-2,1],[sx-2,2],[sx-3,2],[sx-2,3]].forEach(([x,y])=>g[x+y*W]=3);
+  [[sx+2,3],[sx+3,3],[sx+3,4]].forEach(([x,y])=>g[x+y*W]=4);
+  return {g,sx,pockets,fossils};
+}
+function revealArea(cx,cy,radius){
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+    const nx=cx+dx,ny=cy+dy; if(nx>=0&&nx<W&&ny>=0&&ny<D) S.rev[nx+ny*W]=1;
+  }
+}
+function reveal(x,y){revealArea(x,y,1+(S.detectLvl||0));}
+let devReveal=false;
+function toggleDevReveal(){devReveal=!devReveal; toast(devReveal?'Whole map revealed':'Map hidden again');}
+function normInv(inv){const o=inv||{}; ORES.forEach(x=>{if(o[x.id]===undefined)o[x.id]=0;}); return o;}
+function newGame(keep,sameMine){
+  const {g,sx,pockets,fossils}=genMine();
+  S={grid:g,rev:new Uint8Array(W*D),px:sx,py:0,
+     inv:normInv(keep?keep.inv:null),
+     coins:keep?keep.coins:0,tool:keep?keep.tool:0,owned:keep?keep.owned:[1,0,0,0],
+     dur:keep?keep.dur:[1,0,0,0], wear:keep?keep.wear:[0,0,0,0], detectLvl:keep?keep.detectLvl:0,
+     mine:keep?(sameMine?(keep.mine||1):(keep.mine||1)+1):1,
+     pockets, flooded:new Set(), supports:new Set(), fossils:new Set(fossils.map(f=>f.idx)),
+     dig:null};
+  reveal(sx,0); anim=null; walkPath=null; followCam=true; camInit=false; save();
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({
+  v:1,g:Array.from(S.grid).join(''),r:Array.from(S.rev).join(''),
+  px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
+  dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,mine:S.mine,
+  pockets:S.pockets,flooded:[...S.flooded],supports:[...S.supports],fossils:[...S.fossils]
+}))}catch(e){}}
+function migrateOwned(o){
+  if(!Array.isArray(o)) return [1,0,0,0];
+  if(o.length>=4) return o; // already the current 4-tool format
+  return [1, o[1]?1:0, o[2]?1:0, 0]; // old 3-tool save: same price slots, no speed sub-levels yet, drill is new
+}
+function load(){try{
+  const d=JSON.parse(localStorage.getItem(KEY)); if(!d||d.v!==1) return false;
+  const ownedMig=migrateOwned(d.owned);
+  if(d.g.length!==W*D) return {inv:normInv(d.inv),coins:d.coins,tool:d.tool,owned:ownedMig,
+    dur:d.dur||ownedMig.map(x=>x>0?x:0), wear:d.wear||[0,0,0,0], detectLvl:d.detectLvl||0, mine:d.mine||1};
+  const g=new Uint8Array(W*D), r=new Uint8Array(W*D);
+  for(let i=0;i<W*D;i++){g[i]=d.g.charCodeAt(i)-48;r[i]=d.r.charCodeAt(i)-48;}
+  S={grid:g,rev:r,px:d.px,py:d.py,inv:normInv(d.inv),coins:d.coins,tool:d.tool,owned:ownedMig,
+     dur:d.dur||ownedMig.map(x=>x>0?x:0), wear:d.wear||[0,0,0,0], detectLvl:d.detectLvl||0, mine:d.mine||1,
+     pockets:d.pockets||[], flooded:new Set(d.flooded||[]), supports:new Set(d.supports||[]),
+     fossils:new Set(d.fossils||[]), dig:null};
+  return true;
+}catch(e){return false}}
 
-            <button id="restart-btn" class="w-full py-3.5 px-6 rounded-xl font-bold text-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 glow-btn transition-all duration-200">
-                PLAY AGAIN
-            </button>
-        </div>
-    </div>
+/* ---------- colours per depth ---------- */
+const STOPS=[[0,[139,94,55]],[20,[116,76,45]],[45,[104,88,74]],[85,[88,85,88]],[160,[56,52,66]]];
+const ROWC=[],ROWD=[],ROWL=[],ROWT=[];
+const rgb=(c,m)=>`rgb(${clamp(c[0]*m|0,0,255)},${clamp(c[1]*m|0,0,255)},${clamp(c[2]*m|0,0,255)})`;
+for(let y=0;y<D;y++){
+  let i=0; while(i<STOPS.length-2&&y>STOPS[i+1][0]) i++;
+  const [a,ca]=STOPS[i],[b,cb]=STOPS[i+1],t=clamp((y-a)/(b-a),0,1);
+  const c=ca.map((v,j)=>v+(cb[j]-v)*t);
+  ROWC[y]=rgb(c,1);ROWD[y]=rgb(c,.78);ROWL[y]=rgb(c,1.16);ROWT[y]=rgb(c,.27);
+}
 
-    <!-- Main Game Canvas -->
-    <canvas id="gameCanvas"></canvas>
+/* ---------- canvas ---------- */
+const cv=$('cv'), ctx=cv.getContext('2d');
+let dpr=1,vw=0,vh=0,cs=36,cam={x:0,y:0},camInit=false;
+function resize(){
+  const st=$('stage'); vw=st.clientWidth; vh=st.clientHeight;
+  dpr=Math.min(3,window.devicePixelRatio||1);
+  cv.width=Math.round(vw*dpr); cv.height=Math.round(vh*dpr); cv.style.width=vw+'px'; cv.style.height=vh+'px';
+  cs=Math.max(16,Math.floor(vh/8.5)); camInit=false;
+  const pad=$('pad'); const k=parseFloat(getComputedStyle(pad).gridTemplateColumns)||54;
+  $('ring').style.width=$('ring').style.height=(k-8)+'px';
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',()=>{resize();setTimeout(resize,150);setTimeout(resize,400);});
+if(window.visualViewport) visualViewport.addEventListener('resize',resize);
+new ResizeObserver(resize).observe($('stage')); // catches layout settling that a load-time measurement can miss
 
-    <script>
-        // Web Audio API Synthesizer
-        class SoundFX {
-            constructor() {
-                this.ctx = null;
-            }
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();c.fill();}
+function circ(c,x,y,r){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();}
+function ell(c,x,y,a,b){c.beginPath();c.ellipse(x,y,a,b,0,0,Math.PI*2);c.fill();}
 
-            init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-            }
+/* ---------- surface: 7 screens (3 left of spawn, spawn, 3 right), each a different biome ---------- */
+const BIOME=['quarry','forest','farm','town','meadow','forest','quarry'];
+const HOUSES=[], TREES=[], ROCKS=[], FENCES=[], STACKS=[];
+for(let s=0;s<SCREENS;s++){
+  const biome=BIOME[s], base=s*SCREEN_W;
+  for(let i=0;i<SCREEN_W;i++){
+    const col=base+i, h=hsh(col,0,501);
+    if(biome==='town'){
+      if(i%4===1&&h<0.85) HOUSES.push([col,Math.floor(hsh(col,1,502)*3)]);
+      else if(h<0.55) TREES.push([col+hsh(col,2,503)*.4-.2,h<0.28?0:1]);
+    } else if(biome==='forest'){
+      if(h<0.78) TREES.push([col+hsh(col,2,503)*.3-.15,hsh(col,3,504)<0.5?0:1]);
+    } else if(biome==='farm'){
+      if(i%5===0) FENCES.push(col);
+      else if(h<0.22) STACKS.push(col);
+      else if(h<0.4) TREES.push([col,1]);
+    } else if(biome==='meadow'){
+      if(h<0.3) TREES.push([col,1]);
+      else if(h<0.42) STACKS.push(col);
+    } else if(biome==='quarry'){
+      if(h<0.55) ROCKS.push([col,.45+hsh(col,4,505)*.5]);
+      else if(h<0.65) TREES.push([col,0]);
+    }
+  }
+}
+function drawSky(now){
+  const gy=SKY*cs, ww=W*cs;
+  ctx.fillStyle='rgba(255,243,176,.35)'; circ(ctx,ww*.62,gy*.32,cs*.9);
+  ctx.fillStyle='#fff3b0'; circ(ctx,ww*.62,gy*.32,cs*.55);
+  for(let i=0;i<7;i++){
+    const sp=cs*(0.15+(i%3)*0.07), span=ww+6*cs;
+    const x=((i*span/7+now*0.001*sp)%span)-3*cs, y=gy*(0.14+(i%3)*0.12), r=cs*(0.32+(i%2)*0.12);
+    ctx.fillStyle='rgba(255,255,255,.92)'; circ(ctx,x,y,r); circ(ctx,x+r*.9,y+r*.2,r*.8); circ(ctx,x-r*.9,y+r*.25,r*.7); rr(ctx,x-r*1.5,y+r*.2,r*3.2,r*.75,r*.35);
+  }
+  ctx.fillStyle='#9fd68f'; ctx.beginPath(); ctx.moveTo(0,gy);
+  for(let x=0;x<=ww;x+=cs/2) ctx.lineTo(x,gy-cs*.5-Math.sin(x/(cs*3.1))*cs*.28-Math.sin(x/(cs*1.3))*cs*.08);
+  ctx.lineTo(ww,gy); ctx.fill();
+  TREES.forEach(([c,v])=>tree((c+.5)*cs,gy,v));
+  ROCKS.forEach(([c,sc])=>rock((c+.5)*cs,gy,sc));
+  FENCES.forEach(c=>fence((c+.5)*cs,gy));
+  STACKS.forEach(c=>stack((c+.5)*cs,gy));
+  HOUSES.forEach(([c,v])=>house((c+.5)*cs,gy,v));
+  sign((SPAWN_SCREEN*SCREEN_W+(SCREEN_W>>1)+.5)*cs+cs*.55,gy);
+}
+function tree(cx,gy,v){
+  ctx.fillStyle='#7a4a26'; ctx.fillRect(cx-cs*.07,gy-cs*.75,cs*.14,cs*.78);
+  if(v){ctx.fillStyle='#2f7d3b';[[0,1.7,.42],[0,1.35,.52],[0,1.0,.6]].forEach(([dx,h,w])=>{ctx.beginPath();ctx.moveTo(cx-cs*w,gy-cs*(h-.45));ctx.lineTo(cx,gy-cs*h-cs*.25);ctx.lineTo(cx+cs*w,gy-cs*(h-.45));ctx.fill();});}
+  else{ctx.fillStyle='#3f9a3a';circ(ctx,cx,gy-cs*1.18,cs*.44);circ(ctx,cx-cs*.32,gy-cs*.9,cs*.32);circ(ctx,cx+cs*.32,gy-cs*.92,cs*.34);ctx.fillStyle='rgba(255,255,255,.14)';circ(ctx,cx-cs*.12,gy-cs*1.32,cs*.16);}
+}
+function house(cx,gy,v){
+  const w=cs*1.5,h=cs*1.0,x=cx-w/2,y=gy-h;
+  ctx.fillStyle=['#f4e3c1','#e9b8a2','#cfe0f0'][v]; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle='#6b3f25'; ctx.fillRect(x+w*.68,y-cs*.62,cs*.16,cs*.4);
+  ctx.fillStyle=['#c2412d','#51607f','#7a4b2a'][v]; ctx.beginPath(); ctx.moveTo(x-cs*.14,y+cs*.04); ctx.lineTo(cx,y-cs*.66); ctx.lineTo(x+w+cs*.14,y+cs*.04); ctx.fill();
+  ctx.fillStyle='#7a4a26'; rr(ctx,x+w*.58,y+h*.42,w*.22,h*.58,cs*.05);
+  ctx.fillStyle='#fff1a8'; ctx.fillRect(x+w*.13,y+h*.25,w*.28,h*.3);
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x+w*.13+w*.135,y+h*.25,w*.012+1,h*.3);
+}
+function rock(cx,gy,sc){
+  const s=cs*sc;
+  ctx.fillStyle='#8a8478';
+  ctx.beginPath(); ctx.moveTo(cx-s,gy); ctx.lineTo(cx-s*.8,gy-s*.55); ctx.lineTo(cx-s*.2,gy-s*.85);
+  ctx.lineTo(cx+s*.5,gy-s*.6); ctx.lineTo(cx+s,gy-s*.1); ctx.lineTo(cx+s*.7,gy); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#a9a294'; ctx.beginPath(); ctx.moveTo(cx-s*.2,gy-s*.85); ctx.lineTo(cx+s*.5,gy-s*.6); ctx.lineTo(cx,gy-s*.35); ctx.closePath(); ctx.fill();
+}
+function fence(cx,gy){
+  ctx.strokeStyle='#8a6a45'; ctx.lineWidth=cs*.06; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(cx-cs*.32,gy); ctx.lineTo(cx-cs*.32,gy-cs*.42); ctx.moveTo(cx+cs*.32,gy); ctx.lineTo(cx+cs*.32,gy-cs*.42); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-cs*.4,gy-cs*.34); ctx.lineTo(cx+cs*.4,gy-cs*.3); ctx.moveTo(cx-cs*.4,gy-cs*.14); ctx.lineTo(cx+cs*.4,gy-cs*.1); ctx.stroke();
+}
+function stack(cx,gy){
+  ctx.fillStyle='#d9a83b'; ctx.beginPath(); ctx.ellipse(cx,gy-cs*.28,cs*.34,cs*.3,0,Math.PI,0); ctx.fill();
+  ctx.fillRect(cx-cs*.34,gy-cs*.28,cs*.68,cs*.28);
+  ctx.strokeStyle='#b3822a'; ctx.lineWidth=cs*.02;
+  for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(cx+i*cs*.1,gy-cs*.05);ctx.lineTo(cx+i*cs*.1+cs*.04,gy-cs*.5);ctx.stroke();}
+}
+function sign(cx,gy){
+  ctx.fillStyle='#6b3f25'; ctx.fillRect(cx-cs*.04,gy-cs*.7,cs*.08,cs*.72);
+  ctx.fillStyle='#a8764a'; rr(ctx,cx-cs*.42,gy-cs*.78,cs*.84,cs*.34,cs*.06);
+  ctx.fillStyle='#fff4e0'; ctx.font=`${Math.round(cs*.22)}px "Lilita One","Arial Black",sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('MINE',cx,gy-cs*.6);
+}
+function drawGrass(){
+  const gy=SKY*cs, ww=W*cs;
+  ctx.fillStyle='#4f9a33'; ctx.fillRect(0,gy-cs*.06,ww,cs*.17);
+  ctx.fillStyle='#6fc044'; ctx.fillRect(0,gy-cs*.06,ww,cs*.06);
+  ctx.fillStyle='#4f9a33';
+  for(let x=0;x<ww;x+=cs*.25){const h=cs*(.05+hsh(x|0,1,2)*.09);ctx.beginPath();ctx.moveTo(x,gy-cs*.05);ctx.lineTo(x+cs*.06,gy-cs*.05-h);ctx.lineTo(x+cs*.12,gy-cs*.05);ctx.fill();}
+}
 
-            playShoot() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.1);
-            }
+/* ---------- cells ---------- */
+function solidAt(x,y){if(x<0||x>=W||y<0||y>=D)return true;return S.grid[x+y*W]!==EMPTY;}
+function drawRockTexture(X,Y,x,y,base,chunk){
+  ctx.fillStyle=base; ctx.fillRect(X,Y,cs+.5,cs+.5); ctx.fillStyle=chunk;
+  for(let k=0;k<3;k++) rr(ctx,X+hsh(x,y,k)*cs*.6,Y+hsh(x,y,k+3)*cs*.6,cs*.35,cs*.25,cs*.08);
+}
+function drawBoulder(X,Y,x,y){
+  const cx=X+cs/2, cy=Y+cs/2, r=cs*.42;
+  ctx.fillStyle='#787169';
+  ctx.beginPath();
+  for(let i=0;i<8;i++){const a=i/8*Math.PI*2, q=r*(.8+hsh(x,y,i+90)*.3); i?ctx.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q):ctx.moveTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q);}
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#94897c'; circ(ctx,cx-r*.3,cy-r*.35,r*.32);
+  ctx.strokeStyle='#5b5349'; ctx.lineWidth=cs*.025;
+  ctx.beginPath(); ctx.moveTo(cx-r*.4,cy-r*.1); ctx.lineTo(cx+r*.2,cy+r*.3); ctx.stroke();
+}
+function drawWaterCell(X,Y,x,y,now){
+  ctx.fillStyle='#1c5f8a'; ctx.fillRect(X,Y,cs+.5,cs+.5);
+  ctx.fillStyle='rgba(255,255,255,.18)';
+  const off=(now*.002+hsh(x,y,5)*6)%1;
+  for(let i=0;i<2;i++){
+    const wy=Y+cs*(.3+i*.4+Math.sin(now*.003+x+i)*.05);
+    ctx.beginPath(); ctx.moveTo(X,wy);
+    for(let t=0;t<=1;t+=.25) ctx.lineTo(X+t*cs, wy+Math.sin((t+off)*Math.PI*2)*cs*.06);
+    ctx.lineTo(X+cs,wy+cs*.15); ctx.lineTo(X,wy+cs*.15); ctx.fill();
+  }
+}
+function drawSupport(X,Y){
+  const cx=X+cs/2;
+  ctx.fillStyle='#6b4a2e'; ctx.fillRect(cx-cs*.07,Y,cs*.14,cs);
+  ctx.fillStyle='#4a3320'; ctx.fillRect(cx-cs*.4,Y,cs*.8,cs*.1);
+  ctx.fillStyle='#8a6640'; for(let i=0;i<3;i++) ctx.fillRect(cx-cs*.35+i*cs*.28,Y+cs*.02,cs*.06,cs*.06);
+  ctx.fillStyle='rgba(255,220,140,.9)'; circ(ctx,cx,Y+cs*.16,cs*.055);
+  ctx.fillStyle='rgba(255,220,140,.25)'; circ(ctx,cx,Y+cs*.16,cs*.22);
+}
+function drawFossil(X,Y,x,y){
+  const skel=hsh(x,y,200)<0.5, cx=X+cs*.5, cy=Y+cs*.62;
+  ctx.fillStyle='#e8ddc8';
+  if(skel){
+    circ(ctx,cx,cy-cs*.1,cs*.13);
+    ctx.fillRect(cx-cs*.03,cy-cs*.02,cs*.06,cs*.12);
+    for(let i=0;i<3;i++) ctx.fillRect(cx-cs*.18,cy+cs*.05+i*cs*.06,cs*.36,cs*.03);
+  } else {
+    ctx.strokeStyle='#e8ddc8'; ctx.lineWidth=cs*.08; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(cx-cs*.15,cy+cs*.15); ctx.quadraticCurveTo(cx-cs*.25,cy-cs*.15,cx-cs*.05,cy-cs*.25); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+cs*.15,cy+cs*.15); ctx.quadraticCurveTo(cx+cs*.25,cy-cs*.15,cx+cs*.05,cy-cs*.25); ctx.stroke();
+  }
+}
+function drawCell(x,y,now){
+  const idx=x+y*W, v=S.grid[idx], X=x*cs, Y=(SKY+y)*cs;
+  if(v===EMPTY){
+    if(S.flooded.has(idx)){ drawWaterCell(X,Y,x,y,now); return; }
+    ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
+    ctx.fillStyle='rgba(255,255,255,.05)';
+    for(let k=0;k<3;k++) ctx.fillRect(X+hsh(x,y,k+10)*cs*.85,Y+hsh(x,y,k+20)*cs*.85,cs*.12,cs*.07);
+    const e=cs*.12; ctx.fillStyle='rgba(0,0,0,.35)';
+    if(solidAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(solidAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(solidAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
+    if(solidAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
+    if(S.supports.has(idx)) drawSupport(X,Y);
+    return;
+  }
+  if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
+  const revealed=!!(S.rev[idx]||devReveal);
+  ctx.fillStyle=ROWC[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
+  for(let k=0;k<5;k++){
+    ctx.fillStyle=k%2?ROWD[y]:ROWL[y];
+    const sz=cs*(.05+hsh(x,y,k+9)*.07);
+    rr(ctx,X+hsh(x,y,k)*cs*.86,Y+hsh(x,y,k+5)*cs*.86,sz,sz*.8,sz*.3);
+  }
+  if(v===WALL){ if(revealed) drawRockTexture(X,Y,x,y,'#2b2731','#423d4a'); return; }
+  if(v===ROCK){ if(revealed) drawBoulder(X,Y,x,y); return; }
+  if(v===WATER) return; // hidden until breached, at which point it stops being WATER
+  if(v===EARTH){ if(S.fossils.has(idx)&&revealed) drawFossil(X,Y,x,y); return; }
+  const o=OREBY[v];
+  if(o&&revealed) drawOre(o,X,Y,x,y,now);
+}
+function drawOre(o,X,Y,x,y,now){
+  const n=3+(hsh(x,y,30)*2|0);
+  let sx=0,sy=0;
+  for(let k=0;k<n;k++){
+    const cx=X+cs*(.2+hsh(x,y,40+k)*.6), cy=Y+cs*(.2+hsh(x,y,50+k)*.6), r=cs*(.1+hsh(x,y,60+k)*.08);
+    if(k===0){sx=cx;sy=cy;}
+    ctx.fillStyle=o.c; ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=cs*.025;
+    ctx.beginPath();
+    if(o.gem){ctx.moveTo(cx,cy-r*1.2);ctx.lineTo(cx+r,cy);ctx.lineTo(cx,cy+r*1.2);ctx.lineTo(cx-r,cy);}
+    else for(let i=0;i<6;i++){const a=i/6*Math.PI*2+hsh(x,y,k)*2, q=r*(.75+hsh(x+i,y,k+80)*.35);i?ctx.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q):ctx.moveTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q);}
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=o.h; circ(ctx,cx-r*.3,cy-r*.3,r*.3);
+  }
+  if(o.sparkle){
+    const ph=(now*.0015+hsh(x,y,70)*6)%5;
+    if(ph<1){const a=Math.sin(ph*Math.PI), s=cs*.14*a;ctx.fillStyle=`rgba(255,255,255,${a})`;ctx.beginPath();ctx.moveTo(sx,sy-s*2);ctx.lineTo(sx+s*.4,sy);ctx.lineTo(sx,sy+s*2);ctx.lineTo(sx-s*.4,sy);ctx.fill();ctx.beginPath();ctx.moveTo(sx-s*2,sy);ctx.lineTo(sx,sy+s*.4);ctx.lineTo(sx+s*2,sy);ctx.lineTo(sx,sy-s*.4);ctx.fill();}
+  }
+}
+const CRACKS=[
+  [[.5,.5,.2,.3],[.5,.5,.75,.25]],
+  [[.5,.5,.3,.8],[.2,.3,.08,.45],[.75,.25,.9,.1]],
+  [[.5,.5,.85,.65],[.3,.8,.15,.95],[.85,.65,.95,.9],[.2,.3,.35,.06]],
+  [[.5,.5,.55,.95],[.75,.25,.62,.05],[.08,.45,.1,.7],[.85,.65,.7,.8]],
+];
 
-            playCascadingLaser() {
-                if (!this.ctx) return;
-                const now = this.ctx.currentTime;
-                const osc1 = this.ctx.createOscillator();
-                const gain1 = this.ctx.createGain();
-                osc1.type = 'sawtooth';
-                osc1.frequency.setValueAtTime(1500, now);
-                osc1.frequency.exponentialRampToValueAtTime(80, now + 0.8);
-                gain1.gain.setValueAtTime(0.35, now);
-                gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
-                osc1.connect(gain1);
-                gain1.connect(this.ctx.destination);
-                osc1.start(now);
-                osc1.stop(now + 0.8);
-            }
+/* ---------- tools & miner ---------- */
+function drawTool(c,t,now,active){
+  if(t===0){
+    c.fillStyle='#8b5a2b'; c.fillRect(-3,-1,16,2);
+    c.fillStyle='#5e3a1b'; rr(c,-5,-2.8,3,5.6,1);
+    c.fillStyle='#aab4bd'; c.beginPath(); c.moveTo(12,-4.2); c.lineTo(18,-3.6); c.quadraticCurveTo(23,0,18,3.6); c.lineTo(12,4.2); c.closePath(); c.fill();
+    c.fillStyle='#e3eaf0'; c.fillRect(13,-3,1.6,6);
+  } else if(t===1){
+    c.save();
+    c.font='26px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
+    c.textAlign='center'; c.textBaseline='middle';
+    c.fillText('⛏️',9,1);
+    c.restore();
+  } else if(t===2){
+    c.fillStyle='#2e2e33'; rr(c,-4.5,-6.5,2.6,13,1.2);
+    c.fillStyle='#d9432a'; rr(c,-2.5,-4,12,8,2);
+    c.fillStyle='#ff7a5c'; c.fillRect(-1,-3,9,1.4);
+    c.fillStyle='#4a4a52'; c.fillRect(9.5,-2.2,3,4.4);
+    c.fillStyle='#c9ced3'; c.beginPath(); c.moveTo(12.5,-1.3); c.lineTo(19.5,-.7); c.lineTo(21.5,0); c.lineTo(19.5,.7); c.lineTo(12.5,1.3); c.closePath(); c.fill();
+  } else {
+    c.fillStyle='#f5a300'; rr(c,-4,-5.5,13,11,2.5);
+    c.fillStyle='#ffd35c'; c.fillRect(-2.5,-4.3,10,1.6);
+    c.fillStyle='#3a3a40'; for(let i=0;i<3;i++) c.fillRect(-2+i*3,-1,1.6,4);
+    c.save(); c.beginPath(); c.moveTo(9,-5); c.lineTo(23,0); c.lineTo(9,5); c.closePath();
+    c.fillStyle='#9aa3ab'; c.fill(); c.clip();
+    c.strokeStyle='#5d656d'; c.lineWidth=1.3;
+    const off=active?(now*.06)%4:0;
+    for(let x=4;x<26;x+=4){c.beginPath();c.moveTo(x+off,-6);c.lineTo(x+off+3,6);c.stroke();}
+    c.restore();
+  }
+}
+let facing=1, aim=RIGHT;
+function drawMiner(cx,cy,now){
+  const s=cs/32, dig=!!S.dig, dir=dig?S.dig.dir:aim, walking=!!anim&&!dig;
+  ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s);
+  ctx.fillStyle='rgba(0,0,0,.3)'; ell(ctx,0,15.2,9,2);
+  const bob=dig?Math.abs(Math.sin(now*.016))*1.5:walking?Math.abs(Math.sin(now*.022))*1.4:Math.sin(now*.004)*.5;
+  ctx.translate(0,bob);
+  ctx.save(); if(facing<0) ctx.scale(-1,1);
+  const legSwing=walking?Math.sin(now*.022)*2.6:0;
+  ctx.fillStyle='#4a3020'; rr(ctx,-7.5,11+legSwing,6.5,4,1.6); rr(ctx,1,11-legSwing,6.5,4,1.6);
+  ctx.fillStyle='#2e67b1'; rr(ctx,-7,2,14,10,3);
+  ctx.fillStyle='#24548f'; ctx.fillRect(-.5,6.5,1,5.5);
+  ctx.fillStyle='#e0563f'; rr(ctx,-8.5,-3.5,17,8,3.5);
+  ctx.fillStyle='#2e67b1'; rr(ctx,-4.5,-1.5,9,6,1.5);
+  ctx.fillStyle='#ffd24a'; circ(ctx,-3,-.4,.9); circ(ctx,3,-.4,.9);
+  ctx.fillStyle='#f3c69c'; circ(ctx,0,-8.5,6.2);
+  ctx.fillStyle='#e7ae84'; circ(ctx,-3.9,-8,1.4); circ(ctx,5.6,-7.6,1.6);
+  ctx.fillStyle='#2a1a10';
+  if(now%3400<130) ctx.fillRect(1.8,-9.4,2.6,.8); else ell(ctx,3,-9.2,1.1,1.45);
+  ctx.fillStyle='rgba(230,110,90,.45)'; circ(ctx,1.4,-5.9,1.3);
+  ctx.fillStyle='#6b3d22'; rr(ctx,2.6,-6.2,4.2,1.6,.8);
+  ctx.fillStyle='#ffc21a'; ctx.beginPath(); ctx.arc(0,-11,6.9,Math.PI,0); ctx.fill(); rr(ctx,-8.2,-11.8,16.4,2.5,1.2);
+  ctx.fillStyle='#e0a100'; ctx.fillRect(-.8,-17.6,1.6,6);
+  if(S.py>0){ // headlamp glow: on once he's underground, off on the surface
+    const flick=.86+Math.sin(now*.006)*.14;
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    const g=ctx.createRadialGradient(5.3,-13.8,0,5.3,-13.8,8.5);
+    g.addColorStop(0,`rgba(255,244,190,${.85*flick})`); g.addColorStop(1,'rgba(255,244,190,0)');
+    ctx.fillStyle=g; circ(ctx,5.3,-13.8,8.5);
+    ctx.restore();
+    ctx.fillStyle='#6b5200'; circ(ctx,5,-13.8,2.3);
+    ctx.fillStyle=`rgba(255,248,207,${flick})`; circ(ctx,5.3,-13.8,1.9);
+  } else {
+    ctx.fillStyle='#6b5200'; circ(ctx,5,-13.8,2.3);
+    ctx.fillStyle='#fff8cf'; circ(ctx,5.3,-13.8,1.7);
+  }
+  ctx.restore();
+  // held tool, pointing in dig direction
+  ctx.save();
+  if(dir===RIGHT) ctx.translate(3,3);
+  else if(dir===LEFT){ctx.scale(-1,1);ctx.translate(3,3);}
+  else if(dir===UP){ctx.translate(facing*3,-3);ctx.rotate(-Math.PI/2);if(facing<0)ctx.scale(1,-1);}
+  else {ctx.translate(facing*3,6);ctx.rotate(Math.PI/2);if(facing<0)ctx.scale(1,-1);}
+  if(dig){
+    // the tool itself shakes to show effort — the camera/screen never does
+    if(S.tool===0||S.tool===1){ctx.rotate(Math.sin(now*.011)*.22);ctx.translate(Math.max(0,Math.sin(now*.011))*3,0);}
+    else if(S.tool===2) ctx.translate(Math.sin(now*.09)>0?2.6:0,(Math.random()-.5)*1.2);
+    else ctx.translate((Math.random()-.5)*2.4,(Math.random()-.5)*1.6);
+  } else if(walking){
+    ctx.rotate(Math.sin(now*.022)*.1);
+  }
+  drawTool(ctx,S.tool,now,dig);
+  ctx.fillStyle='#f3c69c'; circ(ctx,0,0,2.3);
+  ctx.restore();
+  ctx.restore();
+}
 
-            playCrossLaser() {
-                if (!this.ctx) return;
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.linearRampToValueAtTime(1200, now + 0.2);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.7);
-                gain.gain.setValueAtTime(0.4, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(now);
-                osc.stop(now + 0.7);
-            }
+/* ---------- effects ---------- */
+let parts=[], floats=[], ping=null, longPress=null;
+function dust(x,y,col,n,burst){
+  for(let i=0;i<n;i++) parts.push({x,y,vx:(Math.random()-.5)*cs*(burst?5:2.4),vy:-Math.random()*cs*(burst?4:2.2),life:.5+Math.random()*.5,t:0,c:col,s:cs*(.04+Math.random()*.06)});
+}
+function floater(x,y,text,col){floats.push({x:(x+.5)*cs,y:(SKY+y+.35)*cs,text,col,t0:performance.now()});}
 
-            playExplosion(isLarge = false) {
-                if (!this.ctx) return;
-                const dur = isLarge ? 0.35 : 0.18;
-                const bufferSize = this.ctx.sampleRate * dur;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const output = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    output[i] = Math.random() * 2 - 1;
-                }
-                const whiteNoise = this.ctx.createBufferSource();
-                whiteNoise.buffer = buffer;
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(isLarge ? 400 : 800, this.ctx.currentTime);
-                filter.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + dur);
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(isLarge ? 0.3 : 0.18, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
-                whiteNoise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-                whiteNoise.start();
-            }
+/* ---------- game logic ---------- */
+let anim=null, queued=null, held=null, modalOpen=false, walkPath=null, followCam=true;
+function toast(msg,ms=1800){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),ms);}
+function moveTo(x,y,now){anim={fx:S.px,fy:S.py,tx:x,ty:y,t0:now,dur:150};S.px=x;S.py=y;reveal(x,y);updateHUD();}
+function pocketAt(idx){for(const pk of S.pockets) if(pk.shell.includes(idx)) return pk.id; return -1;}
+function act(dir){
+  if(modalOpen) return;
+  walkPath=null; longPress=null;
+  const now=performance.now();
+  if(dir===LEFT) facing=-1; else if(dir===RIGHT) facing=1;
+  aim=dir;
+  if(S.dig){ if(S.dig.dir===dir) return; S.dig=null; }
+  if(anim){ queued=dir; return; }
+  const nx=S.px+DX[dir], ny=S.py+DY[dir];
+  if(ny<0){ toast("That's the surface up there — dig down!"); return; }
+  if(nx<0||nx>=W){ toast('Solid rock wall — try another way'); return; }
+  const v=S.grid[nx+ny*W];
+  if(v===EMPTY){
+    if(S.flooded.has(nx+ny*W)){ toast('Flooded — pump the water out first'); return; }
+    moveTo(nx,ny,now);
+  }
+  else if(v===BEDROCK) toast("Bedrock — nothing can dig through that");
+  else if(v===ROCK) toast('A solid boulder — dig around it');
+  else if(v===WATER) toast("You can't dig through water — breach its wall instead");
+  else if(v===WALL){
+    const pid=pocketAt(nx+ny*W), pk=pid>=0?S.pockets[pid]:null;
+    if(pk&&!pk.breached) S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000,breach:pid};
+    else toast("This rock wall won't budge — best leave it alone");
+  }
+  else S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000};
+}
+function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; return ROWC[y];}
+function autoSwitchTool(){
+  let best=-1,bestTime=Infinity;
+  for(let i=0;i<4;i++){ if(i===S.tool) continue; if(S.dur[i]>0){ const t=curTime(i); if(t<bestTime){bestTime=t;best=i;} } }
+  if(best<0){ S.dur[0]=1; S.wear[0]=0; best=0; }
+  setTool(best);
+}
+function checkCollapse(x,y){
+  if(y<=0) return;
+  let lo=x,hi=x;
+  while(lo-1>=0 && S.grid[(lo-1)+y*W]===EMPTY && !S.supports.has((lo-1)+y*W) && !S.flooded.has((lo-1)+y*W)) lo--;
+  while(hi+1<W && S.grid[(hi+1)+y*W]===EMPTY && !S.supports.has((hi+1)+y*W) && !S.flooded.has((hi+1)+y*W)) hi++;
+  const len=hi-lo+1;
+  if(len<=10) return;
+  const chance=Math.min(.6,.05*(len-10));
+  if(Math.random()>=chance) return;
+  let c,tries=0;
+  do{ c=lo+Math.floor(Math.random()*len); tries++; } while(c===S.px&&y===S.py&&tries<20);
+  if(c===S.px&&y===S.py) return;
+  const idx=c+y*W, becomesRock=Math.random()<0.2;
+  S.grid[idx]=becomesRock?ROCK:EARTH; S.supports.delete(idx);
+  toast(becomesRock?'⚠️ The tunnel collapsed — a shifted rock is blocking it now!':'⚠️ Part of the tunnel collapsed behind you — you can dig through it again.',3400);
+}
+function nearestSafe(startIdx){
+  if(!S.flooded.has(startIdx)) return startIdx;
+  const seen=new Set([startIdx]), q=[startIdx]; let qi=0;
+  while(qi<q.length && qi<4000){
+    const cur=q[qi++], cx=cur%W, cy=(cur/W)|0;
+    for(let d2=0;d2<4;d2++){
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(seen.has(ni)||S.grid[ni]!==EMPTY) continue;
+      seen.add(ni);
+      if(!S.flooded.has(ni)) return ni;
+      q.push(ni);
+    }
+  }
+  return startIdx;
+}
+function breachPocket(pid,x,y,now){
+  const pk=S.pockets[pid]; if(!pk||pk.breached) return;
+  pk.breached=true;
+  const breachIdx=x+y*W;
+  S.grid[breachIdx]=EMPTY;
+  const pocketSet=new Set(pk.cells);
+  const flood=[breachIdx], seen=new Set(flood); let qi=0;
+  while(qi<flood.length && flood.length<pk.cells.length){
+    const cur=flood[qi++], cx=cur%W, cy=(cur/W)|0;
+    for(let d2=0;d2<4;d2++){
+      if(flood.length>=pk.cells.length) break;
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(seen.has(ni)||pocketSet.has(ni)||S.grid[ni]!==EMPTY) continue;
+      seen.add(ni); flood.push(ni);
+    }
+  }
+  flood.forEach(i=>S.flooded.add(i));
+  pk.floodedCells=flood; pk.pumpCost=flood.length*Math.max(1,y);
+  const oreSet=new Set(pk.ore.map(o=>o.x+o.y*W));
+  pk.cells.forEach(i=>{ if(!oreSet.has(i)) S.grid[i]=EMPTY; });
+  pk.cells.forEach(i=>S.rev[i]=1); pk.shell.forEach(i=>S.rev[i]=1);
+  const safe=nearestSafe(S.px+S.py*W);
+  if(safe!==S.px+S.py*W){ moveTo(safe%W,(safe/W)|0,now); }
+  toast(`💧 Breached a water pocket! ${flood.length} square${flood.length===1?'':'s'} flooded — pump for ${pk.pumpCost} coins to drain it.`,4200);
+}
+function pumpPocket(pid){
+  const pk=S.pockets[pid]; if(!pk||pk.drained) return;
+  if(S.coins<pk.pumpCost) return;
+  S.coins-=pk.pumpCost;
+  (pk.floodedCells||[]).forEach(i=>S.flooded.delete(i));
+  pk.drained=true;
+  save(); updateHUD(); renderShop();
+  toast('Pumped the water out — the shaft is clear now.');
+}
+function finishDig(now){
+  const d=S.dig; S.dig=null;
+  const idx=d.x+d.y*W, v=S.grid[idx];
+  const bx=(d.x+.5)*cs, by=(SKY+d.y+.5)*cs;
+  dust(bx,by,ROWC[d.y],14,true);
+  if(v===WALL && d.breach!=null){ breachPocket(d.breach,d.x,d.y,now); save(); return; }
+  const o=OREBY[v];
+  if(o){
+    S.inv[o.id]++; dust(bx,by,o.h,10,true); floater(d.x,d.y,`+1 ${o.name}`,o.h);
+    const el=$('ri-'+o.id); if(el){el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');}
+  }
+  S.grid[idx]=EMPTY;
+  moveTo(d.x,d.y,now);
+  S.wear[S.tool]++;
+  if(S.wear[S.tool]>=33){
+    S.wear[S.tool]=0;
+    if(S.dur[S.tool]>1){ S.dur[S.tool]--; toast(`${TOOLS[S.tool].name} is wearing down — ${curTime(S.tool)}s per block now.`,2600); }
+    else { S.dur[S.tool]=0; toast(`${TOOLS[S.tool].name} broke down!`,2600); autoSwitchTool(); }
+  }
+  checkCollapse(d.x,d.y);
+  save();
+}
+function findPath(sx0,sy0,tx0,ty0){
+  const startIdx=sx0+sy0*W, targetIdx=tx0+ty0*W;
+  if(startIdx===targetIdx) return [];
+  const visited=new Uint8Array(W*D); visited[startIdx]=1;
+  const prev=new Int32Array(W*D).fill(-1);
+  const q=[startIdx]; let qi=0, found=false, nodes=0;
+  while(qi<q.length && nodes<8000){
+    const cur=q[qi++]; nodes++;
+    if(cur===targetIdx){found=true;break;}
+    const cx=cur%W, cy=(cur/W)|0;
+    for(let d2=0;d2<4;d2++){
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(visited[ni]||S.grid[ni]!==EMPTY||S.flooded.has(ni)) continue;
+      visited[ni]=1; prev[ni]=cur; q.push(ni);
+      if(ni===targetIdx){found=true;qi=q.length;break;}
+    }
+  }
+  if(!found) return null;
+  const path=[]; let cur=targetIdx;
+  while(cur!==startIdx){ path.push([cur%W,(cur/W)|0]); cur=prev[cur]; if(cur===-1) return null; }
+  path.reverse();
+  return path;
+}
+function update(now,dt){
+  if(S.dig){
+    const d=S.dig, p=(now-d.start)/d.dur;
+    if(Math.random()<.22+S.tool*.25){
+      const ex=(S.px+.5+DX[d.dir]*.5)*cs, ey=(SKY+S.py+.5+DY[d.dir]*.5)*cs;
+      dust(ex,ey,cellColor(d.x,d.y),1,false);
+    }
+    if(p>=1) finishDig(now);
+  }
+  if(anim&&now-anim.t0>=anim.dur){
+    anim=null; const q=queued; queued=null;
+    if(q!==null) act(q);
+    else if(held!==null) act(held);
+    else if(walkPath&&walkPath.length){
+      const [nx,ny]=walkPath.shift();
+      if(S.grid[nx+ny*W]===EMPTY && !S.flooded.has(nx+ny*W)) moveTo(nx,ny,now);
+      else { walkPath=null; toast('Path blocked'); }
+    }
+  }
+  const g=cs*9;
+  parts=parts.filter(p=>{p.t+=dt;p.vy+=g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;return p.t<p.life;});
+  floats=floats.filter(f=>now-f.t0<1300);
+  const ring=$('ring'), rt=$('ringt');
+  if(S.dig){const p=clamp((now-S.dig.start)/S.dig.dur,0,1);ring.style.background=`conic-gradient(#ffc21a ${p*360}deg, rgba(0,0,0,.3) 0)`;rt.textContent=Math.ceil((1-p)*S.dig.dur/1000)+'s';}
+  else if(rt.textContent){ring.style.background='rgba(0,0,0,.25)';rt.textContent='';}
+  if(longPress&&now-longPress.t0>=5000){toggleDevReveal();longPress=null;}
+}
+function playerPos(now){
+  if(!anim) return [S.px,S.py];
+  const p=Math.min(1,(now-anim.t0)/anim.dur), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+  return [anim.fx+(anim.tx-anim.fx)*e, anim.fy+(anim.ty-anim.fy)*e];
+}
+function render(now,dt){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#120b07'; ctx.fillRect(0,0,vw,vh);
+  const [rx,ry]=playerPos(now);
+  if(followCam){ cam.x=(rx+.5)*cs-vw/2; cam.y=(SKY+ry+.5)*cs-vh/2; camInit=true; }
+  ctx.translate(-Math.round(cam.x),-Math.round(cam.y));
 
-            playPowerup() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine';
-                const now = this.ctx.currentTime;
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.setValueAtTime(500, now + 0.08);
-                osc.frequency.setValueAtTime(800, now + 0.16);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(now);
-                osc.stop(now + 0.3);
-            }
+  const gyl=SKY*cs;
+  if(cam.y<gyl){const g=ctx.createLinearGradient(0,0,0,gyl);g.addColorStop(0,'#58b1ee');g.addColorStop(1,'#c8ebff');ctx.fillStyle=g;ctx.fillRect(cam.x-2,cam.y-2,vw+4,gyl-cam.y+2);}
+  ctx.fillStyle='#231f29';
+  if(cam.x<0) ctx.fillRect(cam.x-2,Math.max(gyl,cam.y),-cam.x+2,vh+4);
+  if(cam.x+vw>W*cs) ctx.fillRect(W*cs,Math.max(gyl,cam.y),cam.x+vw-W*cs+2,vh+4);
+  if(cam.y<gyl) drawSky(now);
+  const c0=Math.max(0,Math.floor(cam.x/cs)), c1=Math.min(W-1,Math.floor((cam.x+vw)/cs));
+  const r0=Math.max(0,Math.floor(cam.y/cs)-SKY), r1=Math.min(D-1,Math.floor((cam.y+vh)/cs)-SKY);
+  for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
+  if(cam.y<SKY*cs+cs) drawGrass();
 
-            playHit() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
-                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.15);
-            }
+  if(S.dig){
+    const d=S.dig, p=clamp((now-d.start)/d.dur,0,1), X=d.x*cs, Y=(SKY+d.y)*cs;
+    ctx.fillStyle=`rgba(0,0,0,${p*.22})`; ctx.fillRect(X,Y,cs,cs);
+    ctx.strokeStyle='rgba(22,10,4,.8)'; ctx.lineWidth=cs*.05; ctx.lineCap='round';
+    const st=Math.min(4,Math.floor(p*5));
+    for(let i=0;i<st;i++) CRACKS[i].forEach(([a,b,c,e])=>{ctx.beginPath();ctx.moveTo(X+a*cs,Y+b*cs);ctx.lineTo(X+c*cs,Y+e*cs);ctx.stroke();});
+    const bw=cs*.78,bx=X+(cs-bw)/2,by=Y+cs*.07,bh=Math.max(4,cs*.12);
+    ctx.fillStyle='rgba(0,0,0,.65)'; rr(ctx,bx-1.5,by-1.5,bw+3,bh+3,bh/2+1);
+    ctx.fillStyle='#ffc21a'; if(p>0.02) rr(ctx,bx,by,bw*p,bh,bh/2);
+  }
+  parts.forEach(p=>{ctx.globalAlpha=1-p.t/p.life;ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s);});
+  ctx.globalAlpha=1;
+  drawMiner((rx+.5)*cs,(SKY+ry+.5)*cs,now);
+  if(ping){
+    const k=(now-ping)/900;
+    if(k<1){
+      const px=(rx+.5)*cs,py=(SKY+ry+.5)*cs;
+      ctx.strokeStyle=`rgba(74,144,217,${1-k})`; ctx.lineWidth=cs*.08;
+      ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*(.6+k*1.6),0,Math.PI*2); ctx.stroke();
+    } else ping=null;
+  }
+  if(longPress){
+    const k=clamp((now-longPress.t0)/5000,0,1), px=(rx+.5)*cs, py=(SKY+ry+.5)*cs;
+    ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=cs*.11;
+    ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*.85,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.strokeStyle='#ffc21a'; ctx.lineWidth=cs*.09;
+    ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*.85,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+  }
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.round(cs*.36)}px "Lilita One","Arial Black",sans-serif`; ctx.lineWidth=cs*.1; ctx.lineJoin='round';
+  floats.forEach(f=>{const k=(now-f.t0)/1300;ctx.globalAlpha=1-k*k;const y=f.y-k*cs*.9;ctx.strokeStyle='#1a0f07';ctx.strokeText(f.text,f.x,y);ctx.fillStyle=f.col;ctx.fillText(f.text,f.x,y);});
+  ctx.globalAlpha=1;
 
-            playHeartPickup() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine';
-                const now = this.ctx.currentTime;
-                osc.frequency.setValueAtTime(500, now);
-                osc.frequency.setValueAtTime(800, now + 0.1);
-                osc.frequency.setValueAtTime(1100, now + 0.22);
-                gain.gain.setValueAtTime(0.28, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.48);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(now);
-                osc.stop(now + 0.48);
-            }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const dark=clamp((ry-1)*.03,0,.8);
+  if(dark>0){
+    const px=(rx+.5)*cs-cam.x, py=(SKY+ry+.5)*cs-cam.y;
+    const g=ctx.createRadialGradient(px,py,cs*1.5,px,py,Math.max(vw,vh)*.7);
+    g.addColorStop(0,'rgba(10,5,2,0)'); g.addColorStop(1,`rgba(10,5,2,${dark})`);
+    ctx.fillStyle=g; ctx.fillRect(0,0,vw,vh);
+    if(S.supports.size){ // each support's lamp lights up a real radius, punching back through the dark
+      ctx.save(); ctx.globalCompositeOperation='destination-out';
+      const rad=cs*5;
+      S.supports.forEach(idx=>{
+        const sx2=idx%W, sy2=(idx/W)|0;
+        const spx=(sx2+.5)*cs-cam.x, spy=(SKY+sy2+.16)*cs-cam.y;
+        if(spx<-rad||spx>vw+rad||spy<-rad||spy>vh+rad) return;
+        const gg=ctx.createRadialGradient(spx,spy,0,spx,spy,rad);
+        gg.addColorStop(0,'rgba(0,0,0,.95)'); gg.addColorStop(.7,'rgba(0,0,0,.6)'); gg.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(spx,spy,rad,0,Math.PI*2); ctx.fill();
+      });
+      ctx.restore();
+    }
+  }
+}
 
-            playGauntletSuccess() {
-                if (!this.ctx) return;
-                const now = this.ctx.currentTime;
-                [440, 554, 659, 880].forEach((freq, i) => {
-                    const osc = this.ctx.createOscillator();
-                    const g = this.ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, now + i * 0.13);
-                    g.gain.setValueAtTime(0.22, now + i * 0.13);
-                    g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.13 + 0.35);
-                    osc.connect(g); g.connect(this.ctx.destination);
-                    osc.start(now + i * 0.13);
-                    osc.stop(now + i * 0.13 + 0.35);
-                });
-            }
-        }
+/* ---------- HUD & shop ---------- */
+const icStyle=o=>`--c:${o.c};--h:${o.h}`;
+$('res').innerHTML=ORES.map(o=>`<div class="ri" id="ri-${o.id}" title="${o.name}"><i class="ic${o.gem?' gem':''}" style="${icStyle(o)}"></i><b>0</b></div>`).join('');
+function updateHUD(){
+  ORES.forEach(o=>{const el=$('ri-'+o.id);el.querySelector('b').textContent=S.inv[o.id];el.classList.toggle('zero',!S.inv[o.id]);});
+  $('coins').textContent=S.coins;
+  $('depth').textContent=S.py+' m';
+  $('toolinfo').textContent=`${TOOLS[S.tool].name}, ${curTime(S.tool)}s per block · Mine ${S.mine}`;
+}
+function renderShop(){
+  $('scoins').textContent=S.coins;
+  $('sell').innerHTML=ORES.map(o=>{const n=S.inv[o.id];return `<button class="tile" data-sell="${o.id}" ${n?'':'disabled'}><i class="ic${o.gem?' gem':''}" style="${icStyle(o)}"></i><span class="nm">${o.name}</span><span class="ct">×${n}</span><span class="pr"><span class="coin sm"></span>${o.value} each</span></button>`}).join('');
+  const total=ORES.reduce((a,o)=>a+S.inv[o.id]*o.value,0);
+  const sa=$('sellall'); sa.disabled=!total; sa.textContent=total?`Sell everything for ${total} coins`:'No ore to sell yet';
+  $('scanbtn').disabled=S.coins<1000;
+  $('tools').innerHTML=TOOLS.map((t,i)=>{
+    const lv=S.owned[i], maxLv=t.levels.length, isCur=S.tool===i, broken=lv>0&&S.dur[i]===0;
+    const time=S.dur[i]>0?t.levels[S.dur[i]-1].time:null;
+    let top;
+    if(lv===0) top=`<button class="buy" data-buy="${i}" ${S.coins>=t.levels[0].price?'':'disabled'}><span class="coin sm"></span>${t.levels[0].price}</button>`;
+    else if(broken) top='<span class="tag" style="color:#e0563f">Broken</span>';
+    else if(isCur) top='<span class="tag">In use</span>';
+    else top=`<button class="buy" data-use="${i}">Use</button>`;
+    let up='';
+    if(lv>0&&!broken&&S.dur[i]===lv&&lv<maxLv){
+      const price=t.levels[lv].price;
+      up=`<button class="buy sm" data-upgrade="${i}" ${S.coins>=price?'':'disabled'}>⚡ ${t.levels[lv].time}s · <span class="coin sm"></span>${price}</button>`;
+    }
+    let rep='';
+    if(lv>0&&S.dur[i]<lv){
+      const rcost=Math.round(t.levels[0].price*0.25);
+      rep=`<button class="buy sm" data-repair="${i}" ${S.coins>=rcost?'':'disabled'}>🔧 Repair · <span class="coin sm"></span>${rcost}</button>`;
+    }
+    const wear=lv>0?` · wear ${S.wear[i]}%`:'';
+    return `<div class="tool${isCur?' cur':''}"><canvas data-ti="${i}" width="144" height="80"></canvas><div class="tt"><b>${t.name}</b><span>${time?time+'s per block':'unusable'}${lv>0&&maxLv>1?` · speed ${S.dur[i]}/${maxLv}`:''}${wear}</span></div><div class="toolbtns">${top}${up}${rep}</div></div>`;
+  }).join('');
+  document.querySelectorAll('canvas[data-ti]').forEach(c=>{const x=c.getContext('2d');x.translate(34,40);x.scale(4,4);drawTool(x,+c.dataset.ti,0,false);});
+  const lvl=S.detectLvl||0;
+  $('detect').innerHTML = lvl<1
+    ? `<button class="buy" data-detect="1" style="width:100%;justify-content:center" ${S.coins>=1000?'':'disabled'}>👁️ Detect 2 blocks away · <span class="coin sm"></span>1000</button>`
+    : lvl<2
+    ? `<button class="buy" data-detect="2" style="width:100%;justify-content:center" ${S.coins>=2500?'':'disabled'}>👁️ Detect 3 blocks away · <span class="coin sm"></span>2500</button>`
+    : `<span class="tag">Max detection range: 3 blocks</span>`;
+  const flooded=S.pockets.filter(p=>p.breached&&!p.drained);
+  $('floods').innerHTML=flooded.map(pk=>`<button class="buy" data-pump="${pk.id}" style="width:100%;justify-content:center;margin-top:6px" ${S.coins>=pk.pumpCost?'':'disabled'}>💧 Pump flooded pocket · <span class="coin sm"></span>${pk.pumpCost}</button>`).join('');
+}
+function setTool(i){
+  const now=performance.now();
+  if(S.dig){const p=clamp((now-S.dig.start)/S.dig.dur,0,1),nd=curTime(i)*1000;S.dig.dur=nd;S.dig.start=now-p*nd;}
+  S.tool=i;
+}
+function openShop(){modalOpen=true;held=null;walkPath=null;$('modal').hidden=false;renderShop();$('close').focus();}
+function closeShop(){modalOpen=false;$('modal').hidden=true;armNew(false);}
+$('upg').addEventListener('click',openShop);
+$('findme').addEventListener('click',()=>{followCam=true;ping=performance.now();toast('There you are — your miner is right in the middle of the screen.');});
+$('supportbtn').addEventListener('click',()=>{
+  const idx=S.px+S.py*W;
+  if(S.py<=0){toast("You're on the surface — no support needed here."); return;}
+  if(S.supports.has(idx)){toast('Already supported here.'); return;}
+  if(S.coins<5){toast('Not enough coins.'); return;}
+  S.coins-=5; S.supports.add(idx); save(); updateHUD();
+  toast('Support placed — this stretch is safer now.');
+});
+$('close').addEventListener('click',closeShop);
+$('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeShop();});
+$('sell').addEventListener('click',e=>{
+  const b=e.target.closest('[data-sell]'); if(!b) return;
+  const o=ORES.find(o=>o.id===b.dataset.sell), gain=S.inv[o.id]*o.value;
+  S.coins+=gain; S.inv[o.id]=0; save(); updateHUD(); renderShop(); toast(`Sold ${o.name} for ${gain} coins`);
+});
+$('sellall').addEventListener('click',()=>{
+  let gain=0; ORES.forEach(o=>{gain+=S.inv[o.id]*o.value;S.inv[o.id]=0;});
+  S.coins+=gain; save(); updateHUD(); renderShop(); toast(`Sold everything for ${gain} coins`);
+});
+$('scanbtn').addEventListener('click',()=>{
+  if(S.coins<1000) return;
+  S.coins-=1000; revealArea(S.px,S.py,10); save(); updateHUD(); renderShop();
+  toast('Scanned the ground around you — minerals nearby are now visible');
+});
+$('detect').addEventListener('click',e=>{
+  const b=e.target.closest('[data-detect]'); if(!b||b.disabled) return;
+  const lv=+b.dataset.detect, cost=lv===1?1000:2500;
+  if(S.coins<cost) return;
+  S.coins-=cost; S.detectLvl=lv; save(); updateHUD(); renderShop();
+  toast(`Detection upgraded — you now spot minerals ${lv+1} blocks away.`);
+});
+$('floods').addEventListener('click',e=>{
+  const b=e.target.closest('[data-pump]'); if(!b||b.disabled) return;
+  pumpPocket(+b.dataset.pump);
+});
+$('tools').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b||b.disabled) return;
+  if(b.dataset.buy){const i=+b.dataset.buy;S.coins-=TOOLS[i].levels[0].price;S.owned[i]=1;S.dur[i]=1;S.wear[i]=0;setTool(i);toast(`Bought the ${TOOLS[i].name}!`);}
+  else if(b.dataset.use){setTool(+b.dataset.use);}
+  else if(b.dataset.upgrade){const i=+b.dataset.upgrade;S.coins-=TOOLS[i].levels[S.owned[i]].price;S.owned[i]++;S.dur[i]=S.owned[i];S.wear[i]=0;setTool(i);toast(`${TOOLS[i].name} upgraded to ${curTime(i)}s per block!`);}
+  else if(b.dataset.repair){const i=+b.dataset.repair;const cost=Math.round(TOOLS[i].levels[0].price*0.25);S.coins-=cost;S.dur[i]=S.owned[i];S.wear[i]=0;toast(`${TOOLS[i].name} repaired!`);}
+  save(); updateHUD(); renderShop();
+});
+let armed=false;
+function armNew(on){armed=on;const b=$('newmine');b.classList.toggle('arm',on);b.textContent=on?'Tap again to start a new mine (you keep coins, ore and tools)':'Start a new mine';}
+$('newmine').addEventListener('click',()=>{
+  if(!armed){armNew(true);return;}
+  newGame({inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,mine:S.mine});
+  closeShop(); updateHUD(); toast(`Welcome to mine ${S.mine}!`);
+});
 
-        const sfx = new SoundFX();
+/* ---------- menu: save / load / quit ---------- */
+$('menubtn').addEventListener('click',()=>{$('menu').hidden=false;});
+$('menuclose').addEventListener('click',()=>{$('menu').hidden=true;});
+$('menu').addEventListener('click',e=>{if(e.target.id==='menu')$('menu').hidden=true;});
+$('savefile').addEventListener('click',()=>{
+  save();
+  const raw=localStorage.getItem(KEY);
+  const blob=new Blob([raw],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`deep-dig-save-mine${S.mine}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('Save file downloaded');
+});
+$('loadfilebtn').addEventListener('click',()=>$('loadinput').click());
+$('loadinput').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const d=JSON.parse(reader.result);
+      if(!d||d.v!==1||typeof d.g!=='string') throw new Error('bad save');
+      localStorage.setItem(KEY, JSON.stringify(d));
+      const ok=load();
+      if(ok===true){ $('menu').hidden=true; camInit=false; resize(); updateHUD(); toast('Save file loaded'); }
+      else { newGame(ok,true); $('menu').hidden=true; resize(); updateHUD(); toast('Save file loaded (older map, coins & tools kept)'); }
+    }catch(err){ toast("That file doesn't look like a Deep Dig save."); }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+});
+let quitting=false;
+$('quitbtn').addEventListener('click',()=>{
+  if(!confirm('Quit Deep Dig? Your progress is saved automatically.')) return;
+  save(); quitting=true; $('menu').hidden=true;
+  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:\'Lilita One\',sans-serif;font-size:22px;color:#fff4e0;background:#23170f;text-align:center;padding:20px">Thanks for playing Deep Dig!<br>You can close this tab now.</div>';
+  try{window.close();}catch(e){}
+});
 
-        // Canvas Setup
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+/* ---------- input ---------- */
+let gesture=null;
+cv.addEventListener('pointerdown',e=>{
+  if(modalOpen) return;
+  e.preventDefault();
+  const now=performance.now(), [rx,ry]=playerPos(now);
+  const px=(rx+.5)*cs-cam.x, py=(SKY+ry+.5)*cs-cam.y-cs*.15;
+  const onPlayer=Math.hypot(e.offsetX-px,e.offsetY-py)<=cs*1.3;
+  gesture={x0:e.offsetX,y0:e.offsetY,lastX:e.offsetX,lastY:e.offsetY,onPlayer,moved:false};
+  if(onPlayer) longPress={t0:now};
+});
+cv.addEventListener('pointermove',e=>{
+  if(!gesture) return;
+  const dx=e.offsetX-gesture.lastX, dy=e.offsetY-gesture.lastY;
+  if(!gesture.moved && Math.hypot(e.offsetX-gesture.x0,e.offsetY-gesture.y0)>8){gesture.moved=true; longPress=null;}
+  if(gesture.moved){
+    followCam=false;
+    cam.x=clamp(cam.x-dx,-vw*.5,Math.max(-vw*.5,W*cs-vw*.5));
+    cam.y=clamp(cam.y-dy,-vh*.5,Math.max(-vh*.5,(SKY+D)*cs-vh*.5));
+  }
+  gesture.lastX=e.offsetX; gesture.lastY=e.offsetY;
+});
+function tapToWalk(px,py){
+  const gx=Math.floor((px+cam.x)/cs), gyw=Math.floor((py+cam.y)/cs), gy=gyw-SKY;
+  if(gx<0||gx>=W||gy<0||gy>=D) return;
+  if(gx===S.px&&gy===S.py) return;
+  if(S.grid[gx+gy*W]!==EMPTY||S.flooded.has(gx+gy*W)){toast("You'll need to dig your way there first."); return;}
+  const path=findPath(S.px,S.py,gx,gy);
+  if(!path){toast("Can't find a path there through what you've already dug."); return;}
+  walkPath=path; followCam=true; held=null;
+  if(!anim && walkPath.length){ const [nx,ny]=walkPath.shift(); moveTo(nx,ny,performance.now()); }
+}
+['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,e=>{
+  longPress=null;
+  if(gesture&&!gesture.moved&&!gesture.onPlayer&&!modalOpen) tapToWalk(gesture.lastX,gesture.lastY);
+  gesture=null;
+}));
+cv.addEventListener('pointerleave',()=>{longPress=null; gesture=null;});
+document.querySelectorAll('.db').forEach(b=>{
+  const d=+b.dataset.dir;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}held=d;b.classList.add('on');act(d);});
+  const up=()=>{if(held===d)held=null;b.classList.remove('on');};
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,up));
+  b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();act(d);}});
+});
+const KEYS={ArrowUp:UP,w:UP,W:UP,ArrowRight:RIGHT,d:RIGHT,D:RIGHT,ArrowDown:DOWN,s:DOWN,S:DOWN,ArrowLeft:LEFT,a:LEFT,A:LEFT};
+window.addEventListener('keydown',e=>{
+  if(modalOpen){if(e.key==='Escape')closeShop();return;}
+  if(e.key==='u'||e.key==='U'){openShop();return;}
+  const d=KEYS[e.key]; if(d===undefined) return; e.preventDefault();
+  if(e.repeat) return; held=d; act(d);
+});
+window.addEventListener('keyup',e=>{const d=KEYS[e.key];if(d!==undefined&&held===d)held=null;});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+document.addEventListener('contextmenu',e=>e.preventDefault());
 
-        // UI Element References
-        const scoreDisplay = document.getElementById('score-display');
-        const highScoreDisplay = document.getElementById('high-score-display');
-        const livesContainer = document.getElementById('lives-container');
-        const powerupBadgeContainer = document.getElementById('powerup-badge-container');
-        const waveTimerDisplay = document.getElementById('wave-timer-display');
-        const waveWarning = document.getElementById('wave-warning');
-        const warningText = document.getElementById('warning-text');
-        const chainLaserBtn = document.getElementById('chain-laser-btn');
-        const crossLaserBtn = document.getElementById('cross-laser-btn');
-        const missileBtn = document.getElementById('missile-btn');
-        const missileBtnIcon = document.getElementById('missile-btn-icon');
-        const missileBtnLabel = document.getElementById('missile-btn-label');
-        const missileBadge = document.getElementById('missile-badge');
-        const chainBadge = document.getElementById('chain-badge');
-        const fanBadge = document.getElementById('fan-badge');
-        const pauseBtn = document.getElementById('pause-btn');
-        const pauseScreen = document.getElementById('pause-screen');
-        const resumeBtn = document.getElementById('resume-btn');
-        const startScreen = document.getElementById('start-screen');
-        const startHighscore = document.getElementById('start-highscore');
-        const viewLeaderboardBtn = document.getElementById('view-leaderboard-btn');
-        const nameEntryScreen = document.getElementById('name-entry-screen');
-        const nameEntryScore = document.getElementById('name-entry-score');
-        const nameEntryInput = document.getElementById('name-entry-input');
-        const nameEntryBtn = document.getElementById('name-entry-btn');
-        const leaderboardScreen = document.getElementById('leaderboard-screen');
-        const leaderboardList = document.getElementById('leaderboard-list');
-        const leaderboardCloseBtn = document.getElementById('leaderboard-close-btn');
-        const gameoverScreen = document.getElementById('gameover-screen');
-        const gameoverTitle = document.getElementById('gameover-title');
-        const gameoverSubtitle = document.getElementById('gameover-subtitle');
-        const finalScore = document.getElementById('final-score');
-        const finalHighScore = document.getElementById('final-high-score');
-        const startBtn = document.getElementById('start-btn');
-        const restartBtn = document.getElementById('restart-btn');
-
-        // Game Logic Variables
-        let isPlaying = false;
-        let isPaused = false;
-        let score = 0;
-        let highScore = parseInt(localStorage.getItem('asteroid_highscore') || '0');
-        let lastTime = 0;
-        let spawnTimer = 0;
-        let spawnInterval = 1000;
-
-        // Wave Event Timeline Manager
-        let eventClock = 0; // Cumulative active seconds
-        let nextWallEventTime = 60; // 60s, 120s, 180s...
-        let nextCrossfireEventTime = 30; // 30s, 90s, 150s...
-
-        // Independent Laser Charge Pools (earned alternately, spent independently)
-        let chainLaserCharges = 0;
-        let fanLaserCharges = 0;
-        let lastLaserThreshold = 0; // Earn 1 charge per 300 points
-        let nextLaserGrantIsChain = true; // alternates which pool gets the next earned charge
-        let missiles = [];
-        let missileStock = 0;
-        let hasPhotonTorpedoes = false; // permanent upgrade once earned
-
-        // Laser Animation Visual Timers
-        let activeChainBranches = [];
-        let chainLaserAnimTimer = 0;
-        let crossLaserAnimTimer = 0;
-        let crossLaserBeamTargets = [];
-        let screenShake = 0;
-
-        // Touch Control Variables (Relative 2D Drag)
-        let isTouching = false;
-        let touchStartPos = { x: 0, y: 0 };
-        let playerStartPos = { x: 0, y: 0 };
-        let currentTouchPos = { x: 0, y: 0 };
-
-        // Player Spacecraft
-        const player = {
-            x: 0,
-            y: 0,
-            radius: 20,
-            speed: 480,
-            lives: 3,
-            maxLives: 3,
-            shieldCharge: 0, // 0-1, lets shield absorb two half-damage hits before breaking
-            invulnerableTimer: 0,
-            collisionFlashTimer: 0,
-            shootTimer: 0,
-            shootInterval: 0.18,
-            powerups: {
-                rapid: 0,
-                spread: 0,
-                shield: 0,
-                slow: 0 // 30s Time Slow ('H')
-            }
-        };
-
-        // Collections
-        let bullets = [];
-        let asteroids = [];
-        let particles = [];
-        let powerups = [];
-        let stars = [];
-        let enemyBullets = []; // fired at the player by alien ships / mothership
-
-        // === Falling Heart Drops (every ~3 minutes) ===
-        let fallingHearts = [];
-        let nextHeartDropTime = 60 + Math.random() * 30; // first drop in 60-90s
-
-        // === Obstacle Course / Gauntlet (first at 45s, then every 1-2 min) ===
-        // The gauntlet is now a dense field of indestructible rock asteroids
-        // forming two walls with a navigable gap — not straight lines.
-        let isObstacleCourse = false;
-        let obstacleCourseTimer = 0;
-        const GAUNTLET_SCROLL_SPEED = 150;      // vy of gauntlet rocks
-        const GAUNTLET_ROW_SPACING = 82;        // vertical px between rows — bigger than a rock's diameter (~48-54) so rows never stack on top of each other, even in straight/gentle-drift stretches
-        const GAUNTLET_ROCK_RADIUS = 24;
-        const GAUNTLET_ROCK_H_SPACING = 78;      // horizontal px between rock centers within a wall — guarantees a real visible gap (~20px+) between neighbors, not just "not overlapping"
-        const COLLISION_FLASH_DURATION = 0.9; // red glow blinks 3 times over this span
-        let corridorGapWidth = 175;
-        let gauntletCorridorFactor = 1; // 0 = sparse pegboard, 1 = full packed corridor
-        let pathSection = null;      // current "road section" being generated (straight/drift/zigzag/bigturn)
-        let gauntletLastCX = 0;      // running corridor-center x, advanced one row at a time
-        let gauntletRowTimer = 0;
-        let gauntletRowIndex = 0;
-        let livesAtCourseStart = 0;
-        let nextObstacleCourseTime = 45; // first gauntlet arrives 45s into the run
-        let chestRewardTimer = 0;
-        // Tracks whether every regular (destructible) asteroid spawned since
-        // the last gauntlet (or game start) was destroyed by the player —
-        // a perfect clear unlocks permanent Photon Torpedoes.
-        // Standalone indestructible asteroids (outside gauntlets): population
-        // target re-rolls every 10-30s, weighted heavily toward 0-1 at a time,
-        // capped at 4. spawnAsteroid() only makes one indestructible while the
-        // current on-screen count is below this target.
-        let indestructibleTargetCount = 0;
-        let indestructibleRerollTimer = 10 + Math.random() * 20;
-
-        // === Alien Ships (regular, up to 3 at once) ===
-        let alienShips = []; // [{x,y,radius,hp,maxHp,wobble,hitFlashTimer,shootTimer}]
-        let alienClock = 0;   // advances every frame regardless of gauntlet/mothership state
-        let nextAlienShipTime = 40;
-        let alienWaveCount = 0; // ships in the next wave — +1 each wave, capped at 3
-        const ALIEN_SHIP_SPEED = 55;
-        const ALIEN_SHIP_HP = 50;
-        const ALIEN_BULLET_SPEED = 260;
-        const ALIEN_BULLET_DAMAGE = 0.5;
-
-        // === Alien Mothership (first at 5 min, then every ~4-6 min after) ===
-        let motherShip = null; // {x,y,radius,hp,maxHp,hitFlashTimer,shootTimer}
-        const MOTHER_SHIP_HP = 1000;
-        let motherShipsDestroyed = 0;
-        let nextMotherShipTime = 300; // 5 minutes
-
-        // === Leaderboard (top 10, name + score) ===
-        let leaderboard = JSON.parse(localStorage.getItem('asteroid_leaderboard') || '[]');
-
-        // Keyboard Controls State
-        const keys = { Left: false, Right: false, Up: false, Down: false, Space: false };
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            if (!isPlaying) {
-                player.x = canvas.width / 2;
-                player.y = canvas.height - 100;
-            } else {
-                player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-                player.y = Math.max(player.radius + 20, Math.min(canvas.height - player.radius - 20, player.y));
-            }
-            initStars();
-        }
-
-        function initStars() {
-            stars = [];
-            const count = Math.floor((canvas.width * canvas.height) / 3000);
-            for (let i = 0; i < count; i++) {
-                stars.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 2 + 0.5,
-                    speed: Math.random() * 40 + 20,
-                    alpha: Math.random() * 0.8 + 0.2
-                });
-            }
-        }
-
-        window.addEventListener('resize', resizeCanvas);
-
-        // Key Bindings
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.Left = true;
-            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.Right = true;
-            if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.Up = true;
-            if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.Down = true;
-            if (e.code === 'Space') keys.Space = true;
-            if (e.code === 'KeyP') togglePause();
-            if (e.code === 'KeyL') triggerChainLaser();
-            if (e.code === 'KeyK') triggerCrossLaser();
-            if (e.code === 'KeyM') triggerMissile();
+/* ---------- boot ---------- */
+const hadSave=load();
+if(hadSave===true){/* loaded fully */}
+else if(hadSave){newGame(hadSave,true); toast('Your mine map was updated — coins and tools carried over.',3200);}
+else newGame(null);
+resize(); updateHUD();
+if(!hadSave) setTimeout(()=>toast('Tap an arrow to start digging',3000),400);
+let last=performance.now();
+function frame(now){
+  if(quitting) return;
+  const dt=Math.min(.05,(now-last)/1000);last=now;update(now,dt);render(now,dt);requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      if(reg.waiting) reg.waiting.postMessage('skip');
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        nw && nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed' && navigator.serviceWorker.controller) nw.postMessage('skip');
         });
-
-        window.addEventListener('keyup', (e) => {
-            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.Left = false;
-            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.Right = false;
-            if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.Up = false;
-            if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.Down = false;
-            if (e.code === 'Space') keys.Space = false;
-        });
-
-        // Touch Control Listeners (Full 2D Dragging)
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            sfx.init();
-            if (isPaused) return;
-            if (e.touches.length > 0) {
-                isTouching = true;
-                const touch = e.touches[0];
-                touchStartPos = { x: touch.clientX, y: touch.clientY };
-                playerStartPos = { x: player.x, y: player.y };
-                currentTouchPos = { x: touch.clientX, y: touch.clientY };
-            }
-        }, { passive: false });
-
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (isPaused) return;
-            if (e.touches.length > 0) {
-                const touch = e.touches[0];
-                currentTouchPos = { x: touch.clientX, y: touch.clientY };
-            }
-        }, { passive: false });
-
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (e.touches.length === 0) {
-                isTouching = false;
-            }
-        }, { passive: false });
-
-        // HUD Laser Button Click/Touch Listeners
-        chainLaserBtn.addEventListener('click', (e) => { e.stopPropagation(); triggerChainLaser(); });
-        chainLaserBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); triggerChainLaser(); });
-
-        crossLaserBtn.addEventListener('click', (e) => { e.stopPropagation(); triggerCrossLaser(); });
-        crossLaserBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); triggerCrossLaser(); });
-
-        missileBtn.addEventListener('click', (e) => { e.stopPropagation(); triggerMissile(); });
-        missileBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); triggerMissile(); });
-
-        pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
-        resumeBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
-
-        function togglePause() {
-            if (!isPlaying) return;
-            isPaused = !isPaused;
-            if (isPaused) {
-                pauseScreen.classList.remove('hidden');
-            } else {
-                pauseScreen.classList.add('hidden');
-            }
-        }
-
-        // WEAPON 1: Cascading Chain Laser (Consumes 1 Shared Charge Pool Stock)
-        function triggerChainLaser() {
-            if (!isPlaying || isPaused || chainLaserCharges <= 0) return;
-
-            chainLaserCharges--;
-            updateChainLaserUI();
-            sfx.playCascadingLaser();
-            screenShake = 0.5;
-
-            activeChainBranches = [];
-            const destroyedAsteroidIds = new Set();
-
-            let firstTarget = null;
-            let minDistToUpLine = Infinity;
-
-            asteroids.forEach((a, index) => {
-                if (a.indestructible) return;
-                if (a.y <= player.y) {
-                    const dx = Math.abs(a.x - player.x);
-                    const dy = player.y - a.y;
-                    const totalDist = dx * 2 + dy;
-                    if (totalDist < minDistToUpLine) {
-                        minDistToUpLine = totalDist;
-                        firstTarget = { asteroid: a, index: index };
-                    }
-                }
-            });
-
-            if (!firstTarget) {
-                activeChainBranches.push({ x1: player.x, y1: player.y, x2: player.x, y2: 0 });
-            } else {
-                const trunk = firstTarget.asteroid;
-                activeChainBranches.push({ x1: player.x, y1: player.y, x2: trunk.x, y2: trunk.y });
-                destroyedAsteroidIds.add(trunk);
-                addScore(trunk.points);
-                createExplosion(trunk.x, trunk.y, '#f472b6', 18);
-
-                function cascadeBranch(currentAsteroid, depth) {
-                    if (depth >= 6) return;
-                    const candidates = asteroids.filter(a => !destroyedAsteroidIds.has(a) && !a.indestructible);
-                    if (candidates.length === 0) return;
-
-                    candidates.sort((a, b) => {
-                        const distA = Math.hypot(a.x - currentAsteroid.x, a.y - currentAsteroid.y);
-                        const distB = Math.hypot(b.x - currentAsteroid.x, b.y - currentAsteroid.y);
-                        return distA - distB;
-                    });
-
-                    const targets = candidates.slice(0, 2);
-                    targets.forEach(target => {
-                        destroyedAsteroidIds.add(target);
-                        addScore(target.points);
-                        createExplosion(target.x, target.y, '#ec4899', 14);
-
-                        activeChainBranches.push({
-                            x1: currentAsteroid.x, y1: currentAsteroid.y,
-                            x2: target.x, y2: target.y
-                        });
-
-                        cascadeBranch(target, depth + 1);
-                    });
-                }
-
-                cascadeBranch(trunk, 1);
-                asteroids = asteroids.filter(a => !destroyedAsteroidIds.has(a));
-            }
-
-            chainLaserAnimTimer = 0.5;
-        }
-
-        // WEAPON 2: FAN-5 — zaps the 5 nearest destructible targets directly
-        function triggerCrossLaser() {
-            if (!isPlaying || isPaused || fanLaserCharges <= 0) return;
-
-            fanLaserCharges--;
-            updateFanLaserUI();
-            sfx.playCrossLaser();
-            screenShake = 0.6;
-
-            // Gather every destructible target: regular asteroids (not
-            // gauntlet/indestructible rocks), alien ships, and the mothership.
-            const candidates = [];
-            asteroids.forEach(a => { if (!a.indestructible) candidates.push({ type: 'asteroid', ref: a }); });
-            alienShips.forEach(s => candidates.push({ type: 'alien', ref: s }));
-            if (motherShip) candidates.push({ type: 'mother', ref: motherShip });
-
-            candidates.sort((a, b) => {
-                const da = Math.hypot(a.ref.x - player.x, a.ref.y - player.y);
-                const db = Math.hypot(b.ref.x - player.x, b.ref.y - player.y);
-                return da - db;
-            });
-
-            const targets = candidates.slice(0, 5);
-            // Store target points so render() can draw a beam from the ship to each
-            crossLaserBeamTargets = targets.map(t => ({ x: t.ref.x, y: t.ref.y }));
-
-            targets.forEach(t => {
-                if (t.type === 'asteroid') {
-                    const a = t.ref;
-                    addScore(a.points);
-                    createExplosion(a.x, a.y, '#22d3ee', 16);
-                    const idx = asteroids.indexOf(a);
-                    if (idx >= 0) asteroids.splice(idx, 1);
-                } else if (t.type === 'alien') {
-                    damageAlienShip(t.ref, 10, '#4ade80');
-                } else if (t.type === 'mother') {
-                    damageMotherShip(15);
-                }
-            });
-
-            crossLaserAnimTimer = 0.45;
-        }
-
-        // EVENT 1: Wall Wave Event (Every 60s)
-        function triggerAsteroidWallWave() {
-            warningText.textContent = "WARNING: MASSIVE ASTEROID WALL INCOMING!";
-            waveWarning.classList.remove('hidden');
-            setTimeout(() => waveWarning.classList.add('hidden'), 3500);
-
-            const wallCount = 20;
-            const step = canvas.width / wallCount;
-
-            for (let i = 0; i < wallCount; i++) {
-                const radius = 18 + Math.random() * 10;
-                const offset = (Math.random() - 0.5) * 20;
-                const numVertices = 7;
-                const offsetAngles = Array(numVertices).fill(0).map(() => 0.7 + Math.random() * 0.6);
-
-                asteroids.push({
-                    x: Math.max(radius, Math.min(canvas.width - radius, i * step + step / 2 + offset)),
-                    y: -radius - 20 - (Math.random() * 60),
-                    radius: radius,
-                    vx: (Math.random() - 0.5) * 20,
-                    vy: 110 + Math.random() * 30,
-                    rotation: 0,
-                    vRot: (Math.random() - 0.5) * 2,
-                    hp: 1,
-                    maxHp: 1,
-                    points: 10,
-                    numVertices: numVertices,
-                    offsetAngles: offsetAngles,
-                    eventSpawned: true
-                });
-            }
-        }
-
-        // EVENT 2: Crossfire Storm Event (Every 60s offset by 30s)
-        function triggerCrossfireStorm() {
-            warningText.textContent = "WARNING: CROSSFIRE ASTEROID STORM!";
-            waveWarning.classList.remove('hidden');
-            setTimeout(() => waveWarning.classList.add('hidden'), 3500);
-
-            const totalStormAsteroids = 28;
-            const SLOW_FACTOR = 0.35; // same multiplier as the Slow powerup — these always move this way
-            for (let i = 0; i < totalStormAsteroids; i++) {
-                const side = Math.floor(Math.random() * 4); // 0: Top, 1: Right, 2: Bottom, 3: Left
-                let x, y, vx, vy;
-                const speed = (110 + Math.random() * 90) * SLOW_FACTOR;
-                const radius = 14 + Math.random() * 12;
-
-                if (side === 0) { // Top
-                    x = Math.random() * canvas.width;
-                    y = -radius - 10;
-                    vx = (Math.random() - 0.5) * 160 * SLOW_FACTOR;
-                    vy = speed;
-                } else if (side === 1) { // Right
-                    x = canvas.width + radius + 10;
-                    y = Math.random() * canvas.height;
-                    vx = -speed;
-                    vy = (Math.random() - 0.5) * 160 * SLOW_FACTOR;
-                } else if (side === 2) { // Bottom
-                    x = Math.random() * canvas.width;
-                    y = canvas.height + radius + 10;
-                    vx = (Math.random() - 0.5) * 160 * SLOW_FACTOR;
-                    vy = -speed;
-                } else { // Left
-                    x = -radius - 10;
-                    y = Math.random() * canvas.height;
-                    vx = speed;
-                    vy = (Math.random() - 0.5) * 160 * SLOW_FACTOR;
-                }
-
-                const numVertices = 7;
-                const offsetAngles = Array(numVertices).fill(0).map(() => 0.7 + Math.random() * 0.6);
-
-                asteroids.push({
-                    x: x,
-                    y: y,
-                    radius: radius,
-                    vx: vx,
-                    vy: vy,
-                    rotation: 0,
-                    vRot: (Math.random() - 0.5) * 3,
-                    hp: 1,
-                    maxHp: 1,
-                    points: 10,
-                    numVertices: numVertices,
-                    offsetAngles: offsetAngles,
-                    eventSpawned: true
-                });
-            }
-        }
-
-        // === EVENT 3: Falling Heart Drops (~every 1-1.5 min) ===
-        function triggerHeartDrop() {
-            const count = Math.random() < 0.5 ? 1 : 2;
-            for (let i = 0; i < count; i++) {
-                // Second heart lands in the opposite half of the screen and
-                // starts well further above it, so it arrives noticeably
-                // later — the two are never a simultaneous freebie side by side.
-                const x = count === 2
-                    ? (i === 0 ? canvas.width * (0.12 + Math.random() * 0.28) : canvas.width * (0.6 + Math.random() * 0.28))
-                    : canvas.width * (0.15 + Math.random() * 0.7);
-                const startY = i === 0 ? -35 : -35 - (260 + Math.random() * 220); // staggers arrival by ~1-2s
-                fallingHearts.push({
-                    x: x,
-                    y: startY,
-                    vy: 240,          // ~2× average asteroid speed
-                    radius: 18,
-                    wobble: Math.random() * Math.PI * 2
-                });
-            }
-            warningText.textContent = `❤️ HEART DROP! INTERCEPT ${count === 2 ? 'THEM' : 'IT'}! ❤️`;
-            waveWarning.classList.remove('hidden');
-            setTimeout(() => waveWarning.classList.add('hidden'), 2800);
-        }
-
-        // === EVENT 4: Obstacle Course / Gauntlet ===
-        function startObstacleCourse() {
-            isObstacleCourse = true;
-            obstacleCourseTimer = pickGauntletDuration();
-            // Short gauntlets (<=10s) read as a sparse "pegboard" of
-            // individual rocks to weave around; long ones (45s) are a full
-            // packed corridor. This factor blends smoothly between them —
-            // used by spawnGauntletRow() below.
-            gauntletCorridorFactor = Math.max(0, Math.min(1, (obstacleCourseTimer - 10) / 35));
-            // Guarantee at least 3 full ship-widths of clear passage, plus a
-            // buffer to absorb the per-rock position/size jitter below.
-            // Narrowed by roughly one rock-width from the previous version —
-            // still a hard floor of well over 2 ship-widths.
-            const minGap = player.radius * 2 * 2.5 + 30;
-            corridorGapWidth = Math.max(minGap, Math.min(canvas.width * 0.28, canvas.width - 200) - GAUNTLET_ROCK_H_SPACING);
-            livesAtCourseStart = player.lives;
-            // Don't wipe existing asteroids/bullets — they keep falling/flying
-            // naturally and clear off-screen on their own. Spawning of NEW
-            // regular asteroids is paused elsewhere while isObstacleCourse
-            // is true. The gauntlet itself is built from indestructible rock
-            // asteroids pushed into the same `asteroids` array — spawned row
-            // by row just above the top edge and left to scroll down and
-            // clear naturally, exactly like normal asteroids.
-            pathSection = null;
-            gauntletLastCX = canvas.width / 2;
-            gauntletRowTimer = 0;
-            gauntletRowIndex = 0;
-
-            // Clear out any regular asteroids still in flight from before the
-            // trigger — otherwise they linger near the top and stack with
-            // the new gauntlet rocks, making the entrance look far denser
-            // than the rest of the course.
-            asteroids = asteroids.filter(a => a.indestructible);
-
-            warningText.textContent = '⚠️ ASTEROID GAUNTLET! NAVIGATE THE CORRIDOR!';
-            waveWarning.classList.remove('hidden');
-            setTimeout(() => waveWarning.classList.add('hidden'), 3200);
-        }
-
-        // Weighted gauntlet duration: mostly short "pegboard" bursts, with
-        // longer full corridors increasingly rare. Each tier is exactly
-        // half as common as the one before it (57.1% / 28.6% / 14.3%).
-        function pickGauntletDuration() {
-            const r = Math.random();
-            if (r < 0.571) return 5 + Math.random() * 5;     // 5-10s
-            if (r < 0.857) return 10 + Math.random() * 20;    // 10-30s — half as common
-            return 30 + Math.random() * 15;                    // 30-45s — half as common again
-        }
-
-        // Picks the next "road section" behavior, mimicking an overhead
-        // driving-road game: alternating stretches of straight road, gentle
-        // drifts, sharp zigzags, and big full-width transitions.
-        function pickPathSection() {
-            // Weighted so straight, do-nothing stretches are less common
-            // and shorter — the corridor should read as "winding with
-            // occasional straight breathers", not "mostly straight".
-            const types = ['zigzag', 'zigzag', 'drift', 'bigturn', 'straight'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            const dir = Math.random() < 0.5 ? 1 : -1;
-            let segmentsLeft, stepAmount, alternate = false;
-
-            // Scale turn sharpness to the actual gap width so a turn can
-            // never out-pace the passage itself. Capping each row's shift
-            // well under the gap width guarantees consecutive rows' gaps
-            // overlap by a wide margin — no zigzag chicane narrower than
-            // the ship can fit through.
-            const unit = corridorGapWidth * 0.22;
-
-            switch (type) {
-                case 'straight':
-                    segmentsLeft = 2 + Math.floor(Math.random() * 2); // 2-3 segments, no drift
-                    stepAmount = 0;
-                    break;
-                case 'drift':
-                    segmentsLeft = 4 + Math.floor(Math.random() * 3); // 4-6 segments
-                    stepAmount = unit * (0.35 + Math.random() * 0.3);   // gentle, same direction
-                    break;
-                case 'zigzag':
-                    segmentsLeft = 5 + Math.floor(Math.random() * 4); // 5-8 segments
-                    stepAmount = unit * (0.55 + Math.random() * 0.3);   // flips every segment, still gentle per-row
-                    alternate = true;
-                    break;
-                case 'bigturn':
-                    segmentsLeft = 4 + Math.floor(Math.random() * 2); // 4-5 segments
-                    stepAmount = unit * (0.5 + Math.random() * 0.3);    // sustained but gradual sweep
-                    break;
-            }
-            return { type, segmentsLeft, dir, stepAmount, alternate };
-        }
-
-        // Computes the next segment's center-x based on the current road
-        // section's behavior, advancing/rotating sections as they run out.
-        function nextCorridorCX(prevCX) {
-            if (!pathSection || pathSection.segmentsLeft <= 0) pathSection = pickPathSection();
-
-            const shift = pathSection.stepAmount * pathSection.dir;
-            if (pathSection.alternate) pathSection.dir *= -1; // zigzag flips each step
-            pathSection.segmentsLeft--;
-
-            const bound = corridorGapWidth / 2 + 45;
-            return Math.max(bound, Math.min(canvas.width - bound, prevCX + shift));
-        }
-
-        function spawnGauntletRow(yOffset) {
-            gauntletLastCX = nextCorridorCX(gauntletLastCX);
-            const f = gauntletCorridorFactor; // 0 = pegboard, 1 = full corridor
-
-            // Blend the "protected" open gap and rock spacing/density by
-            // duration: at f=0 the gap collapses to nothing, so rocks are
-            // considered across the FULL width, and with wide spacing plus
-            // a low fill chance that reads as a sparse pegboard to weave
-            // through rather than a defined lane. At f=1 it's the normal
-            // dense two-wall corridor with a real protected gap.
-            const gap = corridorGapWidth * f;
-            const spacing = 140 - (140 - GAUNTLET_ROCK_H_SPACING) * f;
-            const fillChance = 0.5 + 0.5 * f;
-
-            const leftWall = gauntletLastCX - gap / 2;
-            const rightWall = gauntletLastCX + gap / 2;
-            // yOffset (defaults to 0) nudges this row further along its fall
-            // in case the catch-up loop below ever spawns more than one row
-            // in the same frame — guarantees no two rows can ever land on
-            // the exact same y and visually double up.
-            const y = -GAUNTLET_ROCK_RADIUS - 10 - (yOffset || 0);
-            gauntletRowIndex++;
-            const stagger = (gauntletRowIndex % 2 === 0) ? 0 : spacing / 2;
-
-            const makeRock = (x, yy) => {
-                const numVertices = 7 + Math.floor(Math.random() * 4);
-                const offsetAngles = Array(numVertices).fill(0).map(() => 0.7 + Math.random() * 0.6);
-                asteroids.push({
-                    x: x + (Math.random() - 0.5) * 4,
-                    y: yy + (Math.random() - 0.5) * 10,
-                    radius: GAUNTLET_ROCK_RADIUS + (Math.random() - 0.5) * 4,
-                    vx: 0,
-                    vy: GAUNTLET_SCROLL_SPEED,
-                    rotation: Math.random() * Math.PI * 2,
-                    vRot: (Math.random() - 0.5) * 1.2,
-                    hp: 1,
-                    maxHp: 1,
-                    points: 0,
-                    numVertices,
-                    offsetAngles,
-                    indestructible: true
-                });
-            };
-
-            const validXs = [];
-            for (let x = GAUNTLET_ROCK_RADIUS + stagger; x <= leftWall - GAUNTLET_ROCK_RADIUS; x += spacing) validXs.push(x);
-            for (let x = rightWall + GAUNTLET_ROCK_RADIUS + stagger; x <= canvas.width - GAUNTLET_ROCK_RADIUS; x += spacing) validXs.push(x);
-
-            let rockCount = 0;
-            validXs.forEach(x => {
-                if (Math.random() < fillChance) { makeRock(x, y); rockCount++; }
-            });
-
-            // A gauntlet row with literally nothing in it reads as a broken,
-            // empty "gauntlet" — never let that happen. If every roll above
-            // missed, force at least one rock through.
-            if (rockCount === 0 && validXs.length > 0) {
-                makeRock(validXs[Math.floor(Math.random() * validXs.length)], y);
-            }
-
-            // Only in corridor-ish territory: every now and then drop a
-            // single rock out in the open gap itself — forces a left/right
-            // choice through wide sections instead of just flying straight
-            // down the middle — while always leaving a lane on the other
-            // side comfortably wider than the ship. (At low f, the row loop
-            // above already scatters rocks across the whole width, so this
-            // island trick is redundant there.)
-            const minPassGap = player.radius * 2 * 2.2 + 20;
-            if (f > 0.5 && gap > minPassGap * 2 + GAUNTLET_ROCK_RADIUS * 2 && Math.random() < 0.16) {
-                const islandR = GAUNTLET_ROCK_RADIUS - 2 + Math.random() * 4;
-                const nearLeft = Math.random() < 0.5;
-                const islandX = nearLeft
-                    ? leftWall + islandR + 14 + Math.random() * 14
-                    : rightWall - islandR - 14 - Math.random() * 14;
-                makeRock(islandX, y);
-            }
-        }
-
-        function updateObstacleCourse(dt, speedMultiplier) {
-            obstacleCourseTimer -= dt;
-
-            // Spawn new rows of wall rocks just above the top edge as time
-            // passes — they then fall and clear the screen through the
-            // exact same movement/collision/cleanup code as any other
-            // asteroid (see the main asteroid update loop). The spawn
-            // cadence is scaled by the same slow-motion multiplier as the
-            // rocks' own fall speed, so rows stay evenly spaced on screen
-            // instead of bunching up when the Slow powerup is active.
-            // Rows are also spaced further apart vertically at low
-            // gauntletCorridorFactor, so short pegboard-style gauntlets
-            // read as a genuinely sparse field, not just a thinner corridor.
-            const rowSpacing = 190 - (190 - GAUNTLET_ROW_SPACING) * gauntletCorridorFactor;
-            const rowInterval = rowSpacing / GAUNTLET_SCROLL_SPEED;
-            gauntletRowTimer += dt * speedMultiplier;
-            while (gauntletRowTimer >= rowInterval) {
-                gauntletRowTimer -= rowInterval;
-                spawnGauntletRow(gauntletRowTimer * GAUNTLET_SCROLL_SPEED);
-            }
-
-            // End of gauntlet (new rows stop spawning; existing rocks scroll off naturally)
-            if (obstacleCourseTimer <= 0) endObstacleCourse();
-        }
-
-        function endObstacleCourse() {
-            isObstacleCourse = false;
-            pathSection = null;
-            nextObstacleCourseTime = eventClock + 60 + Math.random() * 60; // next one in 1-2 min
-
-            const survived = player.lives >= livesAtCourseStart;
-            if (survived) {
-                if (player.maxLives < 5) {
-                    // First time reaching max hearts — celebrate it.
-                    player.maxLives = 5;
-                    player.lives = player.maxLives;
-                    updateLivesUI();
-                    sfx.playGauntletSuccess();
-                    warningText.textContent = '🎁 GAUNTLET CLEARED! MAX HEARTS UPGRADED TO 5!';
-                    waveWarning.classList.remove('hidden');
-                    setTimeout(() => waveWarning.classList.add('hidden'), 3200);
-                } else if (player.lives < player.maxLives) {
-                    // Already upgraded before — just top hearts off quietly.
-                    player.lives = player.maxLives;
-                    updateLivesUI();
-                }
-            } else {
-                warningText.textContent = '💔 GAUNTLET FAILED — HEARTS LOST!';
-                waveWarning.classList.remove('hidden');
-                setTimeout(() => waveWarning.classList.add('hidden'), 3200);
-            }
-        }
-
-        // ---- Alien Ship: once a minute, shoot it down or lose the game ----
-
-        function pickAlienWaveSize() {
-            const r = Math.random();
-            if (r < 0.68) return 1;   // most of the time
-            if (r < 0.92) return 2;   // every now and then
-            return 3;                  // very rarely
-        }
-
-        function spawnAlienShip() {
-            if (motherShip) return; // mothership fights are exclusive
-            alienWaveCount = pickAlienWaveSize();
-            for (let i = 0; i < alienWaveCount; i++) {
-                alienShips.push({
-                    x: canvas.width * (0.2 + Math.random() * 0.6),
-                    y: -50 - i * 80,
-                    radius: 32,
-                    hp: ALIEN_SHIP_HP,
-                    maxHp: ALIEN_SHIP_HP,
-                    wobble: Math.random() * Math.PI * 2,
-                    hitFlashTimer: 0,
-                    shootTimer: 1.2 + Math.random() * 1.6
-                });
-            }
-            warningText.textContent = alienWaveCount > 1
-                ? `🛸 ${alienWaveCount} ALIEN SHIPS INBOUND — SHOOT THEM DOWN!`
-                : '🛸 ALIEN SHIP INBOUND — SHOOT IT DOWN!';
-            waveWarning.classList.remove('hidden');
-            setTimeout(() => waveWarning.classList.add('hidden'), 3200);
-        }
-
-        // Applies damage to a regular alien ship and handles its destruction
-        // (score, explosion, removal, scheduling the next wave). Used by
-        // every damage source — bullets, missiles, FAN-5, ramming.
-        function damageAlienShip(ship, dmg, flashColor) {
-            ship.hp -= dmg;
-            ship.hitFlashTimer = Math.max(ship.hitFlashTimer, 0.2);
-            createExplosion(ship.x, ship.y, flashColor || '#4ade80', 8);
-            if (ship.hp <= 0) {
-                createExplosion(ship.x, ship.y, '#a3e635', 26);
-                sfx.playExplosion(true);
-                addScore(150);
-                const idx = alienShips.indexOf(ship);
-                if (idx >= 0) alienShips.splice(idx, 1);
-                nextAlienShipTime = alienClock + 60;
-            }
-        }
-
-        // A full "hit" — pops the whole shield, or costs one full heart.
-        // Used for ramming/collision-style damage.
-        function applyPlayerDamage(amount, srcX, srcY) {
-            if (player.invulnerableTimer > 0) return;
-            player.collisionFlashTimer = COLLISION_FLASH_DURATION;
-            if (player.powerups.shield > 0) {
-                player.powerups.shield = 0;
-                player.shieldCharge = 0;
-                player.invulnerableTimer = 1.0;
-                createExplosion(player.x, player.y, '#38bdf8', 14);
-                sfx.playHit();
-            } else {
-                player.lives -= amount;
-                updateLivesUI();
-                createExplosion(player.x, player.y, '#ef4444', 20);
-                sfx.playHit();
-                player.invulnerableTimer = 1.5;
-                if (player.lives <= 0) { gameOver(); }
-            }
-        }
-
-        // A half hit — from an alien bullet. Shield absorbs two of these
-        // before breaking; otherwise costs half a heart.
-        function applyEnemyBulletDamage() {
-            if (player.invulnerableTimer > 0) return;
-            player.collisionFlashTimer = COLLISION_FLASH_DURATION;
-            if (player.powerups.shield > 0 && player.shieldCharge > 0) {
-                player.shieldCharge -= 0.5;
-                createExplosion(player.x, player.y, '#38bdf8', 8);
-                sfx.playHit();
-                if (player.shieldCharge <= 0.001) {
-                    player.shieldCharge = 0;
-                    player.powerups.shield = 0;
-                }
-                player.invulnerableTimer = 0.25;
-            } else {
-                player.lives -= 0.5;
-                updateLivesUI();
-                createExplosion(player.x, player.y, '#ef4444', 10);
-                sfx.playHit();
-                player.invulnerableTimer = 0.4;
-                if (player.lives <= 0) { gameOver(); }
-            }
-        }
-
-        function updateEnemyBullets(dt) {
-            for (let i = enemyBullets.length - 1; i >= 0; i--) {
-                const b = enemyBullets[i];
-                b.x += b.vx * dt;
-                b.y += b.vy * dt;
-
-                if (Math.hypot(b.x - player.x, b.y - player.y) < b.radius + player.radius) {
-                    applyEnemyBulletDamage();
-                    enemyBullets.splice(i, 1);
-                    if (!isPlaying) return;
-                    continue;
-                }
-
-                if (b.x < -20 || b.x > canvas.width + 20 || b.y < -20 || b.y > canvas.height + 20) {
-                    enemyBullets.splice(i, 1);
-                }
-            }
-        }
-
-        function renderEnemyBullets() {
-            enemyBullets.forEach(b => {
-                ctx.save();
-                ctx.shadowColor = b.color;
-                ctx.shadowBlur = 10;
-                ctx.fillStyle = b.color;
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
-        }
-
-        function updateAlienShips(dt) {
-            if (alienShips.length === 0 && !isObstacleCourse && !motherShip && alienClock >= nextAlienShipTime) {
-                spawnAlienShip();
-            }
-
-            for (let s = alienShips.length - 1; s >= 0; s--) {
-                const ship = alienShips[s];
-
-                ship.wobble += dt * 1.5;
-                ship.x += Math.sin(ship.wobble) * 45 * dt;
-                ship.x = Math.max(ship.radius, Math.min(canvas.width - ship.radius, ship.x));
-                ship.y += ALIEN_SHIP_SPEED * dt;
-
-                if (ship.hitFlashTimer > 0) ship.hitFlashTimer -= dt;
-
-                // Keep the ship's hull clear of asteroids, and it takes real
-                // damage for smashing into them — destructible ones explode
-                // on contact, and rocks it can't destroy get shoved out to
-                // its edge (each rock only damages it once).
-                for (let k = asteroids.length - 1; k >= 0; k--) {
-                    const a = asteroids[k];
-                    const dx = a.x - ship.x, dy = a.y - ship.y;
-                    const dist = Math.hypot(dx, dy);
-                    const minDist = a.radius + ship.radius;
-                    if (dist >= minDist) continue;
-
-                    if (!a._hitAlienShip) {
-                        a._hitAlienShip = true;
-                        const dmg = Math.max(1, Math.round(a.radius / 8));
-                        damageAlienShip(ship, dmg, '#f97316');
-                        if (ship.hp <= 0) break;
-                    }
-
-                    if (a.indestructible) {
-                        const nx = dist > 0 ? dx / dist : 0, ny = dist > 0 ? dy / dist : -1;
-                        a.x = ship.x + nx * minDist;
-                        a.y = ship.y + ny * minDist;
-                    } else {
-                        createExplosion(a.x, a.y, '#94a3b8', Math.floor(a.radius / 2));
-                        asteroids.splice(k, 1);
-                    }
-                }
-                if (ship.hp <= 0) continue; // destroyed above, already removed from array
-
-                // Reaches the bottom edge = Earth is defenseless. Game over, no matter how many hearts remain.
-                if (ship.y - ship.radius > canvas.height) {
-                    gameOver('alien');
-                    return;
-                }
-
-                // Ramming it costs you a hit (shield/heart), but only weapons destroy it.
-                const distToPlayer = Math.hypot(ship.x - player.x, ship.y - player.y);
-                if (distToPlayer < ship.radius + player.radius && player.invulnerableTimer <= 0) {
-                    applyPlayerDamage(1, ship.x, ship.y);
-                    if (!isPlaying) return;
-                }
-
-                // Bullets vs this alien ship
-                for (let j = bullets.length - 1; j >= 0; j--) {
-                    const b = bullets[j];
-                    const dist = Math.hypot(ship.x - b.x, ship.y - b.y);
-                    if (dist < ship.radius + b.radius) {
-                        bullets.splice(j, 1);
-                        damageAlienShip(ship, 1, '#4ade80');
-                        break;
-                    }
-                }
-                if (ship.hp <= 0) continue;
-
-                // Fires at the player, ~once per second
-                ship.shootTimer -= dt;
-                if (ship.shootTimer <= 0) {
-                    ship.shootTimer = 2.0;
-                    const ang = Math.atan2(player.y - ship.y, player.x - ship.x);
-                    enemyBullets.push({
-                        x: ship.x, y: ship.y,
-                        vx: Math.cos(ang) * ALIEN_BULLET_SPEED,
-                        vy: Math.sin(ang) * ALIEN_BULLET_SPEED,
-                        radius: 5,
-                        color: '#4ade80'
-                    });
-                    sfx.playShoot();
-                }
-            }
-        }
-
-        function renderAlienShips() {
-            alienShips.forEach(ship => renderOneAlienShip(ship));
-        }
-
-        function renderOneAlienShip(ship) {
-            const hpFrac = Math.max(0, ship.hp / ship.maxHp);
-            // Green when healthy, sliding through yellow to red as it's whittled down
-            const hullColor = `hsl(${Math.round(130 * hpFrac)}, 65%, 34%)`;
-            const domeColor  = `hsl(${Math.round(130 * hpFrac)}, 75%, 58%)`;
-            const glowColor  = `hsl(${Math.round(130 * hpFrac)}, 80%, 50%)`;
-
-            ctx.save();
-            ctx.translate(ship.x, ship.y);
-
-            // Solid hull — color reflects remaining health
-            ctx.fillStyle = hullColor;
-            ctx.strokeStyle = '#0f2417';
-            ctx.lineWidth = 2;
-            ctx.shadowColor = glowColor;
-            ctx.shadowBlur = 16;
-            ctx.beginPath();
-            ctx.ellipse(0, 0, ship.radius, ship.radius * 0.55, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // Dome
-            ctx.fillStyle = domeColor;
-            ctx.beginPath();
-            ctx.arc(0, -ship.radius * 0.25, ship.radius * 0.4, Math.PI, 0);
-            ctx.fill();
-            ctx.stroke();
-
-            // A little alien pilot visible inside the dome
-            ctx.fillStyle = '#166534';
-            ctx.beginPath();
-            ctx.ellipse(0, -ship.radius * 0.32, ship.radius * 0.15, ship.radius * 0.2, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#0a0a0a';
-            ctx.beginPath();
-            ctx.ellipse(-ship.radius * 0.06, -ship.radius * 0.35, ship.radius * 0.045, ship.radius * 0.06, 0, 0, Math.PI * 2);
-            ctx.ellipse(ship.radius * 0.06, -ship.radius * 0.35, ship.radius * 0.045, ship.radius * 0.06, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Hit flash — bright white overlay that quickly fades
-            if (ship.hitFlashTimer > 0) {
-                ctx.save();
-                ctx.globalAlpha = Math.min(1, ship.hitFlashTimer / 0.25) * 0.9;
-                ctx.fillStyle = '#ffffff';
-                ctx.shadowColor = '#ffffff';
-                ctx.shadowBlur = 30;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, ship.radius * 1.15, ship.radius * 0.65, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-
-            ctx.restore();
-
-            // HP bar
-            const barW = 60, barH = 6;
-            const bx = ship.x - barW / 2, by = ship.y - ship.radius - 16;
-            ctx.save();
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(bx, by, barW, barH);
-            ctx.fillStyle = glowColor;
-            ctx.fillRect(bx, by, barW * hpFrac, barH);
-            ctx.restore();
-        }
-
-        // ---- Alien Mothership ----
-
-        function spawnMotherShip() {
-            // Force-clear the board — mothership fights are exclusive
-            isObstacleCourse = false;
-            asteroids = [];
-            alienShips = [];
-            motherShip = {
-                x: canvas.width / 2,
-                y: 130,
-                radius: 90,
-                hp: MOTHER_SHIP_HP,
-                maxHp: MOTHER_SHIP_HP,
-                hitFlashTimer: 0,
-                shootTimer: 1,
-                driftDir: Math.random() < 0.5 ? 1 : -1,
-                driftSpeed: 55 + Math.random() * 25
-            };
-            warningText.textContent = '🛸 ALIEN MOTHERSHIP DETECTED — ALL HANDS TO BATTLE STATIONS!';
-            waveWarning.classList.remove('hidden');
-            setTimeout(() => waveWarning.classList.add('hidden'), 4000);
-        }
-
-        function damageMotherShip(dmg) {
-            if (!motherShip) return;
-            motherShip.hp -= dmg;
-            motherShip.hitFlashTimer = Math.max(motherShip.hitFlashTimer, 0.2);
-            createExplosion(motherShip.x, motherShip.y, '#4ade80', 10);
-            if (motherShip.hp <= 0) {
-                const mx = motherShip.x, my = motherShip.y;
-                createExplosion(mx, my, '#a3e635', 60);
-                sfx.playExplosion(true);
-                addScore(5000);
-                motherShipsDestroyed++;
-                if (motherShipsDestroyed === 2) {
-                    player.maxLives = 7;
-                    player.lives = 7;
-                    updateLivesUI();
-                    warningText.textContent = '❤️ TWO MOTHERSHIPS DESTROYED — MAX HEARTS NOW 7!';
-                    waveWarning.classList.remove('hidden');
-                    setTimeout(() => waveWarning.classList.add('hidden'), 3200);
-                }
-                motherShip = null;
-                nextMotherShipTime = alienClock + 240 + Math.random() * 120;
-
-                // Rare: ~1 in 5 mothership kills splits into 3 regular alien ships
-                if (Math.random() < 0.2) {
-                    for (let i = 0; i < 3; i++) {
-                        alienShips.push({
-                            x: Math.max(40, Math.min(canvas.width - 40, mx + (i - 1) * 70)),
-                            y: my,
-                            radius: 30,
-                            hp: ALIEN_SHIP_HP,
-                            maxHp: ALIEN_SHIP_HP,
-                            wobble: Math.random() * Math.PI * 2,
-                            hitFlashTimer: 0,
-                            shootTimer: 2 + Math.random() * 2
-                        });
-                    }
-                    warningText.textContent = '🛸 THE MOTHERSHIP SPLIT INTO 3 SHIPS!';
-                    waveWarning.classList.remove('hidden');
-                    setTimeout(() => waveWarning.classList.add('hidden'), 3000);
-                }
-            }
-        }
-
-        function updateMotherShip(dt) {
-            if (!motherShip) {
-                if (alienShips.length === 0 && !isObstacleCourse && alienClock >= nextMotherShipTime) {
-                    spawnMotherShip();
-                }
-                return;
-            }
-
-            if (motherShip.hitFlashTimer > 0) motherShip.hitFlashTimer -= dt;
-
-            // Drifts left and right across the top of the screen, bouncing
-            // off the edges, instead of sitting fixed in the center.
-            motherShip.x += motherShip.driftDir * motherShip.driftSpeed * dt;
-            if (motherShip.x < motherShip.radius + 20) {
-                motherShip.x = motherShip.radius + 20;
-                motherShip.driftDir = 1;
-            } else if (motherShip.x > canvas.width - motherShip.radius - 20) {
-                motherShip.x = canvas.width - motherShip.radius - 20;
-                motherShip.driftDir = -1;
-            }
-
-            // Bullets vs mothership
-            for (let j = bullets.length - 1; j >= 0; j--) {
-                const b = bullets[j];
-                if (Math.hypot(motherShip.x - b.x, motherShip.y - b.y) < motherShip.radius + b.radius) {
-                    bullets.splice(j, 1);
-                    damageMotherShip(1);
-                    if (!motherShip) break;
-                }
-            }
-            if (!motherShip) return;
-
-            // Fires an aimed shot at the player's current position, ~once per second
-            motherShip.shootTimer -= dt;
-            if (motherShip.shootTimer <= 0) {
-                motherShip.shootTimer = 2.0;
-                const ang = Math.atan2(player.y - motherShip.y, player.x - motherShip.x);
-                enemyBullets.push({
-                    x: motherShip.x, y: motherShip.y + motherShip.radius * 0.4,
-                    vx: Math.cos(ang) * ALIEN_BULLET_SPEED * 1.15,
-                    vy: Math.sin(ang) * ALIEN_BULLET_SPEED * 1.15,
-                    radius: 7,
-                    color: '#a3e635'
-                });
-                sfx.playShoot();
-            }
-        }
-
-        function renderMotherShip() {
-            if (!motherShip) return;
-            const hpFrac = Math.max(0, motherShip.hp / motherShip.maxHp);
-            const hullColor = `hsl(${Math.round(130 * hpFrac)}, 55%, 30%)`;
-            const domeColor  = `hsl(${Math.round(130 * hpFrac)}, 70%, 55%)`;
-            const glowColor  = `hsl(${Math.round(130 * hpFrac)}, 80%, 50%)`;
-
-            ctx.save();
-            ctx.translate(motherShip.x, motherShip.y);
-
-            ctx.fillStyle = hullColor;
-            ctx.strokeStyle = '#0f2417';
-            ctx.lineWidth = 3;
-            ctx.shadowColor = glowColor;
-            ctx.shadowBlur = 30;
-            ctx.beginPath();
-            ctx.ellipse(0, 0, motherShip.radius, motherShip.radius * 0.45, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // Hull ridges
-            ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-            ctx.lineWidth = 2;
-            for (let i = -2; i <= 2; i++) {
-                ctx.beginPath();
-                ctx.moveTo(i * motherShip.radius * 0.32, -motherShip.radius * 0.3);
-                ctx.lineTo(i * motherShip.radius * 0.32, motherShip.radius * 0.3);
-                ctx.stroke();
-            }
-
-            // Big dome with several alien pilots visible inside
-            ctx.fillStyle = domeColor;
-            ctx.beginPath();
-            ctx.arc(0, -motherShip.radius * 0.2, motherShip.radius * 0.42, Math.PI, 0);
-            ctx.fill();
-            ctx.stroke();
-            ctx.fillStyle = '#166534';
-            for (let i = -1; i <= 1; i++) {
-                ctx.beginPath();
-                ctx.ellipse(i * motherShip.radius * 0.16, -motherShip.radius * 0.28, motherShip.radius * 0.1, motherShip.radius * 0.13, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.fillStyle = '#0a0a0a';
-            for (let i = -1; i <= 1; i++) {
-                ctx.beginPath();
-                ctx.ellipse(i * motherShip.radius * 0.16 - motherShip.radius * 0.035, -motherShip.radius * 0.3, motherShip.radius * 0.03, motherShip.radius * 0.04, 0, 0, Math.PI * 2);
-                ctx.ellipse(i * motherShip.radius * 0.16 + motherShip.radius * 0.035, -motherShip.radius * 0.3, motherShip.radius * 0.03, motherShip.radius * 0.04, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            if (motherShip.hitFlashTimer > 0) {
-                ctx.save();
-                ctx.globalAlpha = Math.min(1, motherShip.hitFlashTimer / 0.25) * 0.85;
-                ctx.fillStyle = '#ffffff';
-                ctx.shadowColor = '#ffffff';
-                ctx.shadowBlur = 40;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, motherShip.radius * 1.1, motherShip.radius * 0.55, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-
-            ctx.restore();
-
-            // HP bar
-            const barW = 220, barH = 10;
-            const bx = motherShip.x - barW / 2, by = motherShip.y - motherShip.radius - 24;
-            ctx.save();
-            ctx.fillStyle = 'rgba(0,0,0,0.55)';
-            ctx.fillRect(bx, by, barW, barH);
-            ctx.fillStyle = glowColor;
-            ctx.fillRect(bx, by, barW * hpFrac, barH);
-            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-            ctx.strokeRect(bx, by, barW, barH);
-            ctx.restore();
-        }
-
-        // ---- Render Helpers for new features ----
-
-        function renderGauntletHUD() {
-            // No walls, no tint here — the gauntlet's boundaries are the
-            // rock asteroids themselves (rendered in the normal asteroid
-            // pass, in a distinct color). This just shows the countdown.
-            const secs = Math.ceil(obstacleCourseTimer);
-            ctx.save();
-            ctx.textAlign = 'center';
-            ctx.font = 'bold 19px monospace';
-            ctx.shadowBlur = 12;
-            ctx.shadowColor = secs <= 5 ? '#ef4444' : '#f97316';
-            ctx.fillStyle  = secs <= 5 ? '#fca5a5' : '#fdba74';
-            ctx.fillText(`⚡ GAUNTLET: ${secs}s`, canvas.width / 2, 76);
-            ctx.restore();
-        }
-
-        function renderChestReward() {
-            if (chestRewardTimer <= 0) return;
-            const alpha = Math.min(1, chestRewardTimer);
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2 - 50;
-            const t  = Date.now() / 1000;
-            const bob = Math.sin(t * 2.5) * 6;
-
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.translate(cx, cy + bob);
-
-            // Glow halo
-            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 140);
-            grad.addColorStop(0, 'rgba(251,191,36,0.25)');
-            grad.addColorStop(1, 'rgba(251,191,36,0)');
-            ctx.fillStyle = grad;
-            ctx.beginPath(); ctx.arc(0, 0, 140, 0, Math.PI * 2); ctx.fill();
-
-            // Chest body
-            ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 22;
-            ctx.fillStyle = '#92400e';
-            ctx.fillRect(-50, 8, 100, 58);
-
-            // Lid
-            ctx.fillStyle = '#b45309';
-            ctx.fillRect(-50, -26, 100, 36);
-
-            // Lid arc top
-            ctx.beginPath();
-            ctx.ellipse(0, -26, 50, 14, 0, Math.PI, 0);
-            ctx.fill();
-
-            // Gold band
-            ctx.fillStyle = '#fbbf24'; ctx.shadowBlur = 8;
-            ctx.fillRect(-50, 4, 100, 8);
-
-            // Lock body
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(-9, 12, 18, 14);
-            ctx.beginPath(); ctx.arc(0, 12, 9, Math.PI, 0); ctx.fill();
-            // Lock keyhole
-            ctx.fillStyle = '#92400e';
-            ctx.beginPath(); ctx.arc(0, 14, 4, 0, Math.PI * 2); ctx.fill();
-            ctx.fillRect(-2, 16, 4, 7);
-
-            // Orbit sparkles
-            ctx.shadowBlur = 10;
-            for (let i = 0; i < 8; i++) {
-                const a = (i / 8) * Math.PI * 2 + t * 1.6;
-                const r = 80 + Math.sin(t * 3 + i) * 12;
-                const sx = Math.cos(a) * r, sy = Math.sin(a) * r * 0.6;
-                const sz = 2 + Math.sin(t * 4 + i * 1.3) * 1.5;
-                ctx.fillStyle = i % 2 === 0 ? '#fbbf24' : '#f9a8d4';
-                ctx.beginPath(); ctx.arc(sx, sy, sz, 0, Math.PI * 2); ctx.fill();
-            }
-
-            ctx.restore();
-
-            // Text labels (outside translate so they stay fixed)
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.textAlign = 'center';
-            ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 14;
-            ctx.fillStyle = '#fef08a';
-            ctx.font = 'bold 26px sans-serif';
-            ctx.fillText('🎁 HULL UPGRADE!', cx, cy + bob - 60);
-            ctx.font = 'bold 16px sans-serif';
-            ctx.fillStyle = '#fca5a5';
-            ctx.shadowColor = '#ef4444';
-            ctx.fillText('MAX HEARTS: ❤️❤️❤️❤️❤️', cx, cy + bob + 90);
-            ctx.font = '13px sans-serif';
-            ctx.fillStyle = '#d1fae5'; ctx.shadowColor = '#34d399'; ctx.shadowBlur = 8;
-            ctx.fillText('+2 hearts added to hull!', cx, cy + bob + 113);
-            ctx.restore();
-        }
-
-        function renderFallingHearts() {
-            fallingHearts.forEach(h => {
-                const pulse = 1 + 0.15 * Math.sin(h.wobble * 4 + Date.now() / 200);
-                ctx.save();
-                ctx.translate(h.x, h.y);
-                ctx.scale(pulse, pulse);
-
-                // Speed trail
-                ctx.globalAlpha = 0.25;
-                ctx.fillStyle = '#ef4444';
-                for (let i = 1; i <= 4; i++) {
-                    ctx.save();
-                    ctx.translate(0, i * 14);
-                    ctx.globalAlpha = 0.25 - i * 0.05;
-                    drawHeartShape(ctx, 10 - i * 0.5);
-                    ctx.fill();
-                    ctx.restore();
-                }
-
-                // Main heart
-                ctx.globalAlpha = 1;
-                ctx.fillStyle = '#ef4444';
-                ctx.shadowColor = '#ef4444';
-                ctx.shadowBlur = 18;
-                drawHeartShape(ctx, 12);
-                ctx.fill();
-
-                // Inner bright core
-                ctx.fillStyle = '#fecaca';
-                ctx.shadowBlur = 6;
-                drawHeartShape(ctx, 6);
-                ctx.fill();
-
-                ctx.restore();
-            });
-        }
-
-        function drawHeartShape(ctx, s) {
-            // Two-circle + rotated-square heart (reliable cross-browser)
-            const r = s * 0.72;
-            ctx.beginPath();
-            ctx.arc(-r, -r * 0.3, r, 0, Math.PI * 2);
-            ctx.arc( r, -r * 0.3, r, 0, Math.PI * 2);
-            ctx.save();
-            ctx.rotate(Math.PI / 4);
-            ctx.rect(-s, -s, s * 2, s * 2);
-            ctx.restore();
-        }
-
-        function addScore(pts) {
-            score += pts;
-            scoreDisplay.textContent = score;
-
-            // Earn 1 laser charge every 300 points, alternating which weapon gets it
-            if (score >= lastLaserThreshold + 300) {
-                const earned = Math.floor((score - lastLaserThreshold) / 300);
-                for (let i = 0; i < earned; i++) {
-                    if (nextLaserGrantIsChain) chainLaserCharges++; else fanLaserCharges++;
-                    nextLaserGrantIsChain = !nextLaserGrantIsChain;
-                }
-                lastLaserThreshold += earned * 300;
-                sfx.playPowerup();
-                updateChainLaserUI();
-                updateFanLaserUI();
-            }
-
-            // Photon Torpedoes unlock permanently at 10,000 points
-            if (!hasPhotonTorpedoes && score >= 10000) {
-                hasPhotonTorpedoes = true;
-                updateMissileUI();
-                warningText.textContent = '🚀 PHOTON TORPEDOES UNLOCKED — PERMANENT MISSILE UPGRADE!';
-                waveWarning.classList.remove('hidden');
-                setTimeout(() => waveWarning.classList.add('hidden'), 3200);
-            }
-        }
-
-        // How many torpedoes fire per stock unit used — scales up at
-        // higher score milestones, without changing how much stock is spent.
-        function getTorpedoVolleySize() {
-            if (score >= 100000) return 4;
-            if (score >= 50000) return 2;
-            return 1;
-        }
-
-        function updateChainLaserUI() {
-            chainBadge.textContent = chainLaserCharges;
-            if (chainLaserCharges > 0) chainLaserBtn.classList.remove('hidden');
-            else chainLaserBtn.classList.add('hidden');
-        }
-
-        function updateFanLaserUI() {
-            fanBadge.textContent = fanLaserCharges;
-            if (fanLaserCharges > 0) crossLaserBtn.classList.remove('hidden');
-            else crossLaserBtn.classList.add('hidden');
-        }
-
-        // Re-rolls how many standalone indestructible asteroids should be
-        // drifting around right now — heavily weighted toward none, with
-        // higher counts increasingly rare. Long dry spells (10-30s) with
-        // zero are completely normal.
-        function rerollIndestructibleTarget() {
-            const r = Math.random();
-            if (r < 0.45) indestructibleTargetCount = 0;
-            else if (r < 0.72) indestructibleTargetCount = 1;
-            else if (r < 0.88) indestructibleTargetCount = 2;
-            else if (r < 0.97) indestructibleTargetCount = 3;
-            else indestructibleTargetCount = 4;
-            indestructibleRerollTimer = 10 + Math.random() * 20;
-        }
-
-        function spawnAsteroid() {
-            const sizeCategory = Math.random();
-            let radius, hp;
-
-            if (sizeCategory > 0.7) {
-                radius = 36 + Math.random() * 12;
-                hp = 3;
-            } else if (sizeCategory > 0.35) {
-                radius = 22 + Math.random() * 8;
-                hp = 2;
-            } else {
-                radius = 12 + Math.random() * 6;
-                hp = 1;
-            }
-
-            const numVertices = 7 + Math.floor(Math.random() * 5);
-            const offsetAngles = [];
-            for (let i = 0; i < numVertices; i++) {
-                offsetAngles.push(0.7 + Math.random() * 0.6);
-            }
-
-            // Indestructible rocks among regular falling asteroids are now
-            // population-capped (at most 4 on screen at once, outside a
-            // gauntlet) and only spawn while under the current re-rolling
-            // target — so there are long stretches with none, and rarely
-            // more than one or two at a time.
-            const currentIndestructibleCount = asteroids.filter(a => a.indestructible).length;
-            const indestructible = currentIndestructibleCount < indestructibleTargetCount && Math.random() < 0.35;
-
-            asteroids.push({
-                x: Math.random() * (canvas.width - radius * 2) + radius,
-                y: -radius - 10,
-                radius: radius,
-                vx: (Math.random() - 0.5) * 60,
-                vy: Math.min(Math.random() * 80 + 80 + (score / 1000) * 10, 210),
-                rotation: 0,
-                vRot: (Math.random() - 0.5) * 2,
-                hp: indestructible ? 1 : hp,
-                maxHp: indestructible ? 1 : hp,
-                points: 10,
-                numVertices: numVertices,
-                offsetAngles: offsetAngles,
-                indestructible: indestructible
-            });
-
-        }
-
-        function createExplosion(x, y, color, count = 12) {
-            for (let i = 0; i < count; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 220 + 30;
-                particles.push({
-                    x: x,
-                    y: y,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    radius: Math.random() * 3.5 + 1,
-                    color: color,
-                    alpha: 1,
-                    decay: Math.random() * 1.5 + 1
-                });
-            }
-        }
-
-        function spawnPowerup(x, y) {
-            // Missile drops ~2x as often as rapid/spread/shield; Slow (H) is
-            // bumped up too since there's a lot going on to keep pace with.
-            const types = ['rapid', 'spread', 'shield', 'slow', 'slow', 'missile', 'missile'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            powerups.push({
-                x: x,
-                y: y,
-                type: type,
-                radius: 14,
-                vy: 90
-            });
-        }
-
-        function triggerMissile() {
-            if (!isPlaying || isPaused || missileStock <= 0) return;
-
-            missileStock--;
-            updateMissileUI();
-
-            // Pick the nearest alien target (regular ship or mothership) to home in on
-            let target = null, bestDist = Infinity;
-            alienShips.forEach(s => {
-                const d = Math.hypot(s.x - player.x, s.y - player.y);
-                if (d < bestDist) { bestDist = d; target = s; }
-            });
-            if (motherShip) {
-                const d = Math.hypot(motherShip.x - player.x, motherShip.y - player.y);
-                if (d < bestDist) { bestDist = d; target = motherShip; }
-            }
-
-            // One stock unit fires a whole volley once Photon Torpedoes have
-            // scaled up (2 at 50k points, 4 at 100k) — stock spent stays the same.
-            const volleySize = hasPhotonTorpedoes ? getTorpedoVolleySize() : 1;
-            for (let v = 0; v < volleySize; v++) {
-                const spread = volleySize > 1 ? (v - (volleySize - 1) / 2) * 0.18 : 0;
-                missiles.push({
-                    x: player.x + (v - (volleySize - 1) / 2) * 10,
-                    y: player.y - player.radius,
-                    angle: -Math.PI / 2 + spread, // heading, radians (0 = right, -PI/2 = up)
-                    speed: 380,
-                    radius: 6,
-                    target: target, // homes in on the nearest alien target, if any, when fired
-                    isTorpedo: hasPhotonTorpedoes // permanent upgrade, baked in at fire time
-                });
-            }
-            sfx.playShoot();
-        }
-
-        function updateMissileUI() {
-            missileBadge.textContent = missileStock;
-            if (missileStock > 0) {
-                missileBtn.classList.remove('hidden');
-            } else {
-                missileBtn.classList.add('hidden');
-            }
-
-            // Once Photon Torpedoes are unlocked, the same button/stock
-            // becomes torpedoes permanently — reskin it accordingly. Uses
-            // inline styles (not Tailwind utility classes) so the new
-            // colors are guaranteed to render even though they weren't
-            // present in the page at load time.
-            if (hasPhotonTorpedoes) {
-                missileBtn.style.background = 'linear-gradient(to top right, #7c3aed, #d946ef)';
-                missileBtn.style.borderColor = '#e9d5ff';
-                missileBtnIcon.className = 'fa-solid fa-meteor text-xl md:text-3xl animate-pulse';
-                missileBtnIcon.style.transform = 'scaleX(-1)'; // reads as a distinct streaking-projectile silhouette, not a rocket
-                missileBtnLabel.textContent = 'TORPEDO [M]';
-                missileBtnLabel.classList.remove('text-orange-300');
-                missileBtnLabel.classList.add('text-violet-300');
-                missileBadge.classList.remove('bg-orange-300');
-                missileBadge.classList.add('bg-violet-300');
-            } else {
-                missileBtn.style.background = '';
-                missileBtn.style.borderColor = '';
-                missileBtnIcon.className = 'fa-solid fa-rocket text-xl md:text-3xl animate-pulse';
-                missileBtnIcon.style.transform = '';
-                missileBtnLabel.textContent = 'MISSILE [M]';
-                missileBtnLabel.classList.remove('text-violet-300');
-                missileBtnLabel.classList.add('text-orange-300');
-                missileBadge.classList.remove('bg-violet-300');
-                missileBadge.classList.add('bg-orange-300');
-            }
-        }
-
-        function fireBullet() {
-            const isRapid = player.powerups.rapid > 0;
-            const isSpread = player.powerups.spread > 0;
-
-            const speed = 750;
-            if (isSpread) {
-                const angles = [-0.22, 0, 0.22];
-                angles.forEach(angle => {
-                    bullets.push({
-                        x: player.x,
-                        y: player.y - player.radius,
-                        vx: Math.sin(angle) * speed,
-                        vy: -Math.cos(angle) * speed,
-                        radius: 3,
-                        color: '#38bdf8'
-                    });
-                });
-            } else {
-                bullets.push({
-                    x: player.x,
-                    y: player.y - player.radius,
-                    vx: 0,
-                    vy: -speed,
-                    radius: 3.5,
-                    color: isRapid ? '#f43f5e' : '#38bdf8'
-                });
-            }
-            sfx.playShoot();
-        }
-
-        function update(dt) {
-            // Update Screen Shake & Anim Timers
-            if (screenShake > 0) screenShake -= dt;
-            if (chainLaserAnimTimer > 0) chainLaserAnimTimer -= dt;
-            if (crossLaserAnimTimer > 0) crossLaserAnimTimer -= dt;
-
-            // Starfield
-            stars.forEach(star => {
-                star.y += star.speed * dt;
-                if (star.y > canvas.height) {
-                    star.y = 0;
-                    star.x = Math.random() * canvas.width;
-                }
-            });
-
-            if (!isPlaying || isPaused) return;
-
-            // Wave Events Timeline Check
-            if (!isObstacleCourse && !motherShip) eventClock += dt;
-
-            if (!isObstacleCourse && !motherShip) {
-                if (eventClock >= nextCrossfireEventTime) {
-                    triggerCrossfireStorm();
-                    nextCrossfireEventTime += 60;
-                }
-                if (eventClock >= nextWallEventTime) {
-                    triggerAsteroidWallWave();
-                    nextWallEventTime += 60;
-                }
-            }
-
-            // Falling Heart Drops (random every 1-1.5 min)
-            if (!isObstacleCourse && !motherShip && eventClock >= nextHeartDropTime) {
-                triggerHeartDrop();
-                nextHeartDropTime += 60 + Math.random() * 30;
-            }
-
-            // Obstacle Course trigger (every 2-3 min)
-            if (!isObstacleCourse && !motherShip && alienShips.length === 0 && eventClock >= nextObstacleCourseTime) {
-                startObstacleCourse();
-            }
-
-            // Chest reward countdown
-            if (chestRewardTimer > 0) chestRewardTimer -= dt;
-
-            // Next Event Countdown Display
-            const timeToWall = nextWallEventTime - eventClock;
-            const timeToCross = nextCrossfireEventTime - eventClock;
-            const nextEventSecs = Math.max(1, Math.ceil(Math.min(timeToWall, timeToCross)));
-            const nextEventType = timeToWall < timeToCross ? "WALL" : "CROSSFIRE";
-            waveTimerDisplay.textContent = `${nextEventType}: ${nextEventSecs}s`;
-
-            // Player Invulnerability & Power-up Timers
-            if (player.invulnerableTimer > 0) player.invulnerableTimer -= dt;
-            if (player.collisionFlashTimer > 0) player.collisionFlashTimer -= dt;
-
-            Object.keys(player.powerups).forEach(p => {
-                if (player.powerups[p] > 0) player.powerups[p] -= dt;
-            });
-
-            // Touch Drag 2D Movement
-            if (isTouching) {
-                const deltaX = currentTouchPos.x - touchStartPos.x;
-                const deltaY = currentTouchPos.y - touchStartPos.y;
-                const targetX = playerStartPos.x + deltaX;
-                const targetY = playerStartPos.y + deltaY;
-                const lerpSpeed = 20;
-                player.x += (targetX - player.x) * Math.min(dt * lerpSpeed, 1);
-                player.y += (targetY - player.y) * Math.min(dt * lerpSpeed, 1);
-            }
-
-            // Keyboard 2D Movement
-            if (keys.Left) player.x -= player.speed * dt;
-            if (keys.Right) player.x += player.speed * dt;
-            if (keys.Up) player.y -= player.speed * dt;
-            if (keys.Down) player.y += player.speed * dt;
-
-            // Clamp Player within canvas bounds
-            const topMargin = 60;
-            const bottomMargin = 20;
-            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-            player.y = Math.max(player.radius + topMargin, Math.min(canvas.height - player.radius - bottomMargin, player.y));
-
-            // Auto-Firing System (paused only while an actual gauntlet is
-            // active — never by standalone indestructible asteroids you
-            // happen to be near outside of one)
-            player.shootTimer -= dt;
-            const currentShootInterval = player.powerups.rapid > 0 ? player.shootInterval / 2.2 : player.shootInterval;
-            if (!isObstacleCourse && (isTouching || keys.Space || true) && player.shootTimer <= 0) {
-                fireBullet();
-                player.shootTimer = currentShootInterval;
-            }
-
-            // Alien Ships / Mothership — run on their own clock so they keep
-            // threatening Earth even while a gauntlet is in progress.
-            alienClock += dt;
-            updateAlienShips(dt);
-            if (!isPlaying) return;
-            updateMotherShip(dt);
-            if (!isPlaying) return;
-            updateEnemyBullets(dt);
-            if (!isPlaying) return;
-
-            // Asteroid Spawning Logic (skip during gauntlet or while a mothership is present)
-            if (!isObstacleCourse && !motherShip) {
-                spawnTimer += dt * 1000;
-                if (spawnTimer >= spawnInterval) {
-                    spawnAsteroid();
-                    spawnTimer = 0;
-                    spawnInterval = Math.max(350, 1000 - Math.floor(score / 300) * 50);
-                }
-
-                indestructibleRerollTimer -= dt;
-                if (indestructibleRerollTimer <= 0) rerollIndestructibleTarget();
-            }
-
-            const asteroidSpeedMultiplier = player.powerups.slow > 0 ? 0.35 : 1.0;
-
-            // Update Bullets
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                const b = bullets[i];
-                b.x += b.vx * dt;
-                b.y += b.vy * dt;
-                if (b.y < -10 || b.x < -10 || b.x > canvas.width + 10 || b.y > canvas.height + 10) {
-                    bullets.splice(i, 1);
-                }
-            }
-
-            // Update Missiles
-            for (let i = missiles.length - 1; i >= 0; i--) {
-                const m = missiles[i];
-
-                // Home in on its target, if it's still alive. This steers the
-                // missile's heading directly toward the target at a fast,
-                // fixed turn rate — not a gentle velocity nudge — so it can
-                // loop around or even fly backward to run it down, like a
-                // real seeker missile.
-                const targetAlive = m.target && (alienShips.includes(m.target) || m.target === motherShip);
-                if (targetAlive) {
-                    const desiredAngle = Math.atan2(m.target.y - m.y, m.target.x - m.x);
-                    let diff = desiredAngle - m.angle;
-                    diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // normalize to [-PI, PI]
-                    const maxTurn = 4.2 * dt; // ~240°/s — tight enough to reverse course quickly
-                    if (Math.abs(diff) <= maxTurn) m.angle = desiredAngle;
-                    else m.angle += Math.sign(diff) * maxTurn;
-                }
-
-                m.x += Math.cos(m.angle) * m.speed * dt;
-                m.y += Math.sin(m.angle) * m.speed * dt;
-
-                let hit = false;
-
-                // vs mothership: regular missile = 5% of max HP, torpedo = 10%
-                if (!hit && motherShip) {
-                    const d = Math.hypot(motherShip.x - m.x, motherShip.y - m.y);
-                    if (d < motherShip.radius + m.radius) {
-                        const dmg = motherShip.maxHp * (m.isTorpedo ? 0.10 : 0.05);
-                        createExplosion(m.x, m.y, m.isTorpedo ? '#a855f7' : '#f97316', 22);
-                        createExplosion(m.x, m.y, '#ffffff', 14);
-                        sfx.playExplosion(true);
-                        damageMotherShip(dmg);
-                        hit = true;
-                    }
-                }
-
-                // vs regular alien ships: missile = 25% of max HP, torpedo = 50%
-                if (!hit) {
-                    for (let s = alienShips.length - 1; s >= 0; s--) {
-                        const ship = alienShips[s];
-                        const d = Math.hypot(ship.x - m.x, ship.y - m.y);
-                        if (d < ship.radius + m.radius) {
-                            const dmg = ship.maxHp * (m.isTorpedo ? 0.50 : 0.25);
-                            createExplosion(m.x, m.y, m.isTorpedo ? '#a855f7' : '#f97316', 22);
-                            createExplosion(m.x, m.y, '#ffffff', 14);
-                            sfx.playExplosion(true);
-                            damageAlienShip(ship, dmg, '#4ade80');
-                            hit = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!hit) {
-                    for (let j = asteroids.length - 1; j >= 0; j--) {
-                        const a = asteroids[j];
-                        const d = Math.hypot(a.x - m.x, a.y - m.y);
-                        if (d < a.radius + m.radius) {
-                            createExplosion(m.x, m.y, '#f97316', 20);
-                            sfx.playExplosion(a.radius > 30);
-                            // Splash-clears nearby destructible asteroids (gauntlet rocks are immune)
-                            const splashR = 70;
-                            for (let k = asteroids.length - 1; k >= 0; k--) {
-                                const a2 = asteroids[k];
-                                if (a2.indestructible) continue;
-                                if (Math.hypot(a2.x - m.x, a2.y - m.y) < splashR) {
-                                    addScore(a2.points);
-                                    createExplosion(a2.x, a2.y, '#94a3b8', Math.floor(a2.radius / 2));
-                                    asteroids.splice(k, 1);
-                                }
-                            }
-                            hit = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (hit || m.y < -30 || m.x < -30 || m.x > canvas.width + 30 || m.y > canvas.height + 30) {
-                    missiles.splice(i, 1);
-                }
-            }
-
-            // Update Asteroids & Collisions
-            for (let i = asteroids.length - 1; i >= 0; i--) {
-                const a = asteroids[i];
-                a.x += a.vx * dt * asteroidSpeedMultiplier;
-                a.y += a.vy * dt * asteroidSpeedMultiplier;
-                a.rotation += a.vRot * dt * asteroidSpeedMultiplier;
-
-                // Collision with Ship
-                const distToPlayer = Math.hypot(a.x - player.x, a.y - player.y);
-                if (distToPlayer < a.radius + player.radius) {
-                    if (player.powerups.shield > 0) {
-                        player.powerups.shield = 0;
-                        player.shieldCharge = 0;
-                        player.invulnerableTimer = 1.0;
-                        player.collisionFlashTimer = COLLISION_FLASH_DURATION;
-                        createExplosion(a.x, a.y, a.indestructible ? '#f97316' : '#38bdf8', a.indestructible ? 12 : 15);
-                        sfx.playHit();
-                        if (!a.indestructible) asteroids.splice(i, 1);
-                        continue;
-                    } else if (player.invulnerableTimer <= 0) {
-                        player.lives--;
-                        updateLivesUI();
-                        createExplosion(player.x, player.y, '#ef4444', 20);
-                        sfx.playHit();
-                        player.invulnerableTimer = 1.5;
-                        player.collisionFlashTimer = COLLISION_FLASH_DURATION;
-
-                        if (player.lives <= 0) {
-                            gameOver();
-                            return;
-                        }
-                    }
-                }
-
-                // Off-screen cleanup for asteroids traveling in crossfire directions
-                if (a.x < -100 || a.x > canvas.width + 100 || a.y < -100 || a.y > canvas.height + 100) {
-                    // Check if it moved far enough out to splice
-                    if (a.y > canvas.height + a.radius || a.y < -a.radius - 80 || a.x < -a.radius - 80 || a.x > canvas.width + a.radius + 80) {
-                        asteroids.splice(i, 1);
-                        continue;
-                    }
-                }
-
-                // Bullet Collision
-                for (let j = bullets.length - 1; j >= 0; j--) {
-                    const b = bullets[j];
-                    const distToBullet = Math.hypot(a.x - b.x, a.y - b.y);
-
-                    if (distToBullet < a.radius + b.radius) {
-                        bullets.splice(j, 1);
-
-                        if (a.indestructible) {
-                            // Gauntlet wall rock — impervious. Bullet just sparks off.
-                            createExplosion(b.x, b.y, '#fb923c', 4);
-                            break;
-                        }
-
-                        a.hp--;
-                        createExplosion(b.x, b.y, '#f59e0b', 5);
-
-                        if (a.hp <= 0) {
-                            addScore(a.points);
-                            sfx.playExplosion(a.radius > 30);
-                            createExplosion(a.x, a.y, '#94a3b8', Math.floor(a.radius / 2));
-
-                            if (a.radius > 28) {
-                                for (let k = 0; k < 2; k++) {
-                                    asteroids.push({
-                                        x: a.x + (Math.random() - 0.5) * 10,
-                                        y: a.y + (Math.random() - 0.5) * 10,
-                                        radius: a.radius / 1.8,
-                                        vx: (Math.random() - 0.5) * 120,
-                                        vy: Math.random() * 100 + 60,
-                                        rotation: 0,
-                                        vRot: (Math.random() - 0.5) * 3,
-                                        hp: 1,
-                                        maxHp: 1,
-                                        points: 10,
-                                        numVertices: 6,
-                                        offsetAngles: Array(6).fill(0).map(() => 0.7 + Math.random() * 0.6)
-                                    });
-                                }
-                            }
-
-                            if (Math.random() < 0.14) {
-                                spawnPowerup(a.x, a.y);
-                            }
-
-                            asteroids.splice(i, 1);
-                        }
-                        break;
-                    }
-                }
-            }
-
-            // Update Power-ups
-            for (let i = powerups.length - 1; i >= 0; i--) {
-                const p = powerups[i];
-                p.y += p.vy * dt;
-
-                const distToPlayer = Math.hypot(p.x - player.x, p.y - player.y);
-                if (distToPlayer < p.radius + player.radius) {
-                    sfx.playPowerup();
-                    if (p.type === 'shield') {
-                        player.powerups.shield = 8;
-                        player.shieldCharge = 1;
-                    } else if (p.type === 'slow') {
-                        player.powerups.slow = 30;
-                    } else if (p.type === 'missile') {
-                        missileStock++;
-                        updateMissileUI();
-                    } else {
-                        player.powerups[p.type] = 7;
-                    }
-                    powerups.splice(i, 1);
-                    continue;
-                }
-
-                if (p.y > canvas.height + 20) {
-                    powerups.splice(i, 1);
-                }
-            }
-
-            // Update Particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const pt = particles[i];
-                pt.x += pt.vx * dt;
-                pt.y += pt.vy * dt;
-                pt.alpha -= pt.decay * dt;
-                if (pt.alpha <= 0) particles.splice(i, 1);
-            }
-
-            // === Update Falling Hearts ===
-            for (let i = fallingHearts.length - 1; i >= 0; i--) {
-                const h = fallingHearts[i];
-                h.y += h.vy * dt;
-                h.wobble = (h.wobble || 0) + dt * 3;
-
-                const dist = Math.hypot(h.x - player.x, h.y - player.y);
-                if (dist < h.radius + player.radius) {
-                    if (player.lives < player.maxLives) {
-                        player.lives++;
-                        updateLivesUI();
-                    }
-                    sfx.playHeartPickup();
-                    createExplosion(h.x, h.y, '#f43f5e', 14);
-                    fallingHearts.splice(i, 1);
-                    continue;
-                }
-                if (h.y > canvas.height + 50) fallingHearts.splice(i, 1);
-            }
-
-            // === Update Obstacle Course ===
-            if (isObstacleCourse) updateObstacleCourse(dt, asteroidSpeedMultiplier);
-
-            updatePowerupBadgesUI();
-        }
-
-        function render() {
-            ctx.save();
-
-            // Apply Screen Shake
-            if (screenShake > 0) {
-                const dx = (Math.random() - 0.5) * 16;
-                const dy = (Math.random() - 0.5) * 16;
-                ctx.translate(dx, dy);
-            }
-
-            // Clear Background
-            ctx.fillStyle = '#050510';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Animated Starfield Background
-            stars.forEach(star => {
-                ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
-                ctx.beginPath();
-                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            if (!isPlaying) {
-                ctx.restore();
-                return;
-            }
-
-            // 1. Render Cascading Chain Laser Lightning Tree
-            if (chainLaserAnimTimer > 0 && activeChainBranches.length > 0) {
-                const alpha = Math.min(1, chainLaserAnimTimer / 0.5);
-                ctx.save();
-                ctx.globalAlpha = alpha;
-
-                activeChainBranches.forEach(b => {
-                    ctx.save();
-                    ctx.strokeStyle = '#ec4899';
-                    ctx.lineWidth = 6;
-                    ctx.shadowColor = '#f472b6';
-                    ctx.shadowBlur = 20;
-                    ctx.beginPath();
-                    ctx.moveTo(b.x1, b.y1);
-                    const midX = (b.x1 + b.x2) / 2 + (Math.random() - 0.5) * 16;
-                    const midY = (b.y1 + b.y2) / 2 + (Math.random() - 0.5) * 16;
-                    ctx.lineTo(midX, midY);
-                    ctx.lineTo(b.x2, b.y2);
-                    ctx.stroke();
-                    ctx.restore();
-
-                    ctx.save();
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 2.5;
-                    ctx.beginPath();
-                    ctx.moveTo(b.x1, b.y1);
-                    ctx.lineTo(midX, midY);
-                    ctx.lineTo(b.x2, b.y2);
-                    ctx.stroke();
-                    ctx.restore();
-                });
-
-                ctx.restore();
-            }
-
-            // 2. Render FAN-5 — direct beams from the ship to each targeted point
-            if (crossLaserAnimTimer > 0 && crossLaserBeamTargets.length > 0) {
-                const alpha = Math.min(1, crossLaserAnimTimer / 0.45);
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.shadowColor = '#22d3ee';
-                ctx.shadowBlur = 25;
-                ctx.lineCap = 'round';
-
-                crossLaserBeamTargets.forEach(t => {
-                    ctx.strokeStyle = '#06b6d4';
-                    ctx.lineWidth = 10;
-                    ctx.beginPath();
-                    ctx.moveTo(player.x, player.y);
-                    ctx.lineTo(t.x, t.y);
-                    ctx.stroke();
-
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.moveTo(player.x, player.y);
-                    ctx.lineTo(t.x, t.y);
-                    ctx.stroke();
-                });
-
-                ctx.restore();
-            }
-
-            // Render Floating Power-ups
-            powerups.forEach(p => {
-                ctx.save();
-                ctx.translate(p.x, p.y);
-                const colorMap = { rapid: '#f43f5e', spread: '#38bdf8', shield: '#a855f7', slow: '#f59e0b', missile: '#f97316' };
-                const color = colorMap[p.type] || '#ffffff';
-                ctx.shadowColor = color;
-                ctx.shadowBlur = 10;
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 11px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const labelMap = { rapid: 'R', spread: 'S', shield: '🛡', slow: 'H', missile: '🚀' };
-                ctx.fillText(labelMap[p.type] || '?', 0, 1);
-                ctx.restore();
-            });
-
-            // Render Missiles
-            missiles.forEach(m => {
-                ctx.save();
-                ctx.translate(m.x, m.y);
-                const ang = m.angle + Math.PI / 2;
-                ctx.rotate(ang);
-                ctx.shadowColor = '#f97316';
-                ctx.shadowBlur = 12;
-                ctx.fillStyle = '#fb923c';
-                ctx.beginPath();
-                ctx.moveTo(0, -12);
-                ctx.lineTo(5, 8);
-                ctx.lineTo(-5, 8);
-                ctx.closePath();
-                ctx.fill();
-                ctx.fillStyle = '#fde68a';
-                ctx.beginPath();
-                ctx.moveTo(-3, 8);
-                ctx.lineTo(3, 8);
-                ctx.lineTo(0, 8 + 6 + Math.random() * 6);
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
-            });
-
-            // Render Bullets
-            bullets.forEach(b => {
-                ctx.save();
-                ctx.shadowColor = b.color;
-                ctx.shadowBlur = 8;
-                ctx.fillStyle = b.color;
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
-
-            // Render Alien Ships / Mothership / their bullets
-            renderAlienShips();
-            renderMotherShip();
-            renderEnemyBullets();
-
-            // Render Gauntlet countdown HUD (the walls themselves are drawn
-            // below, as ordinary asteroids — just colored differently)
-            if (isObstacleCourse) renderGauntletHUD();
-
-            // Render Chest Reward
-            if (chestRewardTimer > 0) renderChestReward();
-
-            // Render Procedural Jagged Asteroids
-            asteroids.forEach(a => {
-                ctx.save();
-                ctx.translate(a.x, a.y);
-                ctx.rotate(a.rotation);
-                if (a.indestructible) {
-                    ctx.strokeStyle = '#fb923c';
-                    ctx.lineWidth = 2.5;
-                    ctx.fillStyle = '#4c1d0a';
-                    ctx.shadowColor = '#f97316';
-                    ctx.shadowBlur = 10;
-                } else {
-                    ctx.strokeStyle = '#94a3b8';
-                    ctx.lineWidth = 2;
-                    ctx.fillStyle = '#1e293b';
-                }
-
-                ctx.beginPath();
-                const angleStep = (Math.PI * 2) / a.numVertices;
-                for (let i = 0; i < a.numVertices; i++) {
-                    const angle = i * angleStep;
-                    const r = a.radius * a.offsetAngles[i];
-                    const vx = Math.cos(angle) * r;
-                    const vy = Math.sin(angle) * r;
-                    if (i === 0) ctx.moveTo(vx, vy);
-                    else ctx.lineTo(vx, vy);
-                }
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-                ctx.restore();
-            });
-
-            // Render Falling Hearts
-            renderFallingHearts();
-
-            // Render Particles
-            particles.forEach(pt => {
-                ctx.save();
-                ctx.globalAlpha = Math.max(0, pt.alpha);
-                ctx.fillStyle = pt.color;
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
-
-            // Collision indicator: red glow ring that blinks 3 times
-            if (player.collisionFlashTimer > 0) {
-                const elapsed = COLLISION_FLASH_DURATION - player.collisionFlashTimer;
-                const halfCycle = COLLISION_FLASH_DURATION / 6; // 3 blinks = 6 on/off halves
-                const blinkOn = Math.floor(elapsed / halfCycle) % 2 === 0;
-                if (blinkOn) {
-                    ctx.save();
-                    ctx.strokeStyle = '#ef4444';
-                    ctx.lineWidth = 4;
-                    ctx.shadowColor = '#ef4444';
-                    ctx.shadowBlur = 26;
-                    ctx.beginPath();
-                    ctx.arc(player.x, player.y, player.radius + 14, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            }
-
-            // Render Player Spacecraft
-            if (player.invulnerableTimer <= 0 || Math.floor(Date.now() / 100) % 2 === 0) {
-                ctx.save();
-                ctx.translate(player.x, player.y);
-
-                if (player.powerups.shield > 0) {
-                    ctx.save();
-                    ctx.strokeStyle = '#38bdf8';
-                    ctx.lineWidth = 2.5;
-                    ctx.shadowColor = '#38bdf8';
-                    ctx.shadowBlur = 12;
-                    ctx.beginPath();
-                    ctx.arc(0, -2, player.radius + 10, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-
-                // Flame Thruster
-                ctx.fillStyle = Math.random() > 0.5 ? '#f97316' : '#ef4444';
-                ctx.beginPath();
-                ctx.moveTo(-6, player.radius - 4);
-                ctx.lineTo(0, player.radius + 12 + Math.random() * 6);
-                ctx.lineTo(6, player.radius - 4);
-                ctx.closePath();
-                ctx.fill();
-
-                // Vector Ship Body
-                ctx.fillStyle = '#0f172a';
-                ctx.strokeStyle = '#38bdf8';
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.moveTo(0, -player.radius - 4);
-                ctx.lineTo(player.radius, player.radius);
-                ctx.lineTo(0, player.radius - 6);
-                ctx.lineTo(-player.radius, player.radius);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-                // Cockpit Glow
-                ctx.fillStyle = '#06b6d4';
-                ctx.beginPath();
-                ctx.arc(0, -4, 4, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.restore();
-            }
-
-            ctx.restore();
-        }
-
-        function updateLivesUI() {
-            livesContainer.innerHTML = '';
-            for (let i = 0; i < player.maxLives; i++) {
-                const frac = Math.max(0, Math.min(1, player.lives - i));
-                const wrap = document.createElement('span');
-                wrap.style.position = 'relative';
-                wrap.style.display = 'inline-block';
-                wrap.style.width = '1em';
-                wrap.style.height = '1em';
-
-                const bg = document.createElement('i');
-                bg.className = 'fa-solid fa-heart text-slate-700';
-                bg.style.position = 'absolute';
-                bg.style.inset = '0';
-                wrap.appendChild(bg);
-
-                if (frac > 0) {
-                    const fgWrap = document.createElement('span');
-                    fgWrap.style.position = 'absolute';
-                    fgWrap.style.inset = '0';
-                    fgWrap.style.width = (frac * 100) + '%';
-                    fgWrap.style.overflow = 'hidden';
-                    const fg = document.createElement('i');
-                    fg.className = 'fa-solid fa-heart text-rose-500';
-                    fgWrap.appendChild(fg);
-                    wrap.appendChild(fgWrap);
-                }
-
-                livesContainer.appendChild(wrap);
-            }
-        }
-
-        function updatePowerupBadgesUI() {
-            powerupBadgeContainer.innerHTML = '';
-            const activePowerups = [
-                { key: 'rapid', name: 'Rapid', color: 'bg-rose-500/20 text-rose-400 border-rose-500/40' },
-                { key: 'spread', name: 'Spread', color: 'bg-sky-500/20 text-sky-400 border-sky-500/40' },
-                { key: 'shield', name: 'Shield', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40' },
-                { key: 'slow', name: 'H (Slow)', color: 'bg-amber-500/20 text-amber-400 border-amber-500/40' }
-            ];
-
-            activePowerups.forEach(p => {
-                if (player.powerups[p.key] > 0) {
-                    const badge = document.createElement('div');
-                    badge.className = `px-2 py-0.5 text-[10px] rounded-md border font-bold flex items-center gap-1 ${p.color}`;
-                    badge.innerHTML = `<span>${p.name}</span> <span class="opacity-80">${Math.ceil(player.powerups[p.key])}s</span>`;
-                    powerupBadgeContainer.appendChild(badge);
-                }
-            });
-        }
-
-        function resetGame() {
-            score = 0;
-            scoreDisplay.textContent = '0';
-            highScoreDisplay.textContent = `High: ${highScore}`;
-            player.lives = 3;
-            player.maxLives = 3;
-            player.shieldCharge = 0;
-            player.invulnerableTimer = 0;
-            player.collisionFlashTimer = 0;
-            player.powerups = { rapid: 0, spread: 0, shield: 0, slow: 0 };
-            player.x = canvas.width / 2;
-            player.y = canvas.height - 100;
-
-            chainLaserCharges = 0;
-            fanLaserCharges = 0;
-            lastLaserThreshold = 0;
-            nextLaserGrantIsChain = true;
-            hasPhotonTorpedoes = false;
-            activeChainBranches = [];
-            chainLaserAnimTimer = 0;
-            crossLaserAnimTimer = 0;
-            crossLaserBeamTargets = [];
-            updateChainLaserUI();
-            updateFanLaserUI();
-
-            eventClock = 0;
-            nextWallEventTime = 60;
-            nextCrossfireEventTime = 30;
-            waveWarning.classList.add('hidden');
-
-            bullets = [];
-            missiles = [];
-            missileStock = 0;
-            updateMissileUI();
-            asteroids = [];
-            particles = [];
-            powerups = [];
-            enemyBullets = [];
-            fallingHearts = [];
-            nextHeartDropTime = 60 + Math.random() * 30;
-            isObstacleCourse = false;
-            obstacleCourseTimer = 0;
-            pathSection = null;
-            gauntletRowTimer = 0;
-            gauntletRowIndex = 0;
-            nextObstacleCourseTime = 45;
-            chestRewardTimer = 0;
-            indestructibleTargetCount = 0;
-            indestructibleRerollTimer = 10 + Math.random() * 20;
-
-            alienShips = [];
-            alienClock = 0;
-            nextAlienShipTime = 40;
-            alienWaveCount = 0;
-
-            motherShip = null;
-            motherShipsDestroyed = 0;
-            nextMotherShipTime = 300;
-
-            spawnTimer = 0;
-            spawnInterval = 1000;
-
-            isPaused = false;
-            pauseScreen.classList.add('hidden');
-
-            updateLivesUI();
-        }
-
-        function startGame() {
-            sfx.init();
-            resetGame();
-            startScreen.classList.add('hidden');
-            gameoverScreen.classList.add('hidden');
-            isPlaying = true;
-        }
-
-        function qualifiesForLeaderboard(s) {
-            if (s <= 0) return false;
-            if (leaderboard.length < 10) return true;
-            return s > leaderboard[leaderboard.length - 1].score;
-        }
-
-        function saveLeaderboardEntry(name, s) {
-            leaderboard.push({ name: name, score: s });
-            leaderboard.sort((a, b) => b.score - a.score);
-            leaderboard = leaderboard.slice(0, 10);
-            localStorage.setItem('asteroid_leaderboard', JSON.stringify(leaderboard));
-        }
-
-        function renderLeaderboardList() {
-            leaderboardList.innerHTML = '';
-            if (leaderboard.length === 0) {
-                leaderboardList.innerHTML = '<li class="text-slate-500 text-center">No scores yet — be the first!</li>';
-                return;
-            }
-            leaderboard.forEach((entry, i) => {
-                const li = document.createElement('li');
-                li.className = 'flex justify-between items-center';
-                li.innerHTML = `<span>${i + 1}. ${entry.name}</span><span class="text-cyan-300 font-bold">${entry.score}</span>`;
-                leaderboardList.appendChild(li);
-            });
-        }
-
-        function gameOver(reason) {
-            isPlaying = false;
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('asteroid_highscore', highScore.toString());
-                startHighscore.textContent = `High Score: ${highScore}`;
-            }
-
-            if (reason === 'alien') {
-                gameoverTitle.textContent = 'GAME OVER';
-                gameoverSubtitle.textContent = 'Alien Ship Destroyed The Earth';
-            } else {
-                gameoverTitle.textContent = 'MISSION FAILED';
-                gameoverSubtitle.textContent = 'Ship Hull Destroyed';
-            }
-
-            finalScore.textContent = score;
-            finalHighScore.textContent = highScore;
-            gameoverScreen.classList.remove('hidden');
-
-            if (qualifiesForLeaderboard(score)) {
-                nameEntryScore.textContent = score;
-                nameEntryInput.value = '';
-                nameEntryScreen.classList.remove('hidden');
-            }
-        }
-
-        function gameLoop(timestamp) {
-            if (!lastTime) lastTime = timestamp;
-            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
-            lastTime = timestamp;
-
-            update(dt);
-            render();
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        startBtn.addEventListener('click', startGame);
-        restartBtn.addEventListener('click', startGame);
-        viewLeaderboardBtn.addEventListener('click', () => {
-            renderLeaderboardList();
-            leaderboardScreen.classList.remove('hidden');
-        });
-        leaderboardCloseBtn.addEventListener('click', () => {
-            leaderboardScreen.classList.add('hidden');
-        });
-        nameEntryBtn.addEventListener('click', () => {
-            const name = (nameEntryInput.value || '').trim().slice(0, 12) || 'ANON';
-            saveLeaderboardEntry(name, score);
-            nameEntryScreen.classList.add('hidden');
-        });
-
-        // Register Service Worker for PWA / offline play
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW registered:', reg.scope))
-                    .catch(err => console.warn('SW registration failed:', err));
-            });
-        }
-
-        window.onload = () => {
-            resizeCanvas();
-            highScoreDisplay.textContent = `High: ${highScore}`;
-            startHighscore.textContent = `High Score: ${highScore}`;
-            updateLivesUI();
-            requestAnimationFrame(gameLoop);
-        };
-    </script>
+      });
+      setInterval(()=>reg.update(),60000);
+    }).catch(e=>console.warn('Service worker failed:',e));
+    let refreshed=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(refreshed) return; refreshed=true; location.reload();
+    });
+  });
+}
+</script>
 </body>
 </html>
