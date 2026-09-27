@@ -75,6 +75,8 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #matpick{display:flex;gap:6px;width:100%;max-width:168px}
 #matpick{justify-content:center}
 #matpick[hidden]{display:none}
+#qbtn{width:34px;height:34px;flex:none;border-radius:8px;border:2px solid #2a1c12;background:#fff4e0;color:#3a2400;font-size:17px;padding:0;box-shadow:0 2px 0 #1a110a}
+#qbtn.q{background:#ffc21a}
 .mat{width:34px;height:34px;flex:none;border-radius:8px;border:2px solid #2a1c12;padding:0;box-shadow:0 2px 0 #1a110a}
 .mat.sel{outline:3px solid #fff4e0;outline-offset:1px}
 .mat:active{transform:translateY(2px)}
@@ -136,6 +138,25 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #detect:empty{display:none}
 
 @media (prefers-reduced-motion:reduce){.pop{animation:none}}
+@media (max-width:600px){
+  .sheet{padding:8px 9px 10px}
+  .sheet h2{font-size:20px}
+  .cols{grid-template-columns:1fr;gap:10px}
+  #sell{grid-template-columns:repeat(4,1fr);gap:4px}
+  .tile{padding:4px 2px}
+  .tile .ic{width:20px;height:20px}
+  .tile .nm{font-size:11.5px}
+  .tile .pr{font-size:10px}
+  .tool{gap:6px;padding:4px 6px}
+  .tool canvas{width:50px;height:28px}
+  .tt b{font-size:13px}
+  .tt span{font-size:10.5px}
+  .buy{padding:6px 8px;font-size:12.5px}
+  .buy.sm{padding:4px 6px;font-size:10.5px}
+  #scanbtn,#detect .buy{white-space:normal;text-align:center}
+  .bigcoins{padding:4px 8px}
+  .bigcoins b{font-size:17px}
+}
 </style>
 </head>
 <body>
@@ -175,6 +196,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button class="mat" data-mat="stone" aria-label="Stone"></button>
       <button class="mat" data-mat="water" aria-label="Water"></button>
       <button class="mat" data-mat="glass" aria-label="Glass"></button>
+      <button id="qbtn" class="disp" aria-label="Piece size: whole block">1</button>
     </div>
   </div>
 </div>
@@ -266,7 +288,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 (()=>{
 const SCREEN_W=14, SCREENS=7, SPAWN_SCREEN=3; // 3 screens left of spawn, 3 right, spawn in the middle
 const W=SCREEN_W*SCREENS, D=160, SKY=3, GROUND=SKY+1; // map row 0 is the open air above the grass
-const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10, STONE=13, GLASS=14;
+const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10, STONE=13, GLASS=14, PIECES=15; // PIECES: a square built from ¼-size pieces (see S.pieces)
 const UP=0, RIGHT=1, DOWN=2, LEFT=3;
 const DX=[0,1,0,-1], DY=[-1,0,1,0];
 const ORES=[
@@ -432,9 +454,23 @@ function genMine(){
   [[sx+2,3],[sx+3,3],[sx+3,4]].forEach(([x,y])=>g[x+y*W]=4);
   return {g,sx,pockets,fossils};
 }
+// Which water pocket (if any) a square belongs to: its water, the minerals in it, or its rock shell.
+let pocketMap=null, pocketMapFor=null;
+function pocketOf(idx){
+  if(pocketMapFor!==S||!pocketMap){
+    pocketMap=new Map(); pocketMapFor=S;
+    (S.pockets||[]).forEach(pk=>{ pk.cells.forEach(i=>pocketMap.set(i,pk.id)); pk.shell.forEach(i=>pocketMap.set(i,pk.id)); });
+  }
+  const p=pocketMap.get(idx); return p===undefined?-1:p;
+}
 function revealArea(cx,cy,radius){
+  const seen=new Set();
   for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
-    const nx=cx+dx,ny=cy+dy; if(nx>=0&&nx<W&&ny>=0&&ny<D) S.rev[nx+ny*W]=1;
+    const nx=cx+dx,ny=cy+dy; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+    const i=nx+ny*W; S.rev[i]=1;
+    // Spot any part of a water pocket and you can see the whole thing: its shell and the water inside.
+    const p=pocketOf(i);
+    if(p>=0 && !seen.has(p)){ seen.add(p); const pk=S.pockets[p]; pk.cells.forEach(c=>S.rev[c]=1); pk.shell.forEach(c=>S.rev[c]=1); }
   }
 }
 function reveal(x,y){revealArea(x,y,1+(S.detectLvl||0));}
@@ -449,7 +485,7 @@ function newGame(keep,sameMine){
      dur:keep?keep.dur:[1,0,0,0], wear:keep?keep.wear:[0,0,0,0], detectLvl:keep?keep.detectLvl:0,
      name:keep?keep.name:'', gender:keep?keep.gender:'boy',
      mine:keep?(sameMine?(keep.mine||1):(keep.mine||1)+1):1,
-     pockets, mass:new Float32Array(W*D), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
+     pockets, mass:new Float32Array(W*D), pieces:new Map(), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
      nextRainAt:keep&&keep.nextRainAt?keep.nextRainAt:Date.now()+RAIN_INTERVAL_MS, rain:null,
      dig:null};
   reveal(sx,0); anim=null; walkPath=null; wakeWater(); followCam=true; camInit=false; save();
@@ -474,7 +510,7 @@ async function save(){
     v:1,g:encodeCells(S.grid),r:encodeCells(S.rev),
     px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
     dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine,
-    pockets:S.pockets,mass:encodeMass(),supports:[...S.supports.entries()],fossils:[...S.fossils],
+    pockets:S.pockets,mass:encodeMass(),pieces:[...S.pieces.entries()],supports:[...S.supports.entries()],fossils:[...S.fossils],
     nextRainAt:S.nextRainAt,rain:S.rain
   };
   lastSavePayload=payload;
@@ -518,11 +554,13 @@ function applySave(d){try{
      inv:keep.inv,coins:keep.coins,tool:keep.tool,owned:keep.owned,dur:keep.dur,wear:keep.wear,detectLvl:keep.detectLvl,
      name:keep.name,gender:keep.gender,mine:keep.mine,
      pockets:d.pockets||[], mass:decodeMass(d), supports:new Map((d.supports||[]).map(e=>Array.isArray(e)?e:[e,1])),
-     fossils:new Set(d.fossils||[]),
+     fossils:new Set(d.fossils||[]), pieces:new Map((Array.isArray(d.pieces)?d.pieces:[]).filter(e=>Array.isArray(e)&&typeof e[1]==='string'&&e[1].length===16)),
      nextRainAt:d.nextRainAt||(Date.now()+RAIN_INTERVAL_MS), rain,
      dig:null};
   if(S.grid[S.px+S.py*W]!==EMPTY) S.grid[S.px+S.py*W]=EMPTY; // never load the miner inside solid ground
   sanitizeWater();
+  for(const [i] of [...S.pieces]) if(S.grid[i]!==PIECES) S.pieces.delete(i);
+  for(let i=0;i<W*D;i++) if(S.grid[i]===PIECES && !S.pieces.has(i)) S.grid[i]=EMPTY;
   anim=null; walkPath=null; queued=null; held=null; wakeWater();
   return true;
 }catch(e){ console.warn('Could not read save:',e); return false; }}
@@ -796,6 +834,18 @@ function drawCell(x,y,now){
   }
   if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
   if(v===STONE){ drawRockTexture(X,Y,x,y,'#8f8b86','#a8a49c'); return; }
+  if(v===PIECES){
+    const str=S.pieces.get(idx)||'', q=cs/4;
+    ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
+    for(let k=0;k<16;k++){
+      const c=str[k]; if(!c||c==='0') continue;
+      const sx=X+(k%4)*q, sy=Y+((k/4)|0)*q;
+      ctx.fillStyle=c==='1'?ROWC[y]:PIECE_COL[c]; ctx.fillRect(sx,sy,q+.5,q+.5);
+      if(c==='4'){ ctx.strokeStyle='rgba(235,248,255,.8)'; ctx.lineWidth=1; ctx.strokeRect(sx+.5,sy+.5,q-1,q-1); }
+      else { ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(sx,sy+q*.8,q+.5,q*.2); }
+    }
+    return;
+  }
   if(v===GLASS){ // see-through: the tunnel shows behind a pale pane with a frame and a glint
     ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
     ctx.fillStyle='rgba(190,230,255,.22)'; ctx.fillRect(X,Y,cs+.5,cs+.5);
@@ -805,6 +855,11 @@ function drawCell(x,y,now){
     return;
   }
   const revealed=!!(S.rev[idx]||devReveal);
+  if(revealed && (v===WATER || (OREBY[v] && inSealedPocket(idx)))){
+    drawWaterCell(X,Y,x,y,now);
+    if(OREBY[v]) drawOre(OREBY[v],X,Y,x,y,now);
+    return;
+  }
   ctx.fillStyle=ROWC[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
   for(let k=0;k<5;k++){
     ctx.fillStyle=k%2?ROWD[y]:ROWL[y];
@@ -818,6 +873,7 @@ function drawCell(x,y,now){
   const o=OREBY[v];
   if(o&&revealed) drawOre(o,X,Y,x,y,now);
 }
+function inSealedPocket(idx){ const p=pocketOf(idx); return p>=0 && !S.pockets[p].breached && S.pockets[p].cells.includes(idx); }
 function drawOre(o,X,Y,x,y,now){
   const n=3+(hsh(x,y,30)*2|0);
   let sx=0,sy=0;
@@ -955,9 +1011,32 @@ function floater(x,y,text,col){floats.push({x:(x+.5)*cs,y:(SKY+y+.35)*cs,text,co
 let anim=null, queued=null, held=null, modalOpen=false, walkPath=null, followCam=true;
 let buildMode=false, buildMaterial='dirt';
 const MATNAME={dirt:'Dirt',stone:'Stone',water:'Water',glass:'Glass'};
+// ¼ mode: the arrows move a small box (¼ of a square each way) instead of the miner.
+// qbox is in quarter-units: square x = floor(qx/4), position inside it = qx%4.
+let quarterMode=false, qbox=null;
+const PIECE_CODE={dirt:'1',stone:'2',glass:'4'}, PIECE_COL={'1':null,'2':'#8f8b86','4':'rgba(200,235,255,.45)'};
+const FULL_OF={'1':EARTH,'2':STONE,'4':GLASS};
+function initQbox(){
+  const cx=S.px+DX[aim], cy=S.py+DY[aim];
+  // start on the edge of the faced square nearest the miner, at floor level
+  const sx=aim===RIGHT?0:aim===LEFT?3:1, sy=aim===DOWN?0:aim===UP?3:3;
+  qbox={qx:cx*4+sx, qy:cy*4+sy};
+}
+function moveQbox(dir){
+  if(!qbox) initQbox();
+  const nqx=qbox.qx+DX[dir], nqy=qbox.qy+DY[dir], cx=Math.floor(nqx/4), cy=Math.floor(nqy/4);
+  if(Math.abs(cx-S.px)>1||Math.abs(cy-S.py)>1||cx<0||cx>=W||cy<0||cy>=D) return; // stays within reach
+  qbox.qx=nqx; qbox.qy=nqy;
+}
+function setQuarter(on){
+  quarterMode=on; qbox=null; if(on) initQbox();
+  const b=$('qbtn'); b.textContent=on?'¼':'1'; b.classList.toggle('q',on);
+  b.setAttribute('aria-label',on?'Piece size: quarter':'Piece size: whole block');
+  updateHUD();
+}
 function toast(msg,ms=1800){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),ms);}
 function moveTo(x,y,now){anim={fx:S.px,fy:S.py,tx:x,ty:y,t0:now,dur:150};S.px=x;S.py=y;reveal(x,y);updateHUD();}
-function pocketAt(idx){for(const pk of S.pockets) if(pk.shell.includes(idx)) return pk.id; return -1;}
+function pocketAt(idx){const p=pocketOf(idx); return p>=0&&S.pockets[p].shell.includes(idx)?p:-1;}
 // Tapping a direction you're not already facing only turns you that way (and highlights
 // the build-mode target square). Tapping the direction you're already facing confirms the
 // action — walk, dig, or (in build mode) place. Holding a direction down auto-repeats it,
@@ -966,6 +1045,7 @@ function pressDir(dir){
   if(modalOpen) return;
   if(walkPath&&walkPath.swim) return;
   walkPath=null; longPress=null; followCam=true;
+  if(buildMode && quarterMode){ moveQbox(dir); if(dir===LEFT) facing=-1; else if(dir===RIGHT) facing=1; return; }
   if(dir!==aim){
     aim=dir;
     if(dir===LEFT) facing=-1; else if(dir===RIGHT) facing=1;
@@ -989,13 +1069,16 @@ function doAct(dir){
   }
   else if(v===BEDROCK) toast("Bedrock — nothing can dig through that");
   else if(v===ROCK) toast('A solid boulder — dig around it');
-  else if(v===WATER) toast("You can't dig through water — breach its wall instead");
+  else if(v===WATER){
+    const pid=pocketOf(nx+ny*W);
+    if(pid>=0 && !S.pockets[pid].breached){ breachPocket(pid,nx,ny,now); save(); }
+  }
   else if(v===WALL){
     const pid=pocketAt(nx+ny*W), pk=pid>=0?S.pockets[pid]:null;
     if(pk&&!pk.breached) S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000,breach:pid};
     else toast("This rock wall won't budge — best leave it alone");
   }
-  else S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000};
+  else S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000/(v===PIECES?16:1)};
 }
 // Build mode: confirming a direction just walks you into it (same collision rules as
 // normal movement); it never digs. The square you end up facing is the fill target.
@@ -1007,11 +1090,36 @@ function buildMove(dir){
   const idx=nx+ny*W;
   if(S.grid[idx]===EMPTY && !isFull(idx)) moveTo(nx,ny,now);
 }
+function pieceTarget(){
+  if(!qbox) initQbox();
+  const cx=Math.floor(qbox.qx/4), cy=Math.floor(qbox.qy/4), sub=(qbox.qx-cx*4)+(qbox.qy-cy*4)*4;
+  const idx=cx+cy*W, v=S.grid[idx];
+  let ok=cy>0 && !(cx===S.px&&cy===S.py) && !isFull(idx);
+  if(buildMaterial==='water') ok=ok&&v===EMPTY;
+  else ok=ok&&(v===EMPTY||(v===PIECES&&S.pieces.get(idx)[sub]==='0'));
+  return {cx,cy,sub,idx,ok};
+}
+function placePiece(){
+  const t=pieceTarget();
+  if(t.cy<=0){ toast('You can only build underground.'); return; }
+  if(t.cx===S.px&&t.cy===S.py){ toast("You're standing there!"); return; }
+  if(!t.ok){ toast('That spot is already filled.'); return; }
+  const px=(qbox.qx+.5)*cs/4, py=SKY*cs+(qbox.qy+.5)*cs/4;
+  if(buildMaterial==='water'){ S.mass[t.idx]+=1/16; wakeWater(); dust(px,py,'#bfe6ff',4,false); save(); return; }
+  if(S.grid[t.idx]===EMPTY){ S.grid[t.idx]=PIECES; S.pieces.set(t.idx,'0'.repeat(16)); displaceWater(t.idx); }
+  const code=PIECE_CODE[buildMaterial], cur=S.pieces.get(t.idx), next=cur.slice(0,t.sub)+code+cur.slice(t.sub+1);
+  if(next===code.repeat(16)){ S.pieces.delete(t.idx); S.grid[t.idx]=FULL_OF[code]; } // a full square of one material becomes a normal block
+  else S.pieces.set(t.idx,next);
+  S.rev[t.idx]=1;
+  dust(px,py,{stone:'#9a9691',glass:'#e6f5ff'}[buildMaterial]||'#6b4a2e',4,false);
+  save();
+}
 function fillHighlighted(){
   if(!buildMode) return;
+  if(quarterMode){ placePiece(); return; }
   const hx=S.px+DX[aim], hy=S.py+DY[aim];
   if(hx<0||hx>=W||hy<0||hy>=D){ toast("Can't fill there."); return; }
-  if(S.py<=0 || hy<=0){ toast('You can only build underground.'); return; }
+  if(hy<=0){ toast('You can only build underground.'); return; }
   const idx=hx+hy*W;
   if(S.grid[idx]!==EMPTY || isFull(idx)){ toast(isFull(idx)?'That spot is full of water.':'That spot is already filled.'); return; }
   if(idx===S.px+S.py*W){ toast("You're standing there!"); return; }
@@ -1026,7 +1134,7 @@ function fillHighlighted(){
   dust((hx+.5)*cs,(SKY+hy+.5)*cs,{stone:'#9a9691',glass:'#e6f5ff'}[buildMaterial]||'#6b4a2e',10,true);
   save();
 }
-function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; if(v===GLASS)return '#e6f5ff'; return ROWC[y];}
+function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; if(v===GLASS)return '#e6f5ff'; if(v===PIECES)return '#9a8a78'; return ROWC[y];}
 function autoSwitchTool(){
   let best=-1,bestTime=Infinity;
   for(let i=0;i<4;i++){ if(i===S.tool) continue; if(S.dur[i]>0){ const t=curTime(i); if(t<bestTime){bestTime=t;best=i;} } }
@@ -1241,12 +1349,25 @@ function finishDig(now){
   const bx=(d.x+.5)*cs, by=(SKY+d.y+.5)*cs;
   dust(bx,by,ROWC[d.y],14,true);
   if(v===WALL && d.breach!=null){ breachPocket(d.breach,d.x,d.y,now); save(); return; }
+  if(v===PIECES){
+    // Take the next piece from the side you're digging from (columns/rows nearest you first).
+    let str=S.pieces.get(idx)||'0'.repeat(16), pick=-1;
+    for(let line=0;line<4&&pick<0;line++) for(let j=0;j<4&&pick<0;j++){
+      const k= d.dir===RIGHT? j*4+line : d.dir===LEFT? j*4+(3-line) : d.dir===DOWN? line*4+j : (3-line)*4+j;
+      if(str[k]!=='0') pick=k;
+    }
+    if(pick>=0) str=str.slice(0,pick)+'0'+str.slice(pick+1);
+    if(str==='0'.repeat(16)){ S.pieces.delete(idx); S.grid[idx]=EMPTY; wakeWater(); moveTo(d.x,d.y,now); }
+    else { S.pieces.set(idx,str); if(held===d.dir) setTimeout(()=>{ if(held===d.dir&&!S.dig) doAct(d.dir); },0); }
+    save(); return;
+  }
   const o=OREBY[v];
   if(o){
     S.inv[o.id]++; dust(bx,by,o.h,10,true); floater(d.x,d.y,`+1 ${o.name}`,o.h);
     const el=$('ri-'+o.id); if(el){el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');}
   }
   S.grid[idx]=EMPTY; wakeWater();
+  { const pid=pocketOf(idx); if(pid>=0 && !S.pockets[pid].breached && S.pockets[pid].cells.includes(idx)) breachPocket(pid,d.x,d.y,now); } // mined a gem out of a sealed pocket
   // Dug out the floor under a support? It topples, and the tunnel it was holding up
   // gets its usual chance to cave in.
   if(S.supports.has(idx-W)){
@@ -1375,10 +1496,17 @@ function render(now,dt){
   if(cam.y<GROUND*cs+cs) drawGrass();
   if(isRaining()) drawRainOverlay(now);
 
-  if(buildMode){
+  if(buildMode && quarterMode){
+    const t=pieceTarget(), q=cs/4, X=qbox.qx*q, Y=SKY*cs+qbox.qy*q;
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=Math.max(1,cs*.02); ctx.strokeRect(t.cx*cs+.5,(SKY+t.cy)*cs+.5,cs-1,cs-1); // the square it's in
+    if(t.ok){ ctx.fillStyle='rgba(255,255,255,.3)'; ctx.fillRect(X,Y,q,q); }
+    ctx.strokeStyle=t.ok?'rgba(255,255,255,.95)':'rgba(255,255,255,.4)'; ctx.lineWidth=Math.max(1.5,cs*.035); ctx.strokeRect(X+1,Y+1,q-2,q-2);
+    ctx.restore();
+  } else if(buildMode){
     const hx=S.px+DX[aim], hy=S.py+DY[aim];
     if(hx>=0&&hx<W&&hy>=0&&hy<D){
-      const X=hx*cs, Y=(SKY+hy)*cs, fillable=S.py>0&&hy>0&&S.grid[hx+hy*W]===EMPTY&&!isFull(hx+hy*W)&&!(hx===S.px&&hy===S.py);
+      const X=hx*cs, Y=(SKY+hy)*cs, fillable=hy>0&&S.grid[hx+hy*W]===EMPTY&&!isFull(hx+hy*W)&&!(hx===S.px&&hy===S.py);
       ctx.save();
       if(fillable){ ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(X,Y,cs,cs); }
       ctx.strokeStyle=fillable?'rgba(255,255,255,.95)':'rgba(255,255,255,.35)';
@@ -1427,7 +1555,7 @@ function updateHUD(){
   $('coins').textContent=S.coins;
   $('depth').textContent=S.py+' m';
   $('toolinfo').textContent=buildMode
-    ? `Building with ${MATNAME[buildMaterial]} · Mine ${S.mine}`
+    ? `Building with ${MATNAME[buildMaterial]}${quarterMode?' (¼ pieces)':''} · Mine ${S.mine}`
     : `${TOOLS[S.tool].name}, ${curTime(S.tool)}s per block · Mine ${S.mine}`;
 }
 function renderShop(){
@@ -1504,11 +1632,12 @@ function toggleBuildMode(){
   $('matpick').hidden=!buildMode;
   $('fillbtn').classList.toggle('show',buildMode);
   $('pad').classList.toggle('buildmode',buildMode);
-  if(buildMode) setMatBtns();
+  if(buildMode) setMatBtns(); else setQuarter(false);
   updateHUD();
   toast(buildMode?'Build mode — aim with the arrows, tap the middle to fill':'Back to digging',2400);
 }
 $('buildbtn').addEventListener('click',toggleBuildMode);
+$('qbtn').addEventListener('click',()=>{ setQuarter(!quarterMode); toast(quarterMode?'¼ pieces — the arrows move the little box':'Whole blocks',1600); });
 $('matpick').addEventListener('click',e=>{
   const b=e.target.closest('.mat'); if(!b) return;
   buildMaterial=b.dataset.mat; setMatBtns(); updateHUD(); toast(MATNAME[buildMaterial],1100);
