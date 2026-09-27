@@ -62,17 +62,16 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
   #panel{width:100%;max-width:none;flex-direction:row;flex-wrap:wrap;align-content:flex-start;justify-content:center;gap:6px;padding:6px;max-height:38vh;border-left:none;border-top:3px solid var(--wood-ln)}
   #panel #pad{--k:min(46px,8vh);order:1}
   #panel #upg{order:0;flex:1 1 100%}
-  #panel #findme,#panel #supportbtn,#panel #buildbtn{width:auto;max-width:none;flex:1 1 auto;font-size:12.5px;padding:6px 8px}
+  #panel #supportbtn,#panel #buildbtn{width:auto;max-width:none;flex:1 1 auto;font-size:12.5px;padding:6px 8px}
   #panel #matpick{width:auto;max-width:none;flex:1 1 100%}
 }
 #upg{width:100%;max-width:168px;border:none;border-radius:14px;padding:9px 6px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 4px 0 #9a6400,inset 0 2px 0 rgba(255,255,255,.5);font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}
 #upg:active{transform:translateY(3px);box-shadow:0 1px 0 #9a6400}
-#findme,#supportbtn,#buildbtn{width:100%;max-width:168px;border:none;border-radius:12px;padding:7px 6px;color:#eaf4ff;box-shadow:0 3px 0 #1a3f6b,inset 0 2px 0 rgba(255,255,255,.35);font-size:14px;display:flex;align-items:center;justify-content:center;gap:5px}
-#findme{background:linear-gradient(#4a90d9,#2a63a6)}
+#supportbtn,#buildbtn{width:100%;max-width:168px;border:none;border-radius:12px;padding:7px 6px;color:#eaf4ff;box-shadow:0 3px 0 #1a3f6b,inset 0 2px 0 rgba(255,255,255,.35);font-size:14px;display:flex;align-items:center;justify-content:center;gap:5px}
 #supportbtn{background:linear-gradient(#8a6a52,#5e4533);color:var(--ink);box-shadow:0 3px 0 #2e2016}
 #buildbtn{background:linear-gradient(#5cb85c,#3d8b40);box-shadow:0 3px 0 #205e22,inset 0 2px 0 rgba(255,255,255,.35)}
 #buildbtn.on{background:linear-gradient(#e0a838,#b8790f);box-shadow:0 3px 0 #7a4c00,inset 0 2px 0 rgba(255,255,255,.35)}
-#findme:active,#supportbtn:active,#buildbtn:active{transform:translateY(2px)}
+#supportbtn:active,#buildbtn:active{transform:translateY(2px)}
 #matpick{display:flex;gap:6px;width:100%;max-width:168px}
 #matpick .buy{flex:1;justify-content:center}
 #pad{--k:min(50px,14vh);display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
@@ -85,8 +84,8 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #ring{border-radius:50%;margin:4px;display:grid;place-items:center;background:rgba(0,0,0,.25);position:relative}
 #ring::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--wood)}
 #ring span{position:relative;z-index:1;font-family:'Lilita One','Arial Black',sans-serif;font-size:13px}
-#fillbtn{position:absolute;inset:7px;z-index:2;border:none;border-radius:50%;display:none;place-items:center;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);font-size:1.15em;box-shadow:inset 0 2px 0 rgba(255,255,255,.5)}
-#fillbtn.show{display:grid}
+#fillbtn{position:absolute;inset:7px;z-index:2;border:none;border-radius:50%;display:none;align-items:center;justify-content:center;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);font-size:1.15em;line-height:1;padding:0;box-shadow:inset 0 2px 0 rgba(255,255,255,.5)}
+#fillbtn.show{display:flex}
 #fillbtn:active{transform:translateY(2px)}
 
 #modal,#menu,#splash{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
@@ -158,7 +157,6 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button class="db" data-dir="2" aria-label="Dig down"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
       <span></span>
     </div>
-    <button id="findme" class="disp" aria-label="Center the screen on your miner">📍 Find me</button>
     <button id="supportbtn" class="disp" aria-label="Place a mine support here for 5 coins">🪵 Support · 5</button>
     <button id="buildbtn" class="disp" aria-label="Switch to build mode">🧱 Build</button>
     <div id="matpick" hidden>
@@ -261,6 +259,31 @@ const TOOLS=[
 ];
 const curTime=i=>S.dur[i]>0?TOOLS[i].levels[S.dur[i]-1].time:Infinity;
 const KEY='deepdig-save-v1';
+const IDB_NAME='deepdig-db', IDB_STORE='saves';
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    if(!('indexedDB' in window)){ reject(new Error('no indexeddb')); return; }
+    const req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function idbGet(key){
+  const db=await idbOpen();
+  return new Promise((resolve,reject)=>{
+    const rq=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).get(key);
+    rq.onsuccess=()=>resolve(rq.result); rq.onerror=()=>reject(rq.error);
+  });
+}
+async function idbSet(key,value){
+  const db=await idbOpen();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).put(value,key);
+    tx.oncomplete=()=>resolve(true); tx.onerror=()=>reject(tx.error);
+  });
+}
 const $=id=>document.getElementById(id);
 
 let S=null;
@@ -389,19 +412,34 @@ function newGame(keep,sameMine){
      dig:null};
   reveal(sx,0); anim=null; walkPath=null; followCam=true; camInit=false; save();
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify({
-  v:1,g:Array.from(S.grid).join(''),r:Array.from(S.rev).join(''),
-  px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
-  dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine,
-  pockets:S.pockets,flooded:[...S.flooded],supports:[...S.supports.entries()],fossils:[...S.fossils]
-}))}catch(e){}}
+let lastSavePayload=null;
+async function save(){
+  const payload={
+    v:1,g:Array.from(S.grid).join(''),r:Array.from(S.rev).join(''),
+    px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
+    dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine,
+    pockets:S.pockets,flooded:[...S.flooded],supports:[...S.supports.entries()],fossils:[...S.fossils]
+  };
+  lastSavePayload=payload;
+  try{ await idbSet(KEY,payload); }catch(e){}
+  try{ localStorage.setItem(KEY,JSON.stringify(payload)); }catch(e){} // backup copy only
+}
 function migrateOwned(o){
   if(!Array.isArray(o)) return [1,0,0,0];
   if(o.length>=4) return o; // already the current 4-tool format
   return [1, o[1]?1:0, o[2]?1:0, 0]; // old 3-tool save: same price slots, no speed sub-levels yet, drill is new
 }
-function load(){try{
-  const d=JSON.parse(localStorage.getItem(KEY)); if(!d||d.v!==1) return false;
+async function load(){try{
+  let d=null;
+  try{ d=await idbGet(KEY); }catch(e){}
+  if(!d){
+    // First run after switching to IndexedDB (or a browser that lost it): fall back to
+    // whatever's in localStorage from before, and copy it into IndexedDB so it sticks.
+    const raw=localStorage.getItem(KEY);
+    if(raw){ try{ d=JSON.parse(raw); }catch(e){ d=null; } if(d) try{ await idbSet(KEY,d); }catch(e){} }
+  }
+  if(!d||d.v!==1) return false;
+  lastSavePayload=d;
   const ownedMig=migrateOwned(d.owned);
   if(d.g.length!==W*D) return {inv:normInv(d.inv),coins:d.coins,tool:d.tool,owned:ownedMig,
     dur:d.dur||ownedMig.map(x=>x>0?x:0), wear:d.wear||[0,0,0,0], detectLvl:d.detectLvl||0,
@@ -1079,7 +1117,6 @@ function setTool(i){
 function openShop(){modalOpen=true;held=null;walkPath=null;$('modal').hidden=false;renderShop();$('close').focus();}
 function closeShop(){modalOpen=false;$('modal').hidden=true;armNew(false);}
 $('upg').addEventListener('click',openShop);
-$('findme').addEventListener('click',()=>{followCam=true;ping=performance.now();toast('There you are — your miner is right in the middle of the screen.');});
 function supportHeight(x,y){
   let h=1, cy=y-1;
   while(cy>=0 && h<8){
@@ -1187,10 +1224,9 @@ $('refreshbtn').addEventListener('click',()=>{
   }
   setTimeout(()=>location.reload(),150);
 });
-$('savefile').addEventListener('click',()=>{
-  save();
-  const raw=localStorage.getItem(KEY);
-  const blob=new Blob([raw],{type:'application/json'});
+$('savefile').addEventListener('click',async()=>{
+  await save();
+  const blob=new Blob([JSON.stringify(lastSavePayload)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`deep-dig-save-mine${S.mine}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   toast('Save file downloaded');
@@ -1199,12 +1235,13 @@ $('loadfilebtn').addEventListener('click',()=>$('loadinput').click());
 $('loadinput').addEventListener('change',e=>{
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=()=>{
+  reader.onload=async()=>{
     try{
       const d=JSON.parse(reader.result);
       if(!d||d.v!==1||typeof d.g!=='string') throw new Error('bad save');
-      localStorage.setItem(KEY, JSON.stringify(d));
-      const ok=load();
+      try{ await idbSet(KEY,d); }catch(e){}
+      try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){}
+      const ok=await load();
       if(ok===true){ closeMenu(); camInit=false; resize(); updateHUD(); toast('Save file loaded'); }
       else { newGame(ok,true); closeMenu(); resize(); updateHUD(); toast('Save file loaded (older map, coins & tools kept)'); }
     }catch(err){ toast("That file doesn't look like a Deep Dig save."); }
@@ -1290,19 +1327,21 @@ $('startbtn').addEventListener('click',()=>{
 });
 
 /* ---------- boot ---------- */
-const hadSave=load();
-if(hadSave===true){/* loaded fully */}
-else if(hadSave){newGame(hadSave,true); toast('Your mine map was updated — coins and tools carried over.',3200);}
-else newGame(null);
-resize(); updateHUD();
-if(!S.name){ setSplashGender('boy'); $('splash').hidden=false; modalOpen=true; }
-else if(!hadSave) setTimeout(()=>toast('Tap an arrow to start digging',3000),400);
-let last=performance.now();
-function frame(now){
-  if(quitting) return;
-  const dt=Math.min(.05,(now-last)/1000);last=now;update(now,dt);render(now,dt);requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
+(async()=>{
+  const hadSave=await load();
+  if(hadSave===true){/* loaded fully */}
+  else if(hadSave){newGame(hadSave,true); toast('Your mine map was updated — coins and tools carried over.',3200);}
+  else newGame(null);
+  resize(); updateHUD();
+  if(!S.name){ setSplashGender('boy'); $('splash').hidden=false; modalOpen=true; }
+  else if(!hadSave) setTimeout(()=>toast('Tap an arrow to start digging',3000),400);
+  let last=performance.now();
+  function frame(now){
+    if(quitting) return;
+    const dt=Math.min(.05,(now-last)/1000);last=now;update(now,dt);render(now,dt);requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
 })();
 </script>
 <script>
