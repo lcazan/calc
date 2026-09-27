@@ -55,15 +55,17 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #toast{position:absolute;left:50%;top:48px;transform:translateX(-50%);background:rgba(24,14,7,.9);border:2px solid var(--lamp);color:var(--ink);padding:6px 14px;border-radius:12px;font-weight:800;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:90%;text-align:center;white-space:normal}
 #toast.show{opacity:1}
 
-#panel{width:clamp(150px,23vw,210px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2.4vh,14px);padding:8px;background:linear-gradient(90deg,#2c1f15,var(--wood) 30%,#33241a);border-left:3px solid var(--wood-ln);overflow-y:auto}
+#panel{--k:min(50px,14vh);width:clamp(150px,23vw,210px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2.4vh,14px);padding:8px;background:linear-gradient(90deg,#2c1f15,var(--wood) 30%,#33241a);border-left:3px solid var(--wood-ln);overflow-y:auto}
 
 @media (orientation:portrait){
   #app{flex-direction:column}
-  #panel{width:100%;max-width:none;flex-direction:row;flex-wrap:wrap;align-content:flex-start;justify-content:center;gap:6px;padding:6px;max-height:38vh;border-left:none;border-top:3px solid var(--wood-ln)}
-  #panel #pad{--k:min(46px,8vh);order:1;margin-left:auto;margin-right:max(6px,env(safe-area-inset-right,0px))}
-  #panel #upg{order:0;flex:1 1 100%}
-  #panel #supportbtn,#panel #buildbtn{width:auto;max-width:none;flex:1 1 auto;font-size:12.5px;padding:6px 8px}
-  #panel #matpick{width:auto;max-width:none;flex:1 1 100%}
+  #panel{--k:min(46px,8vh);width:100%;max-width:none;flex-direction:row;flex-wrap:wrap;align-content:flex-start;align-items:center;justify-content:center;gap:6px;padding:6px;max-height:38vh;border-left:none;border-top:3px solid var(--wood-ln)}
+  #panel #pad{order:2;margin-left:auto;margin-right:max(6px,env(safe-area-inset-right,0px))}
+  #panel #upg{order:0;flex:1 1 30%;width:auto;max-width:none;height:38px;font-size:14px;padding:0 8px;white-space:nowrap}
+  #panel #actrow{order:0;flex:2 1 62%;width:auto;max-width:none;gap:6px}
+  #panel #supportbtn,#panel #buildbtn{width:auto;flex:1 1 0;height:38px;flex-direction:row;gap:4px;font-size:12.5px;padding:0 8px}
+  #panel #supportbtn .bi,#panel #buildbtn .bi{font-size:15px}
+  #panel #matpick{order:1;flex:1 1 0;min-width:0;width:auto;max-width:none;justify-content:flex-start;margin-left:calc(max(12px,env(safe-area-inset-left,0px)) + clamp(64px,11vmin,88px) + 8px)}
 }
 #upg{width:100%;max-width:168px;border:none;border-radius:14px;padding:9px 6px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 4px 0 #9a6400,inset 0 2px 0 rgba(255,255,255,.5);font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}
 #upg:active{transform:translateY(3px);box-shadow:0 1px 0 #9a6400}
@@ -72,6 +74,11 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #buildbtn{background:linear-gradient(#5cb85c,#3d8b40);box-shadow:0 3px 0 #205e22,inset 0 2px 0 rgba(255,255,255,.35)}
 #buildbtn.on{background:linear-gradient(#e0a838,#b8790f);box-shadow:0 3px 0 #7a4c00,inset 0 2px 0 rgba(255,255,255,.35)}
 #supportbtn:active,#buildbtn:active{transform:translateY(2px)}
+#upg{height:var(--k);padding:0 6px;font-size:17px}
+#actrow{display:flex;justify-content:space-between;align-items:center;width:100%}
+#supportbtn,#buildbtn{width:var(--k);height:var(--k);max-width:none;flex:none;flex-direction:column;gap:1px;padding:2px;font-size:9.5px;line-height:1.05;text-align:center}
+#supportbtn .bi,#buildbtn .bi{font-size:calc(var(--k)*.4);line-height:1}
+#supportbtn .bl,#buildbtn .bl{white-space:nowrap}
 #matpick{display:flex;gap:6px;width:100%;max-width:168px}
 #matpick{justify-content:center}
 #matpick[hidden]{display:none}
@@ -104,7 +111,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 .mat[data-mat="stone"]{background:radial-gradient(ellipse 30% 20% at 28% 22%,#a9a39a 95%,transparent),radial-gradient(ellipse 22% 20% at 76% 22%,#8a857e 95%,transparent),radial-gradient(ellipse 25% 19% at 18% 55%,#b3ada3 95%,transparent),radial-gradient(ellipse 28% 19% at 66% 55%,#958e82 95%,transparent),radial-gradient(ellipse 30% 18% at 35% 86%,#9a948c 95%,transparent),radial-gradient(ellipse 18% 16% at 85% 86%,#7f7a73 95%,transparent),#4d4843}
 .mat[data-mat="water"]{background:repeating-linear-gradient(170deg,transparent 0 6px,rgba(255,255,255,.22) 6px 8px),#1c5f8a}
 .mat[data-mat="glass"]{background:linear-gradient(135deg,transparent 30%,rgba(255,255,255,.75) 32%,transparent 40%,transparent 55%,rgba(255,255,255,.5) 57%,transparent 63%),rgba(190,230,255,.35);border-color:#dff2ff}
-#pad{--k:min(50px,14vh);align-self:flex-end;margin-right:4px;display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
+#pad{align-self:flex-end;margin-right:4px;display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
 .db{border:none;border-radius:14px;background:linear-gradient(#8a6a52,#5e4533);box-shadow:0 4px 0 #2e2016,inset 0 2px 0 rgba(255,255,255,.2);display:grid;place-items:center;touch-action:none}
 .db svg{width:55%;height:55%;fill:var(--ink)}
 .db.on,.db:active{transform:translateY(3px);box-shadow:0 1px 0 #2e2016;background:linear-gradient(#a07a5c,#6f513b)}
@@ -213,8 +220,10 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button class="db" data-dir="2" aria-label="Dig down"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
       <span></span>
     </div>
-    <button id="supportbtn" class="disp" aria-label="Place a mine support here for 5 coins">🪵 Support · 5</button>
-    <button id="buildbtn" class="disp" aria-label="Switch to build mode">🧱 Build</button>
+    <div id="actrow">
+      <button id="supportbtn" class="disp" aria-label="Place a mine support here for 5 coins"><span class="bi">🪵</span><span class="bl">Support 5</span></button>
+      <button id="buildbtn" class="disp" aria-label="Switch to build mode"><span class="bi">🧱</span><span class="bl">Build</span></button>
+    </div>
     <div id="matpick" hidden>
       <button id="matbtn" class="disp" aria-label="Choose building material"><span id="matsw" class="mat" data-mat="dirt"></span>Materials</button>
       <button id="qbtn" class="disp" aria-label="Piece size: whole block">1</button>
@@ -2262,7 +2271,7 @@ function toggleBuildMode(){
   S.dig=null; held=null; queued=null; walkPath=null;
   const b=$('buildbtn');
   b.classList.toggle('on',buildMode);
-  b.textContent=buildMode?'⛏️ Dig':'🧱 Build';
+  b.innerHTML=buildMode?'<span class="bi">⛏️</span><span class="bl">Dig</span>':'<span class="bi">🧱</span><span class="bl">Build</span>';
   b.setAttribute('aria-label',buildMode?'Switch to dig mode':'Switch to build mode');
   $('matpick').hidden=!buildMode;
   $('fillbtn').classList.toggle('show',buildMode); requestAnimationFrame(placeFillBtn);
