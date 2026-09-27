@@ -155,6 +155,8 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <section>
         <h3>Tools</h3>
         <div id="tools"></div>
+        <h3 style="margin-top:10px">Surveying</h3>
+        <button id="scanbtn" class="buy" style="width:100%;justify-content:center">🗺️ 21×21 area scan, centered on you · <span class="coin sm"></span>1000</button>
       </section>
     </div>
     <footer><button id="newmine">Start a new mine</button></footer>
@@ -179,9 +181,9 @@ const ORES=[
 ];
 const TOOLS=[
   {name:'Shovel',           levels:[{time:10, price:0}]},
-  {name:'Pickaxe',          levels:[{time:7,  price:200},{time:6.5,price:66}, {time:6,  price:66}]},
-  {name:'Jackhammer',       levels:[{time:5,  price:1000},{time:4.5,price:330},{time:4,  price:330}]},
-  {name:'Drilling Machine', levels:[{time:3,  price:5000},{time:2.5,price:1650},{time:2,  price:1650}]},
+  {name:'Pickaxe',          levels:[{time:7,  price:200},{time:6.5,price:66}, {time:5.5,price:66}]},
+  {name:'Jackhammer',       levels:[{time:5,  price:1000},{time:4.5,price:330},{time:3.5,price:330}]},
+  {name:'Drilling Machine', levels:[{time:3,  price:5000},{time:2.5,price:1650},{time:1.5,price:1650}]},
 ];
 const curLevels=i=>TOOLS[i].levels; // levels[0]=unlock price/speed, [1]&[2]=+33%-cost speed upgrades
 const curTime=i=>TOOLS[i].levels[S.owned[i]-1].time;
@@ -242,7 +244,13 @@ function genMine(){
   [[sx+2,3],[sx+3,3],[sx+3,4]].forEach(([x,y])=>g[x+y*W]=4);
   return {g,sx};
 }
-function reveal(x,y){for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx>=0&&nx<W&&ny>=0&&ny<D)S.rev[nx+ny*W]=1;}}
+function revealArea(cx,cy,radius){
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+    const nx=cx+dx,ny=cy+dy; if(nx>=0&&nx<W&&ny>=0&&ny<D) S.rev[nx+ny*W]=1;
+  }
+}
+function reveal(x,y){revealArea(x,y,1);}
+function revealAll(){S.rev.fill(1); save();}
 function newGame(keep,sameMine){
   const {g,sx}=genMine();
   S={grid:g,rev:new Uint8Array(W*D),px:sx,py:0,
@@ -445,13 +453,20 @@ function drawTool(c,t,now,active){
     c.fillStyle='#aab4bd'; c.beginPath(); c.moveTo(12,-4.2); c.lineTo(18,-3.6); c.quadraticCurveTo(23,0,18,3.6); c.lineTo(12,4.2); c.closePath(); c.fill();
     c.fillStyle='#e3eaf0'; c.fillRect(13,-3,1.6,6);
   } else if(t===1){
-    c.fillStyle='#8b5a2b'; c.fillRect(-3,-1,17,2);
+    c.fillStyle='#8b5a2b'; c.fillRect(-3,-1.1,15,2.2);
     c.fillStyle='#5e3a1b'; rr(c,-5,-2.8,3,5.6,1);
-    c.save(); c.translate(13,0);
+    c.save(); c.translate(12,-.3);
     c.fillStyle='#6b7278';
-    c.beginPath(); c.moveTo(0,-1.4); c.quadraticCurveTo(6,-8.5,13,-6.2); c.quadraticCurveTo(7,-3,2,.6); c.closePath(); c.fill();
-    c.beginPath(); c.moveTo(0,1.4); c.quadraticCurveTo(6,8.5,13,6.2); c.quadraticCurveTo(7,3,2,-.6); c.closePath(); c.fill();
-    c.fillStyle='#3a3d40'; circ(c,0,0,2.1);
+    c.beginPath();
+    c.moveTo(-13,3.4);
+    c.quadraticCurveTo(-4,-8.6,0,-9.2);
+    c.quadraticCurveTo(4,-8.6,13,3.4);
+    c.quadraticCurveTo(4,-3.4,0,-3.2);
+    c.quadraticCurveTo(-4,-3.4,-13,3.4);
+    c.closePath(); c.fill();
+    c.fillStyle='#8a9096';
+    c.beginPath(); c.moveTo(-13,3.4); c.quadraticCurveTo(-4,-8.6,0,-9.2); c.lineTo(0,-3.2); c.quadraticCurveTo(-4,-3.4,-13,3.4); c.closePath(); c.fill();
+    c.fillStyle='#4a4d50'; circ(c,0,-3.4,2.1);
     c.restore();
   } else if(t===2){
     c.fillStyle='#2e2e33'; rr(c,-4.5,-6.5,2.6,13,1.2);
@@ -528,7 +543,7 @@ function drawMiner(cx,cy,now){
 }
 
 /* ---------- effects ---------- */
-let parts=[], floats=[], ping=null;
+let parts=[], floats=[], ping=null, longPress=null;
 function dust(x,y,col,n,burst){
   for(let i=0;i<n;i++) parts.push({x,y,vx:(Math.random()-.5)*cs*(burst?5:2.4),vy:-Math.random()*cs*(burst?4:2.2),life:.5+Math.random()*.5,t:0,c:col,s:cs*(.04+Math.random()*.06)});
 }
@@ -587,6 +602,7 @@ function update(now,dt){
   const ring=$('ring'), rt=$('ringt');
   if(S.dig){const p=clamp((now-S.dig.start)/S.dig.dur,0,1);ring.style.background=`conic-gradient(#ffc21a ${p*360}deg, rgba(0,0,0,.3) 0)`;rt.textContent=Math.ceil((1-p)*S.dig.dur/1000)+'s';}
   else if(rt.textContent){ring.style.background='rgba(0,0,0,.25)';rt.textContent='';}
+  if(longPress&&now-longPress.t0>=5000){revealAll();toast('Whole map revealed');longPress=null;}
 }
 function playerPos(now){
   if(!anim) return [S.px,S.py];
@@ -634,6 +650,13 @@ function render(now,dt){
       ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*(.6+k*1.6),0,Math.PI*2); ctx.stroke();
     } else ping=null;
   }
+  if(longPress){
+    const k=clamp((now-longPress.t0)/5000,0,1), px=(rx+.5)*cs, py=(SKY+ry+.5)*cs;
+    ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=cs*.11;
+    ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*.85,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.strokeStyle='#ffc21a'; ctx.lineWidth=cs*.09;
+    ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*.85,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+  }
   ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.round(cs*.36)}px "Lilita One","Arial Black",sans-serif`; ctx.lineWidth=cs*.1; ctx.lineJoin='round';
   floats.forEach(f=>{const k=(now-f.t0)/1300;ctx.globalAlpha=1-k*k;const y=f.y-k*cs*.9;ctx.strokeStyle='#1a0f07';ctx.strokeText(f.text,f.x,y);ctx.fillStyle=f.col;ctx.fillText(f.text,f.x,y);});
   ctx.globalAlpha=1;
@@ -662,6 +685,7 @@ function renderShop(){
   $('sell').innerHTML=ORES.map(o=>{const n=S.inv[o.id];return `<button class="tile" data-sell="${o.id}" ${n?'':'disabled'}><i class="ic${o.id==='diamond'?' gem':''}" style="${icStyle(o)}"></i><span class="nm">${o.name}</span><span class="ct">×${n}</span><span class="pr"><span class="coin sm"></span>${o.value} each</span></button>`}).join('');
   const total=ORES.reduce((a,o)=>a+S.inv[o.id]*o.value,0);
   const sa=$('sellall'); sa.disabled=!total; sa.textContent=total?`Sell everything for ${total} coins`:'No ore to sell yet';
+  $('scanbtn').disabled=S.coins<1000;
   $('tools').innerHTML=TOOLS.map((t,i)=>{
     const lv=S.owned[i], maxLv=t.levels.length, time=t.levels[Math.max(lv,1)-1].time, isCur=S.tool===i;
     let top;
@@ -697,6 +721,11 @@ $('sellall').addEventListener('click',()=>{
   let gain=0; ORES.forEach(o=>{gain+=S.inv[o.id]*o.value;S.inv[o.id]=0;});
   S.coins+=gain; save(); updateHUD(); renderShop(); toast(`Sold everything for ${gain} coins`);
 });
+$('scanbtn').addEventListener('click',()=>{
+  if(S.coins<1000) return;
+  S.coins-=1000; revealArea(S.px,S.py,10); save(); updateHUD(); renderShop();
+  toast('Scanned the ground around you — minerals nearby are now visible');
+});
 $('tools').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b||b.disabled) return;
   if(b.dataset.buy){const i=+b.dataset.buy;S.coins-=TOOLS[i].levels[0].price;S.owned[i]=1;setTool(i);toast(`Bought the ${TOOLS[i].name}!`);}
@@ -713,6 +742,13 @@ $('newmine').addEventListener('click',()=>{
 });
 
 /* ---------- input ---------- */
+cv.addEventListener('pointerdown',e=>{
+  if(modalOpen) return;
+  const now=performance.now(), [rx,ry]=playerPos(now);
+  const px=(rx+.5)*cs-cam.x, py=(SKY+ry+.5)*cs-cam.y-cs*.15;
+  if(Math.hypot(e.offsetX-px,e.offsetY-py)<=cs*1.3) longPress={t0:now};
+});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>cv.addEventListener(ev,()=>{longPress=null;}));
 document.querySelectorAll('.db').forEach(b=>{
   const d=+b.dataset.dir;
   b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}held=d;b.classList.add('on');act(d);});
