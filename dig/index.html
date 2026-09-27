@@ -918,28 +918,6 @@ function render(now,dt){
   ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.round(cs*.36)}px "Lilita One","Arial Black",sans-serif`; ctx.lineWidth=cs*.1; ctx.lineJoin='round';
   floats.forEach(f=>{const k=(now-f.t0)/1300;ctx.globalAlpha=1-k*k;const y=f.y-k*cs*.9;ctx.strokeStyle='#1a0f07';ctx.strokeText(f.text,f.x,y);ctx.fillStyle=f.col;ctx.fillText(f.text,f.x,y);});
   ctx.globalAlpha=1;
-
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  const dark=clamp((ry-1)*.03,0,.8);
-  if(dark>0){
-    const px=(rx+.5)*cs-cam.x, py=(SKY+ry+.5)*cs-cam.y;
-    const g=ctx.createRadialGradient(px,py,cs*1.5,px,py,Math.max(vw,vh)*.7);
-    g.addColorStop(0,'rgba(10,5,2,0)'); g.addColorStop(1,`rgba(10,5,2,${dark})`);
-    ctx.fillStyle=g; ctx.fillRect(0,0,vw,vh);
-    if(S.supports.size){ // each support's lamp lights up a real radius, punching back through the dark
-      ctx.save(); ctx.globalCompositeOperation='destination-out';
-      const rad=cs*5;
-      S.supports.forEach(idx=>{
-        const sx2=idx%W, sy2=(idx/W)|0;
-        const spx=(sx2+.5)*cs-cam.x, spy=(SKY+sy2+.16)*cs-cam.y;
-        if(spx<-rad||spx>vw+rad||spy<-rad||spy>vh+rad) return;
-        const gg=ctx.createRadialGradient(spx,spy,0,spx,spy,rad);
-        gg.addColorStop(0,'rgba(0,0,0,1)'); gg.addColorStop(.82,'rgba(0,0,0,1)'); gg.addColorStop(1,'rgba(0,0,0,0)');
-        ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(spx,spy,rad,0,Math.PI*2); ctx.fill();
-      });
-      ctx.restore();
-    }
-  }
 }
 
 /* ---------- HUD & shop ---------- */
