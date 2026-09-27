@@ -37,7 +37,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 
 #hud{position:absolute;top:6px;left:6px;right:6px;display:flex;justify-content:space-between;gap:6px;pointer-events:none}
 .hudleft{display:flex;gap:6px;align-items:center}
-#menubtn{pointer-events:auto;border:none;background:var(--pill);color:var(--ink);width:34px;height:34px;border-radius:10px;font-size:16px;flex:none}
+#menubtn,#mapbtn{pointer-events:auto;border:none;background:var(--pill);color:var(--ink);width:34px;height:34px;border-radius:10px;font-size:16px;flex:none}
 .pillrow{display:flex;gap:4px;background:var(--pill);border-radius:12px;padding:4px 8px;align-items:center;flex-wrap:wrap}
 .ri{display:flex;align-items:center;gap:4px;min-width:38px}
 .ri b,.coins b,#raintxt{font-family:'Lilita One','Arial Black',sans-serif;font-weight:400;font-size:15px;line-height:1}
@@ -75,6 +75,22 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #matpick{display:flex;gap:6px;width:100%;max-width:168px}
 #matpick{justify-content:center}
 #matpick[hidden]{display:none}
+#matbtn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;padding:4px 8px;background:#5aa8d6;color:#10243a;font-size:14px;box-shadow:0 3px 0 #2a6d94}
+#matbtn:active{transform:translateY(2px)}
+#matbtn .mat{width:24px;height:24px;border-width:1px;box-shadow:none}
+.mat[data-mat="grass"]{background:linear-gradient(#2a1d14 0 55%,transparent 55%),repeating-linear-gradient(100deg,#6fc044 0 2px,#4f9a33 2px 5px)}
+.mat[data-mat="steel"]{background:linear-gradient(#2a1d14 0 16%,#c3cbd3 16% 32%,#5d6773 32% 68%,#aab4bf 68% 84%,#2a1d14 84%)}
+#matgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mattile{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 4px;border-radius:12px;background:#4a3322;border:2px solid #5a3e28;font-weight:900;font-size:13px}
+.mattile.sel{border-color:var(--lamp);background:#5b3f29}
+.mattile .mat{width:46px;height:46px}
+.xbtn{border:none;background:rgba(255,255,255,.1);width:36px;height:36px;border-radius:50%;font-size:18px}
+#mapmodal{position:fixed;inset:0;z-index:6;background:rgba(10,5,2,.92);display:flex;padding:max(6px,env(safe-area-inset-top,0px)) max(6px,env(safe-area-inset-right,0px)) max(6px,env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+#mapmodal[hidden]{display:none}
+#mapwrap{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px}
+#maphead{display:flex;align-items:center;gap:8px}
+#maphint{flex:1;min-width:0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mapcv{flex:1;min-height:0;width:100%;display:block;touch-action:none;border-radius:12px;background:#120b07;border:2px solid var(--wood-ln)}
 #qbtn{width:34px;height:34px;flex:none;border-radius:8px;border:2px solid #2a1c12;background:#fff4e0;color:#3a2400;font-size:17px;padding:0;box-shadow:0 2px 0 #1a110a}
 #qbtn.q{background:#ffc21a}
 .mat{width:34px;height:34px;flex:none;border-radius:8px;border:2px solid #2a1c12;padding:0;box-shadow:0 2px 0 #1a110a}
@@ -98,9 +114,9 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #fillbtn.show{display:flex}
 #fillbtn:active{transform:translateY(2px)}
 
-#modal,#menu,#splash,#pumpmodal,#supportmodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
+#modal,#menu,#splash,#pumpmodal,#supportmodal,#matmodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
 #splash{z-index:8}
-#modal[hidden],#menu[hidden],#splash[hidden],#pumpmodal[hidden],#supportmodal[hidden]{display:none}
+#modal[hidden],#menu[hidden],#splash[hidden],#pumpmodal[hidden],#supportmodal[hidden],#matmodal[hidden]{display:none}
 .buy.sel{outline:3px solid #fff4e0;outline-offset:-3px}
 .sheet{width:min(780px,100%);max-height:100%;overflow:auto;background:linear-gradient(#3a2819,#2a1c12);border:3px solid var(--wood-ln);border-radius:18px;padding:10px 14px 12px;touch-action:pan-y}
 .sheet header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
@@ -166,6 +182,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
     <div id="hud">
       <div class="hudleft">
         <button id="menubtn" aria-label="Menu">☰</button>
+        <button id="mapbtn" aria-label="Mine map">🗺️</button>
         <div class="pillrow" id="res"></div>
       </div>
       <div class="hudleft">
@@ -192,10 +209,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
     <button id="supportbtn" class="disp" aria-label="Place a mine support here for 5 coins">🪵 Support · 5</button>
     <button id="buildbtn" class="disp" aria-label="Switch to build mode">🧱 Build</button>
     <div id="matpick" hidden>
-      <button class="mat" data-mat="dirt" aria-label="Dirt"></button>
-      <button class="mat" data-mat="stone" aria-label="Stone"></button>
-      <button class="mat" data-mat="water" aria-label="Water"></button>
-      <button class="mat" data-mat="glass" aria-label="Glass"></button>
+      <button id="matbtn" class="disp" aria-label="Choose building material"><span id="matsw" class="mat" data-mat="dirt"></span>Materials</button>
       <button id="qbtn" class="disp" aria-label="Piece size: whole block">1</button>
     </div>
   </div>
@@ -260,6 +274,26 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
   </div>
 </div>
 
+<div id="mapmodal" hidden>
+  <div id="mapwrap" role="dialog" aria-label="Mine map">
+    <div id="maphead">
+      <b class="disp" style="font-size:20px">Mine map</b>
+      <span id="maphint">Drag to look around · tap a tunnel to walk there</span>
+      <button class="xbtn" id="mapout" aria-label="Zoom out">−</button>
+      <button class="xbtn" id="mapin" aria-label="Zoom in">+</button>
+      <button class="xbtn" id="mapclose" aria-label="Close map">✕</button>
+    </div>
+    <canvas id="mapcv"></canvas>
+  </div>
+</div>
+
+<div id="matmodal" hidden>
+  <div class="sheet" style="max-width:420px" role="dialog" aria-label="Materials">
+    <header><h2 class="disp">Materials</h2><button id="matclose" class="xbtn" aria-label="Close">✕</button></header>
+    <div id="matgrid"></div>
+  </div>
+</div>
+
 <div id="supportmodal" hidden>
   <div class="sheet" style="max-width:320px;text-align:center" role="dialog" aria-label="Mine support">
     <h2 class="disp" style="font-size:20px;margin:0 0 8px">🪵 Mine support</h2>
@@ -288,7 +322,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 (()=>{
 const SCREEN_W=14, SCREENS=7, SPAWN_SCREEN=3; // 3 screens left of spawn, 3 right, spawn in the middle
 const W=SCREEN_W*SCREENS, D=160, SKY=3, GROUND=SKY+1; // map row 0 is the open air above the grass
-const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10, STONE=13, GLASS=14, PIECES=15; // PIECES: a square built from ¼-size pieces (see S.pieces)
+const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10, STONE=13, GLASS=14, PIECES=15, STEEL=16; // PIECES: a square built from ¼-size pieces (see S.pieces)
 const UP=0, RIGHT=1, DOWN=2, LEFT=3;
 const DX=[0,1,0,-1], DY=[-1,0,1,0];
 const ORES=[
@@ -485,7 +519,7 @@ function newGame(keep,sameMine){
      dur:keep?keep.dur:[1,0,0,0], wear:keep?keep.wear:[0,0,0,0], detectLvl:keep?keep.detectLvl:0,
      name:keep?keep.name:'', gender:keep?keep.gender:'boy',
      mine:keep?(sameMine?(keep.mine||1):(keep.mine||1)+1):1,
-     pockets, mass:new Float32Array(W*D), pieces:new Map(), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
+     pockets, mass:new Float32Array(W*D), pieces:new Map(), grass:new Set(), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
      nextRainAt:keep&&keep.nextRainAt?keep.nextRainAt:Date.now()+RAIN_INTERVAL_MS, rain:null,
      dig:null};
   reveal(sx,0); anim=null; walkPath=null; wakeWater(); followCam=true; camInit=false; save();
@@ -510,7 +544,7 @@ async function save(){
     v:1,g:encodeCells(S.grid),r:encodeCells(S.rev),
     px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
     dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine,
-    pockets:S.pockets,mass:encodeMass(),pieces:[...S.pieces.entries()],supports:[...S.supports.entries()],fossils:[...S.fossils],
+    pockets:S.pockets,mass:encodeMass(),pieces:[...S.pieces.entries()],grass:[...S.grass],supports:[...S.supports.entries()],fossils:[...S.fossils],
     nextRainAt:S.nextRainAt,rain:S.rain
   };
   lastSavePayload=payload;
@@ -554,12 +588,13 @@ function applySave(d){try{
      inv:keep.inv,coins:keep.coins,tool:keep.tool,owned:keep.owned,dur:keep.dur,wear:keep.wear,detectLvl:keep.detectLvl,
      name:keep.name,gender:keep.gender,mine:keep.mine,
      pockets:d.pockets||[], mass:decodeMass(d), supports:new Map((d.supports||[]).map(e=>Array.isArray(e)?e:[e,1])),
-     fossils:new Set(d.fossils||[]), pieces:new Map((Array.isArray(d.pieces)?d.pieces:[]).filter(e=>Array.isArray(e)&&typeof e[1]==='string'&&e[1].length===16)),
+     fossils:new Set(d.fossils||[]), grass:new Set(Array.isArray(d.grass)?d.grass:[]), pieces:new Map((Array.isArray(d.pieces)?d.pieces:[]).filter(e=>Array.isArray(e)&&typeof e[1]==='string'&&e[1].length===16)),
      nextRainAt:d.nextRainAt||(Date.now()+RAIN_INTERVAL_MS), rain,
      dig:null};
   if(S.grid[S.px+S.py*W]!==EMPTY) S.grid[S.px+S.py*W]=EMPTY; // never load the miner inside solid ground
   sanitizeWater();
   for(const [i] of [...S.pieces]) if(S.grid[i]!==PIECES) S.pieces.delete(i);
+  for(const i of [...S.grass]) if(S.grid[i]!==EMPTY||S.grid[i+W]===EMPTY) S.grass.delete(i);
   for(let i=0;i<W*D;i++) if(S.grid[i]===PIECES && !S.pieces.has(i)) S.grid[i]=EMPTY;
   anim=null; walkPath=null; queued=null; held=null; wakeWater();
   return true;
@@ -782,6 +817,38 @@ function drawWaterFlows(c0,c1,r0,r1,now){
   }
   ctx.restore();
 }
+// Is there steel at this ¼-position? (a whole steel block counts as steel all over)
+function steelQ(qx,qy){
+  const cx=Math.floor(qx/4), cy=Math.floor(qy/4); if(cx<0||cx>=W||cy<0||cy>=D) return false;
+  const v=S.grid[cx+cy*W]; if(v===STEEL) return true;
+  return v===PIECES && (S.pieces.get(cx+cy*W)||'')[(qx-cx*4)+(qy-cy*4)*4]==='5';
+}
+// One square of I-beam, seen from the side. It runs sideways if it has steel to its left or
+// right (or nothing around it), otherwise up and down. Sides that join more steel get no end
+// cap, so a row or column of steel reads as one continuous beam.
+function drawBeam(X,Y,sz,L,R,U,Dn){
+  const horiz=L||R||!(U||Dn);
+  ctx.save(); ctx.translate(X+sz/2,Y+sz/2); if(!horiz) ctx.rotate(Math.PI/2);
+  const a=horiz?L:U, b=horiz?R:Dn, h=sz*.78, f=h*.2, x0=-sz/2-.3, w=sz+.6;
+  ctx.fillStyle='#5d6773'; ctx.fillRect(x0,-h/2+f,w,h-2*f);
+  ctx.fillStyle='rgba(255,255,255,.08)'; ctx.fillRect(x0,-h/2+f,w,(h-2*f)*.35);
+  ctx.fillStyle='#aab4bf'; ctx.fillRect(x0,-h/2,w,f); ctx.fillRect(x0,h/2-f,w,f);
+  ctx.fillStyle='#d3dae1'; ctx.fillRect(x0,-h/2,w,Math.max(1,f*.3)); ctx.fillRect(x0,h/2-f,w,Math.max(1,f*.3));
+  ctx.fillStyle='#3e4650';
+  if(!a) ctx.fillRect(-sz/2,-h/2,Math.max(1.5,sz*.06),h);
+  if(!b) ctx.fillRect(sz/2-Math.max(1.5,sz*.06),-h/2,Math.max(1.5,sz*.06),h);
+  if(sz>14){ ctx.fillStyle='#8993a0'; for(const rx of [-.25,.25]){ circ(ctx,rx*sz,-h/2+f*.55,Math.max(.8,sz*.025)); circ(ctx,rx*sz,h/2-f*.55,Math.max(.8,sz*.025)); } }
+  ctx.restore();
+}
+function drawGrassFloor(X,Y,x,y){
+  const g=Y+cs;
+  ctx.fillStyle='#4f9a33'; ctx.fillRect(X,g-cs*.12,cs+.5,cs*.12);
+  ctx.fillStyle='#6fc044'; ctx.fillRect(X,g-cs*.12,cs+.5,cs*.04);
+  ctx.fillStyle='#4f9a33';
+  for(let k=0;k<7;k++){ const bx=X+(k+.2+hsh(x,y,400+k)*.6)*cs/7, bh=cs*(.08+hsh(x,y,410+k)*.12);
+    ctx.beginPath(); ctx.moveTo(bx-cs*.03,g-cs*.1); ctx.lineTo(bx+cs*.01,g-cs*.1-bh); ctx.lineTo(bx+cs*.04,g-cs*.1); ctx.fill(); }
+  if(hsh(x,y,420)<.35){ ctx.fillStyle=hsh(x,y,421)<.5?'#ffd54a':'#ff8fb0'; circ(ctx,X+cs*(.2+hsh(x,y,422)*.6),g-cs*.2,cs*.035); }
+}
 function drawSupports(c0,c1,r0,r1,now){
   for(const [idx,h0] of S.supports){
     const x=idx%W, y=(idx/W)|0, h=h0||1;
@@ -829,17 +896,25 @@ function drawCell(x,y,now){
     const e=cs*.12; ctx.fillStyle='rgba(0,0,0,.35)';
     if(solidAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(solidAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(solidAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
     if(solidAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
+    if(S.grass.has(idx)) drawGrassFloor(X,Y,x,y);
     if(wm>0.004) drawShallowWater(X,Y,x,y,wm,now);
     return;
   }
   if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
   if(v===STONE){ drawRockTexture(X,Y,x,y,'#8f8b86','#a8a49c'); return; }
+  if(v===STEEL){
+    ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
+    const st=(xx,yy)=>xx>=0&&xx<W&&yy>=0&&yy<D&&S.grid[xx+yy*W]===STEEL;
+    drawBeam(X,Y,cs,st(x-1,y),st(x+1,y),st(x,y-1),st(x,y+1));
+    return;
+  }
   if(v===PIECES){
     const str=S.pieces.get(idx)||'', q=cs/4;
     ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
     for(let k=0;k<16;k++){
       const c=str[k]; if(!c||c==='0') continue;
       const sx=X+(k%4)*q, sy=Y+((k/4)|0)*q;
+      if(c==='5'){ const qx=x*4+k%4, qy=y*4+((k/4)|0); drawBeam(sx,sy,q,steelQ(qx-1,qy),steelQ(qx+1,qy),steelQ(qx,qy-1),steelQ(qx,qy+1)); continue; }
       if(c==='3'){ ctx.fillStyle='#1c5f8a'; ctx.fillRect(sx,sy,q+.5,q+.5); ctx.fillStyle='rgba(255,255,255,.22)'; ctx.fillRect(sx,sy+q*(.3+Math.sin(now*.004+k)*.08),q+.5,Math.max(1,q*.12)); continue; }
       ctx.fillStyle=c==='1'?ROWC[y]:PIECE_COL[c]; ctx.fillRect(sx,sy,q+.5,q+.5);
       if(c==='4'){ ctx.strokeStyle='rgba(235,248,255,.8)'; ctx.lineWidth=1; ctx.strokeRect(sx+.5,sy+.5,q-1,q-1); }
@@ -967,6 +1042,17 @@ function drawMiner(cx,cy,now){
     ctx.fillStyle='#b83f63'; circ(ctx,-8.6,-10.2,1.1);
   }
   ctx.fillStyle='#e0a100'; ctx.fillRect(-.8,-17.6,1.6,6);
+  if(S.py===0 && isRaining()){ // up on the surface in the rain: out comes the umbrella
+    const ux=-7, top=-31, sway=Math.sin(now*.003)*.6;
+    ctx.strokeStyle='#4a3020'; ctx.lineWidth=1.3; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(ux,4); ctx.lineTo(ux+sway,top+2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(ux+1.6,4,1.6,Math.PI,0,true); ctx.stroke();
+    const cx=ux+sway, cy=top+4, r=14;
+    for(let k=0;k<4;k++){ ctx.fillStyle=k%2?'#fff4e0':'#e0563f'; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,Math.PI+k*Math.PI/4,Math.PI+(k+1)*Math.PI/4); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle='#b83f2a'; for(let k=0;k<4;k++){ ctx.beginPath(); ctx.arc(cx-r+r/4+k*r/2,cy,r/4,0,Math.PI,true); ctx.fill(); }
+    ctx.fillStyle='#4a3020'; circ(ctx,cx,cy-r,1.2);
+    ctx.fillStyle='#f3c69c'; circ(ctx,ux,3,2.1);
+  }
   if(S.py>0){ // headlamp glow: on once he's underground, off on the surface
     const flick=.86+Math.sin(now*.006)*.14;
     ctx.save(); ctx.globalCompositeOperation='lighter';
@@ -1011,12 +1097,12 @@ function floater(x,y,text,col){floats.push({x:(x+.5)*cs,y:(SKY+y+.35)*cs,text,co
 /* ---------- game logic ---------- */
 let anim=null, queued=null, held=null, modalOpen=false, walkPath=null, followCam=true;
 let buildMode=false, buildMaterial='dirt';
-const MATNAME={dirt:'Dirt',stone:'Stone',water:'Water',glass:'Glass'};
+const MATNAME={dirt:'Dirt',stone:'Stone',glass:'Glass',steel:'Steel beam',grass:'Grass',water:'Water'};
 // ¼ mode: the arrows move a small box (¼ of a square each way) instead of the miner.
 // qbox is in quarter-units: square x = floor(qx/4), position inside it = qx%4.
 let quarterMode=false, qbox=null;
-const PIECE_CODE={dirt:'1',stone:'2',glass:'4'}, PIECE_COL={'1':null,'2':'#8f8b86','4':'rgba(200,235,255,.45)'};
-const FULL_OF={'1':EARTH,'2':STONE,'4':GLASS};
+const PIECE_CODE={dirt:'1',stone:'2',glass:'4',steel:'5'}, PIECE_COL={'1':null,'2':'#8f8b86','4':'rgba(200,235,255,.45)'};
+const FULL_OF={'1':EARTH,'2':STONE,'4':GLASS,'5':STEEL};
 function initQbox(){
   const cx=S.px+DX[aim], cy=S.py+DY[aim];
   // start on the edge of the faced square nearest the miner, at floor level
@@ -1103,7 +1189,7 @@ function pieceTarget(){
 // water pieces in it become ordinary water (1/16 of a block each). Returns true if it opened.
 function normalizePieceCell(idx){
   const str=S.pieces.get(idx); if(str===undefined) return false;
-  if(/[124]/.test(str)) return false;
+  if(/[1245]/.test(str)) return false;
   const w=(str.match(/3/g)||[]).length;
   S.pieces.delete(idx); S.grid[idx]=EMPTY; if(w) S.mass[idx]+=w/16;
   wakeWater(); return true;
@@ -1167,11 +1253,24 @@ function placePiece(){
   if(next===code.repeat(16)){ S.pieces.delete(t.idx); S.grid[t.idx]=FULL_OF[code]; } // a full square of one material becomes a normal block
   else S.pieces.set(t.idx,next);
   S.rev[t.idx]=1;
-  dust(px,py,{stone:'#9a9691',glass:'#e6f5ff'}[buildMaterial]||'#6b4a2e',4,false);
+  dust(px,py,{stone:'#9a9691',glass:'#e6f5ff',steel:'#aab4bf'}[buildMaterial]||'#6b4a2e',4,false);
   save();
+}
+function placeGrass(cx,cy){
+  if(cx<0||cx>=W||cy<=0||cy>=D-1){ toast('You can only build underground.'); return; }
+  const idx=cx+cy*W;
+  if(S.grid[idx]!==EMPTY){ toast('Grass goes on the floor of an open space.'); return; }
+  if(S.grass.has(idx)){ S.grass.delete(idx); save(); toast('Grass removed.',1200); return; }
+  if(S.grid[idx+W]===EMPTY){ toast("There's no floor there for grass to grow on."); return; }
+  S.grass.add(idx); S.rev[idx]=1;
+  dust((cx+.5)*cs,(SKY+cy+.9)*cs,'#6fc044',8,false); save();
 }
 function fillHighlighted(){
   if(!buildMode) return;
+  if(buildMaterial==='grass'){
+    if(quarterMode){ const t=pieceTarget(); placeGrass(t.cx,t.cy); } else placeGrass(S.px+DX[aim],S.py+DY[aim]);
+    return;
+  }
   if(quarterMode){ placePiece(); return; }
   const hx=S.px+DX[aim], hy=S.py+DY[aim];
   if(hx<0||hx>=W||hy<0||hy>=D){ toast("Can't fill there."); return; }
@@ -1184,13 +1283,14 @@ function fillHighlighted(){
     dust((hx+.5)*cs,(SKY+hy+.5)*cs,'#bfe6ff',10,true);
     save(); return;
   }
-  S.grid[idx]={stone:STONE,glass:GLASS}[buildMaterial]||EARTH;
+  S.grid[idx]={stone:STONE,glass:GLASS,steel:STEEL}[buildMaterial]||EARTH;
+  S.grass.delete(idx);
   displaceWater(idx);
   S.rev[idx]=1;
-  dust((hx+.5)*cs,(SKY+hy+.5)*cs,{stone:'#9a9691',glass:'#e6f5ff'}[buildMaterial]||'#6b4a2e',10,true);
+  dust((hx+.5)*cs,(SKY+hy+.5)*cs,{stone:'#9a9691',glass:'#e6f5ff',steel:'#aab4bf'}[buildMaterial]||'#6b4a2e',10,true);
   save();
 }
-function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; if(v===GLASS)return '#e6f5ff'; if(v===PIECES)return '#9a8a78'; return ROWC[y];}
+function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; if(v===GLASS)return '#e6f5ff'; if(v===PIECES)return '#9a8a78'; if(v===STEEL)return '#aab4bf'; return ROWC[y];}
 function autoSwitchTool(){
   let best=-1,bestTime=Infinity;
   for(let i=0;i<4;i++){ if(i===S.tool) continue; if(S.dur[i]>0){ const t=curTime(i); if(t<bestTime){bestTime=t;best=i;} } }
@@ -1399,6 +1499,14 @@ function removeSupport(){
   S.supports.delete(supportTarget); save(); closeSupport();
   toast('Support removed.');
 }
+function breakSupport(base,h,msg){
+  const sx=base%W, sy=(base/W)|0;
+  S.supports.delete(base);
+  for(let k=0;k<h;k++) dust((sx+.5)*cs,(SKY+sy-k+.5)*cs,'#8a6640',5,true);
+  let fell=false;
+  for(let k=0;k<h && !fell;k++) fell=checkCollapse(sx,sy-k)===true;
+  if(!fell) toast(msg,2800);
+}
 function finishDig(now){
   const d=S.dig; S.dig=null;
   const idx=d.x+d.y*W, v=S.grid[idx];
@@ -1425,15 +1533,13 @@ function finishDig(now){
   }
   S.grid[idx]=EMPTY; wakeWater();
   { const pid=pocketOf(idx); if(pid>=0 && !S.pockets[pid].breached && S.pockets[pid].cells.includes(idx)) breachPocket(pid,d.x,d.y,now); } // mined a gem out of a sealed pocket
-  // Dug out the floor under a support? It topples, and the tunnel it was holding up
-  // gets its usual chance to cave in.
-  if(S.supports.has(idx-W)){
-    const base=idx-W, h=S.supports.get(base)||1, sx=base%W, sy=(base/W)|0;
-    S.supports.delete(base);
-    dust((sx+.5)*cs,(SKY+sy+.5)*cs,'#8a6640',14,true);
-    let fell=false;
-    for(let k=0;k<h && !fell;k++) fell=checkCollapse(sx,sy-k)===true;
-    if(!fell) toast('🪵 You dug out the floor under a support — it toppled over.',2800);
+  if(S.grass.has(idx-W)) S.grass.delete(idx-W); // the grass above lost its floor
+  // Dug out the floor under a support, or the ceiling it was holding up? It breaks, and the
+  // tunnel it was supporting gets its usual chance to cave in.
+  for(const [base,h0] of [...S.supports]){
+    const h=h0||1;
+    if(base===idx-W) breakSupport(base,h,'🪵 You dug out the floor under a support — it toppled over.');
+    else if(base-h*W===idx) breakSupport(base,h,'🪵 You mined out the ceiling above a support — it came loose and fell.');
   }
   moveTo(d.x,d.y,now);
   S.wear[S.tool]++;
@@ -1677,7 +1783,8 @@ $('supportbtn').addEventListener('click',()=>{
   toast(sp.h>1?`Support placed, ${sp.h} blocks from floor to ceiling.`:'Support placed — this stretch is safer now.');
 });
 function setMatBtns(){
-  document.querySelectorAll('.mat').forEach(b=>b.classList.toggle('sel',b.dataset.mat===buildMaterial));
+  $('matsw').dataset.mat=buildMaterial;
+  document.querySelectorAll('.mattile').forEach(b=>b.classList.toggle('sel',b.dataset.mat===buildMaterial));
 }
 function toggleBuildMode(){
   if(modalOpen) return;
@@ -1696,9 +1803,15 @@ function toggleBuildMode(){
 }
 $('buildbtn').addEventListener('click',toggleBuildMode);
 $('qbtn').addEventListener('click',()=>{ setQuarter(!quarterMode); toast(quarterMode?'¼ pieces — the arrows move the little box':'Whole blocks',1600); });
-$('matpick').addEventListener('click',e=>{
-  const b=e.target.closest('.mat'); if(!b) return;
-  buildMaterial=b.dataset.mat; setMatBtns(); updateHUD(); toast(MATNAME[buildMaterial],1100);
+$('matgrid').innerHTML=Object.keys(MATNAME).map(k=>`<button class="mattile" data-mat="${k}"><span class="mat" data-mat="${k}"></span>${MATNAME[k]}</button>`).join('');
+function openMats(){ modalOpen=true; held=null; setMatBtns(); $('matmodal').hidden=false; }
+function closeMats(){ $('matmodal').hidden=true; modalOpen=false; }
+$('matbtn').addEventListener('click',openMats);
+$('matclose').addEventListener('click',closeMats);
+$('matmodal').addEventListener('click',e=>{ if(e.target.id==='matmodal') closeMats(); });
+$('matgrid').addEventListener('click',e=>{
+  const b=e.target.closest('.mattile'); if(!b) return;
+  buildMaterial=b.dataset.mat; setMatBtns(); updateHUD(); closeMats(); toast(MATNAME[buildMaterial],1100);
 });
 $('fillbtn').addEventListener('click',fillHighlighted);
 $('close').addEventListener('click',closeShop);
@@ -1809,6 +1922,102 @@ $('quitbtn').addEventListener('click',()=>{
   try{window.close();}catch(e){}
 });
 
+/* ---------- mine map ---------- */
+// The whole mine drawn at one pixel per square, then scaled up. You see what you've found:
+// tunnels, water, things you've built, and minerals and rock that have been revealed.
+const hexRGB=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+const ROWRGB=ROWC.map(c=>c.match(/\d+/g).map(Number));
+let mapImg=null, mapV=null, mapPtrs=new Map(), mapGest=null;
+function mapColor(i,y){
+  if(y===0) return [150,205,240];
+  const v=S.grid[i], rev=S.rev[i]||devReveal;
+  if(v===EMPTY){ if(S.mass[i]>0.3) return [40,120,185]; return S.grass.has(i)?[70,140,55]:[30,21,15]; }
+  if(v===BEDROCK) return [35,31,41];
+  if(v===STONE) return [143,139,134];
+  if(v===GLASS) return [200,230,245];
+  if(v===STEEL) return [150,162,175];
+  if(v===PIECES) return [140,125,110];
+  if(!rev) return ROWRGB[y];
+  if(OREBY[v]) return hexRGB(OREBY[v].c);
+  if(v===WATER) return [40,120,185];
+  if(v===WALL) return [60,62,70];
+  if(v===ROCK) return [117,117,124];
+  return ROWRGB[y];
+}
+function buildMapImage(){
+  const c=document.createElement('canvas'); c.width=W; c.height=D;
+  const x=c.getContext('2d'), img=x.createImageData(W,D);
+  for(let y=0;y<D;y++) for(let xx=0;xx<W;xx++){ const i=xx+y*W, col=mapColor(i,y), o=i*4; img.data[o]=col[0]; img.data[o+1]=col[1]; img.data[o+2]=col[2]; img.data[o+3]=255; }
+  x.putImageData(img,0,0); mapImg=c;
+}
+function mapSize(){ const cv=$('mapcv'); return {w:cv.clientWidth, h:cv.clientHeight}; }
+function mapMinScale(){ const {w,h}=mapSize(); return Math.min(w/W,h/D); }
+function clampMap(){
+  const {w,h}=mapSize(), sw=W*mapV.scale, sh=D*mapV.scale;
+  mapV.ox= sw<=w ? -(w-sw)/2 : clamp(mapV.ox,0,sw-w);
+  mapV.oy= sh<=h ? -(h-sh)/2 : clamp(mapV.oy,0,sh-h);
+}
+function zoomMap(f,cx,cy){
+  const {w,h}=mapSize(); if(cx===undefined){cx=w/2;cy=h/2;}
+  const ns=clamp(mapV.scale*f,mapMinScale(),40), k=ns/mapV.scale;
+  mapV.ox=(mapV.ox+cx)*k-cx; mapV.oy=(mapV.oy+cy)*k-cy; mapV.scale=ns; clampMap(); drawMap();
+}
+function drawMap(){
+  const cv=$('mapcv'), {w,h}=mapSize(), r=Math.min(3,window.devicePixelRatio||1);
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){ cv.width=Math.round(w*r); cv.height=Math.round(h*r); }
+  const m=cv.getContext('2d'); m.setTransform(r,0,0,r,0,0); m.clearRect(0,0,w,h);
+  m.imageSmoothingEnabled=false;
+  m.drawImage(mapImg,-mapV.ox,-mapV.oy,W*mapV.scale,D*mapV.scale);
+  const px=(S.px+.5)*mapV.scale-mapV.ox, py=(S.py+.5)*mapV.scale-mapV.oy, rad=Math.max(5,mapV.scale*.9);
+  m.fillStyle='rgba(255,194,26,.3)'; m.beginPath(); m.arc(px,py,rad*2.2,0,Math.PI*2); m.fill();
+  m.fillStyle='#ffc21a'; m.strokeStyle='#3a2400'; m.lineWidth=2; m.beginPath(); m.arc(px,py,rad,0,Math.PI*2); m.fill(); m.stroke();
+}
+function openMap(){
+  if(modalOpen) return;
+  modalOpen=true; held=null; $('mapmodal').hidden=false;
+  buildMapImage();
+  requestAnimationFrame(()=>{
+    const {w,h}=mapSize(), sc=Math.max(mapMinScale(),Math.min(w/W*1.6,12)); // a bit closer than "whole width", centred on the miner
+    mapV={scale:sc, ox:(S.px+.5)*sc-w/2, oy:(S.py+.5)*sc-h/2}; clampMap(); drawMap();
+  });
+}
+function closeMap(){ $('mapmodal').hidden=true; modalOpen=false; mapPtrs.clear(); mapGest=null; }
+$('mapbtn').addEventListener('click',openMap);
+$('mapclose').addEventListener('click',closeMap);
+$('mapin').addEventListener('click',()=>zoomMap(1.5));
+$('mapout').addEventListener('click',()=>zoomMap(1/1.5));
+$('mapcv').addEventListener('wheel',e=>{ e.preventDefault(); zoomMap(e.deltaY<0?1.15:1/1.15,e.offsetX,e.offsetY); },{passive:false});
+window.addEventListener('resize',()=>{ if(!$('mapmodal').hidden&&mapV){ clampMap(); drawMap(); } });
+// one finger drags, two fingers pinch-zoom, a quick tap walks there
+$('mapcv').addEventListener('pointerdown',e=>{
+  e.preventDefault(); $('mapcv').setPointerCapture(e.pointerId);
+  mapPtrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+  if(mapPtrs.size===1) mapGest={x0:e.offsetX,y0:e.offsetY,moved:false};
+  else if(mapGest) mapGest.moved=true;
+});
+$('mapcv').addEventListener('pointermove',e=>{
+  const pt=mapPtrs.get(e.pointerId); if(!pt||!mapV) return;
+  if(mapPtrs.size===2){
+    const [a,b]=[...mapPtrs.values()], d0=Math.hypot(a.x-b.x,a.y-b.y);
+    pt.x=e.offsetX; pt.y=e.offsetY;
+    const [a2,b2]=[...mapPtrs.values()], d1=Math.hypot(a2.x-b2.x,a2.y-b2.y);
+    if(d0>0) zoomMap(d1/d0,(a2.x+b2.x)/2,(a2.y+b2.y)/2);
+    return;
+  }
+  const dx=e.offsetX-pt.x, dy=e.offsetY-pt.y; pt.x=e.offsetX; pt.y=e.offsetY;
+  if(mapGest && Math.hypot(e.offsetX-mapGest.x0,e.offsetY-mapGest.y0)>7) mapGest.moved=true;
+  if(mapGest && mapGest.moved){ mapV.ox-=dx; mapV.oy-=dy; clampMap(); drawMap(); }
+});
+['pointerup','pointercancel'].forEach(ev=>$('mapcv').addEventListener(ev,e=>{
+  const wasTap=ev==='pointerup' && mapPtrs.size===1 && mapGest && !mapGest.moved;
+  mapPtrs.delete(e.pointerId);
+  if(wasTap){
+    const gx=Math.floor((e.offsetX+mapV.ox)/mapV.scale), gy=Math.floor((e.offsetY+mapV.oy)/mapV.scale);
+    if(gx>=0&&gx<W&&gy>=0&&gy<D){ closeMap(); walkToCell(gx,gy); }
+  }
+  if(!mapPtrs.size) mapGest=null;
+}));
+
 /* ---------- input ---------- */
 let gesture=null;
 cv.addEventListener('pointerdown',e=>{
@@ -1833,7 +2042,9 @@ cv.addEventListener('pointermove',e=>{
 });
 function tapToWalk(px,py){
   if(buildMode) return;
-  const gx=Math.floor((px+cam.x)/cs), gyw=Math.floor((py+cam.y)/cs), gy=gyw-SKY;
+  walkToCell(Math.floor((px+cam.x)/cs), Math.floor((py+cam.y)/cs)-SKY);
+}
+function walkToCell(gx,gy){
   if(gx<0||gx>=W||gy<0||gy>=D) return;
   if(gx===S.px&&gy===S.py) return;
   if(S.grid[gx+gy*W]!==EMPTY){toast("You'll need to dig your way there first."); return;}
@@ -1872,7 +2083,7 @@ document.querySelectorAll('.db').forEach(b=>{
 });
 const KEYS={ArrowUp:UP,w:UP,W:UP,ArrowRight:RIGHT,d:RIGHT,D:RIGHT,ArrowDown:DOWN,s:DOWN,S:DOWN,ArrowLeft:LEFT,a:LEFT,A:LEFT};
 window.addEventListener('keydown',e=>{
-  if(modalOpen){if(e.key==='Escape'){if(!$('pumpmodal').hidden)closePump();else if(!$('supportmodal').hidden)closeSupport();else if(!$('modal').hidden)closeShop();else if(!$('menu').hidden)closeMenu();}return;}
+  if(modalOpen){if(e.key==='Escape'){if(!$('mapmodal').hidden)closeMap();else if(!$('matmodal').hidden)closeMats();else if(!$('pumpmodal').hidden)closePump();else if(!$('supportmodal').hidden)closeSupport();else if(!$('modal').hidden)closeShop();else if(!$('menu').hidden)closeMenu();}return;}
   if(e.key==='u'||e.key==='U'){openShop();return;}
   if(e.key==='b'||e.key==='B'){toggleBuildMode();return;}
   if((e.key==='f'||e.key==='F')&&buildMode){fillHighlighted();return;}
