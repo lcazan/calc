@@ -40,7 +40,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #menubtn{pointer-events:auto;border:none;background:var(--pill);color:var(--ink);width:34px;height:34px;border-radius:10px;font-size:16px;flex:none}
 .pillrow{display:flex;gap:4px;background:var(--pill);border-radius:12px;padding:4px 8px;align-items:center;flex-wrap:wrap}
 .ri{display:flex;align-items:center;gap:4px;min-width:38px}
-.ri b,.coins b{font-family:'Lilita One','Arial Black',sans-serif;font-weight:400;font-size:15px;line-height:1}
+.ri b,.coins b,#raintxt{font-family:'Lilita One','Arial Black',sans-serif;font-weight:400;font-size:15px;line-height:1}
 .ri.zero b{opacity:.45}
 .ic{display:inline-block;width:16px;height:16px;flex:none;background:radial-gradient(circle at 35% 30%,var(--h) 0 20%,var(--c) 58%);clip-path:polygon(30% 0,76% 6%,100% 46%,82% 96%,24% 100%,0 55%)}
 .ic.gem{clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%)}
@@ -88,9 +88,9 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #fillbtn.show{display:flex}
 #fillbtn:active{transform:translateY(2px)}
 
-#modal,#menu,#splash{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
+#modal,#menu,#splash,#pumpmodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
 #splash{z-index:8}
-#modal[hidden],#menu[hidden],#splash[hidden]{display:none}
+#modal[hidden],#menu[hidden],#splash[hidden],#pumpmodal[hidden]{display:none}
 .buy.sel{outline:3px solid #fff4e0;outline-offset:-3px}
 .sheet{width:min(780px,100%);max-height:100%;overflow:auto;background:linear-gradient(#3a2819,#2a1c12);border:3px solid var(--wood-ln);border-radius:18px;padding:10px 14px 12px;touch-action:pan-y}
 .sheet header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
@@ -125,7 +125,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 .toolbtns{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
 .sheet footer{margin-top:10px;display:flex;justify-content:flex-end}
 #newmine.arm{border-color:#e0563f;color:#ffb3a5}
-#floods:empty,#detect:empty{display:none}
+#detect:empty{display:none}
 
 @media (prefers-reduced-motion:reduce){.pop{animation:none}}
 </style>
@@ -139,7 +139,10 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
         <button id="menubtn" aria-label="Menu">☰</button>
         <div class="pillrow" id="res"></div>
       </div>
-      <div class="pillrow coins"><span class="coin"></span><b id="coins">0</b></div>
+      <div class="hudleft">
+        <div class="pillrow" id="raintimer"><span style="font-size:13px">🌧️</span><b id="raintxt">3:00</b></div>
+        <div class="pillrow coins"><span class="coin"></span><b id="coins">0</b></div>
+      </div>
     </div>
     <div id="info">Depth <b id="depth">0 m</b> &nbsp;<span id="toolinfo"></span></div>
     <div id="toast"></div>
@@ -185,7 +188,6 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
         <h3 style="margin-top:10px">Surveying</h3>
         <button id="scanbtn" class="buy" style="width:100%;justify-content:center">🗺️ 21×21 area scan, centered on you · <span class="coin sm"></span>1000</button>
         <div id="detect" style="margin-top:6px"></div>
-        <div id="floods"></div>
       </section>
     </div>
   </div>
@@ -212,6 +214,17 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button id="quitbtn" class="buy" style="justify-content:center;background:#c24a3a;box-shadow:0 3px 0 #7a2c20">🚪 Quit</button>
     </div>
     <input type="file" id="loadinput" accept="application/json" style="display:none">
+  </div>
+</div>
+
+<div id="pumpmodal" hidden>
+  <div class="sheet" style="max-width:320px;text-align:center" role="dialog" aria-label="Pump water">
+    <h2 class="disp" style="font-size:20px;margin:0 0 8px">💧 Flooded</h2>
+    <div id="pumpinfo" style="color:var(--muted);margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px">
+      <button id="pumpcancel" class="buy sm" style="flex:1;justify-content:center;background:#6b5a4b;box-shadow:0 2px 0 #3a2c20">Cancel</button>
+      <button id="pumpconfirm" class="buy sm" style="flex:1;justify-content:center">Pump it out</button>
+    </div>
   </div>
 </div>
 
@@ -258,6 +271,7 @@ const TOOLS=[
   {name:'Drilling Machine', levels:[{time:3,  price:5000},{time:2.5,price:1650},{time:1.5,price:1650}]},
 ];
 const curTime=i=>S.dur[i]>0?TOOLS[i].levels[S.dur[i]-1].time:Infinity;
+const RAIN_INTERVAL_MS=3*60*1000, RAIN_MIN_MS=5000, RAIN_MAX_MS=60000, RAIN_DROP_EVERY_MS=5000, PUMP_COST_PER_SQUARE=50;
 const KEY='deepdig-save-v1';
 const IDB_NAME='deepdig-db', IDB_STORE='saves';
 function idbOpen(){
@@ -409,6 +423,7 @@ function newGame(keep,sameMine){
      name:keep?keep.name:'', gender:keep?keep.gender:'boy',
      mine:keep?(sameMine?(keep.mine||1):(keep.mine||1)+1):1,
      pockets, flooded:new Set(), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
+     nextRainAt:keep&&keep.nextRainAt?keep.nextRainAt:Date.now()+RAIN_INTERVAL_MS, rain:null,
      dig:null};
   reveal(sx,0); anim=null; walkPath=null; followCam=true; camInit=false; save();
 }
@@ -418,7 +433,8 @@ async function save(){
     v:1,g:Array.from(S.grid).join(''),r:Array.from(S.rev).join(''),
     px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
     dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine,
-    pockets:S.pockets,flooded:[...S.flooded],supports:[...S.supports.entries()],fossils:[...S.fossils]
+    pockets:S.pockets,flooded:[...S.flooded],supports:[...S.supports.entries()],fossils:[...S.fossils],
+    nextRainAt:S.nextRainAt,rain:S.rain
   };
   lastSavePayload=payload;
   try{ await idbSet(KEY,payload); }catch(e){}
@@ -443,14 +459,16 @@ async function load(){try{
   const ownedMig=migrateOwned(d.owned);
   if(d.g.length!==W*D) return {inv:normInv(d.inv),coins:d.coins,tool:d.tool,owned:ownedMig,
     dur:d.dur||ownedMig.map(x=>x>0?x:0), wear:d.wear||[0,0,0,0], detectLvl:d.detectLvl||0,
-    name:d.name||'', gender:d.gender||'boy', mine:d.mine||1};
+    name:d.name||'', gender:d.gender||'boy', mine:d.mine||1, nextRainAt:d.nextRainAt};
   const g=new Uint8Array(W*D), r=new Uint8Array(W*D);
   for(let i=0;i<W*D;i++){g[i]=d.g.charCodeAt(i)-48;r[i]=d.r.charCodeAt(i)-48;}
   S={grid:g,rev:r,px:d.px,py:d.py,inv:normInv(d.inv),coins:d.coins,tool:d.tool,owned:ownedMig,
      dur:d.dur||ownedMig.map(x=>x>0?x:0), wear:d.wear||[0,0,0,0], detectLvl:d.detectLvl||0,
      name:d.name||'', gender:d.gender||'boy', mine:d.mine||1,
      pockets:d.pockets||[], flooded:new Set(d.flooded||[]), supports:new Map((d.supports||[]).map(e=>Array.isArray(e)?e:[e,1])),
-     fossils:new Set(d.fossils||[]), dig:null};
+     fossils:new Set(d.fossils||[]),
+     nextRainAt:d.nextRainAt||(Date.now()+RAIN_INTERVAL_MS), rain:d.rain||null,
+     dig:null};
   return true;
 }catch(e){return false}}
 
@@ -905,22 +923,106 @@ function breachPocket(pid,x,y,now){
     }
   }
   flood.forEach(i=>S.flooded.add(i));
-  pk.floodedCells=flood; pk.pumpCost=flood.length*Math.max(1,y);
+  pk.floodedCells=flood;
   const oreSet=new Set(pk.ore.map(o=>o.x+o.y*W));
   pk.cells.forEach(i=>{ if(!oreSet.has(i)) S.grid[i]=EMPTY; });
   pk.cells.forEach(i=>S.rev[i]=1); pk.shell.forEach(i=>S.rev[i]=1);
   const safe=nearestSafe(S.px+S.py*W);
   if(safe!==S.px+S.py*W){ moveTo(safe%W,(safe/W)|0,now); }
-  toast(`💧 Breached a water pocket! ${flood.length} square${flood.length===1?'':'s'} flooded — pump for ${pk.pumpCost} coins to drain it.`,4200);
+  toast(`💧 Breached a water pocket! ${flood.length} square${flood.length===1?'':'s'} flooded — tap the water to pump it out.`,4200);
 }
-function pumpPocket(pid){
-  const pk=S.pockets[pid]; if(!pk||pk.drained) return;
-  if(S.coins<pk.pumpCost) return;
-  S.coins-=pk.pumpCost;
-  (pk.floodedCells||[]).forEach(i=>S.flooded.delete(i));
-  pk.drained=true;
-  save(); updateHUD(); renderShop();
-  toast('Pumped the water out — the shaft is clear now.');
+/* ---------- rain & flooding ---------- */
+let drips=[];
+function scheduleNextRain(){ S.nextRainAt=Date.now()+RAIN_INTERVAL_MS; }
+function rainEntrances(){
+  const cols=[];
+  for(let x=0;x<W;x++){ if(S.grid[x+1*W]===EMPTY) cols.push(x); }
+  return cols;
+}
+function startRain(){
+  const duration=RAIN_MIN_MS+Math.random()*(RAIN_MAX_MS-RAIN_MIN_MS);
+  S.rain={startAt:Date.now(),duration,entrances:rainEntrances(),dropsDone:0};
+  toast('🌧️ It started raining — watch for flooding in your shafts!',2600);
+}
+function endRain(){ S.rain=null; scheduleNextRain(); save(); }
+// Finds the lowest (deepest), farthest-flowing empty & dry cell reachable from startIdx
+// through open tunnels. Water always settles here first, so repeated calls naturally fill
+// a pocket from the bottom up (once the lowest cell is flooded, the next call finds the
+// next-lowest one instead).
+function findSettleCell(startIdx){
+  const seen=new Uint8Array(W*D); seen[startIdx]=1;
+  const dist=new Int32Array(W*D);
+  const q=[startIdx]; let qi=0, best=startIdx, bestY=(startIdx/W)|0, bestDist=0;
+  while(qi<q.length && qi<6000){
+    const cur=q[qi++], cx=cur%W, cy=(cur/W)|0, dcur=dist[cur];
+    if(cy>bestY||(cy===bestY&&dcur>bestDist)){ best=cur; bestY=cy; bestDist=dcur; }
+    for(let d2=0;d2<4;d2++){
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(seen[ni]) continue;
+      if(S.grid[ni]!==EMPTY||S.flooded.has(ni)) continue;
+      seen[ni]=1; dist[ni]=dcur+1; q.push(ni);
+    }
+  }
+  return best;
+}
+function spawnDroplet(x){
+  const startIdx=x+1*W;
+  if(S.grid[startIdx]!==EMPTY||S.flooded.has(startIdx)) return; // shaft already flooded to the top here
+  const settle=findSettleCell(startIdx), sx=settle%W, sy=(settle/W)|0;
+  drips.push({x,fromY:1,toX:sx,toY:sy,t0:performance.now(),
+    phase1:400+Math.abs(sy-1)*45, phase2:sx===x?0:220+Math.abs(sx-x)*28, settleIdx:settle});
+}
+function landDroplet(idx){
+  if(S.grid[idx]!==EMPTY||S.flooded.has(idx)) return;
+  S.flooded.add(idx);
+  const pidx=S.px+S.py*W;
+  if(pidx===idx){ const safe=nearestSafe(pidx); if(safe!==pidx) moveTo(safe%W,(safe/W)|0,performance.now()); }
+  dust((idx%W+.5)*cs,(SKY+((idx/W)|0)+.5)*cs,'#bfe6ff',8,true);
+  save();
+}
+function updateRain(){
+  if(!S.rain){
+    if(Date.now()>=S.nextRainAt) startRain();
+    return;
+  }
+  const elapsed=Date.now()-S.rain.startAt;
+  if(elapsed>=S.rain.duration){ endRain(); return; }
+  const dropsShouldHave=Math.floor(elapsed/RAIN_DROP_EVERY_MS);
+  if(dropsShouldHave>S.rain.dropsDone){
+    const missed=Math.min(dropsShouldHave-S.rain.dropsDone,12); // cap catch-up if the app was closed mid-rain
+    for(let i=0;i<missed;i++) S.rain.entrances.forEach(x=>spawnDroplet(x));
+    S.rain.dropsDone=dropsShouldHave;
+    save();
+  }
+}
+function poolAt(startIdx){
+  const seen=new Set([startIdx]), q=[startIdx]; let qi=0;
+  while(qi<q.length&&q.length<4000){
+    const cur=q[qi++], cx=cur%W, cy=(cur/W)|0;
+    for(let d2=0;d2<4;d2++){
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(seen.has(ni)||!S.flooded.has(ni)) continue;
+      seen.add(ni); q.push(ni);
+    }
+  }
+  return q;
+}
+let pumpTarget=null;
+function openPump(idx){
+  const cells=poolAt(idx), cost=cells.length*PUMP_COST_PER_SQUARE;
+  pumpTarget={cells,cost};
+  $('pumpinfo').textContent=`${cells.length} square${cells.length===1?'':'s'} of water — pump it out for ${cost} coins?`;
+  $('pumpconfirm').disabled=S.coins<cost;
+  $('pumpmodal').hidden=false; modalOpen=true;
+}
+function closePump(){ $('pumpmodal').hidden=true; modalOpen=false; pumpTarget=null; }
+function pumpPocket(){
+  if(!pumpTarget) return;
+  if(S.coins<pumpTarget.cost){ toast('Not enough coins.'); return; }
+  S.coins-=pumpTarget.cost;
+  pumpTarget.cells.forEach(i=>S.flooded.delete(i));
+  save(); updateHUD(); closePump();
+  toast('Pumped the water out — that stretch is clear now.');
 }
 function finishDig(now){
   const d=S.dig; S.dig=null;
@@ -993,11 +1095,52 @@ function update(now,dt){
   if(S.dig){const p=clamp((now-S.dig.start)/S.dig.dur,0,1);ring.style.background=`conic-gradient(#ffc21a ${p*360}deg, rgba(0,0,0,.3) 0)`;rt.textContent=Math.ceil((1-p)*S.dig.dur/1000)+'s';}
   else if(rt.textContent){ring.style.background='rgba(0,0,0,.25)';rt.textContent='';}
   if(longPress&&now-longPress.t0>=5000){toggleDevReveal();longPress=null;}
+  updateRain();
+  drips=drips.filter(d=>{
+    const total=d.phase1+d.phase2;
+    if(now-d.t0<total) return true;
+    landDroplet(d.settleIdx);
+    return false;
+  });
+  const rtxt=$('raintxt');
+  if(S.rain){ rtxt.textContent='Raining '+fmtCountdown(S.rain.duration-(Date.now()-S.rain.startAt)); }
+  else { rtxt.textContent=fmtCountdown(S.nextRainAt-Date.now()); }
+}
+function fmtCountdown(ms){
+  const s=Math.max(0,Math.ceil(ms/1000)), m=Math.floor(s/60), r=s%60;
+  return m+':'+String(r).padStart(2,'0');
 }
 function playerPos(now){
   if(!anim) return [S.px,S.py];
   const p=Math.min(1,(now-anim.t0)/anim.dur), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
   return [anim.fx+(anim.tx-anim.fx)*e, anim.fy+(anim.ty-anim.fy)*e];
+}
+function drawRainOverlay(now,cam,gyl){
+  ctx.save();
+  ctx.strokeStyle='rgba(180,210,255,.5)'; ctx.lineWidth=Math.max(1,cs*.03); ctx.lineCap='round';
+  const top=cam.y-cs, bottom=gyl, span=bottom-top;
+  for(let i=0;i<36;i++){
+    const seedX=hsh(i,7,900)*W*cs;
+    const x=((seedX+cam.x*.15)%(W*cs)+W*cs)%(W*cs);
+    const y=top+((now*.7+i*61)%span);
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-cs*.14,y+cs*.42); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawDrips(now){
+  drips.forEach(d=>{
+    const t=now-d.t0, total=d.phase1+d.phase2;
+    let px,py;
+    if(t<d.phase1){
+      const p=clamp(t/d.phase1,0,1);
+      px=(d.x+.5)*cs; py=(SKY+d.fromY+p*(d.toY-d.fromY)+.5)*cs;
+    } else {
+      const p=d.phase2? clamp((t-d.phase1)/d.phase2,0,1):1;
+      px=(d.x+(d.toX-d.x)*p+.5)*cs; py=(SKY+d.toY+.5)*cs;
+    }
+    ctx.fillStyle='rgba(140,200,255,.92)';
+    ctx.beginPath(); ctx.ellipse(px,py,cs*.06,cs*.15,0,0,Math.PI*2); ctx.fill();
+  });
 }
 function render(now,dt){
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -1012,10 +1155,12 @@ function render(now,dt){
   if(cam.x<0) ctx.fillRect(cam.x-2,Math.max(gyl,cam.y),-cam.x+2,vh+4);
   if(cam.x+vw>W*cs) ctx.fillRect(W*cs,Math.max(gyl,cam.y),cam.x+vw-W*cs+2,vh+4);
   if(cam.y<gyl) drawSky(now);
+  if(S.rain && cam.y<gyl) drawRainOverlay(now,cam,gyl);
   const c0=Math.max(0,Math.floor(cam.x/cs)), c1=Math.min(W-1,Math.floor((cam.x+vw)/cs));
   const r0=Math.max(0,Math.floor(cam.y/cs)-SKY), r1=Math.min(D-1,Math.floor((cam.y+vh)/cs)-SKY);
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
   if(cam.y<SKY*cs+cs) drawGrass();
+  drawDrips(now);
 
   if(buildMode){
     const hx=S.px+DX[aim], hy=S.py+DY[aim];
@@ -1106,8 +1251,6 @@ function renderShop(){
     : lvl<2
     ? `<button class="buy" data-detect="2" style="width:100%;justify-content:center" ${S.coins>=2500?'':'disabled'}>👁️ Detect 3 blocks away · <span class="coin sm"></span>2500</button>`
     : `<span class="tag">Max detection range: 3 blocks</span>`;
-  const flooded=S.pockets.filter(p=>p.breached&&!p.drained);
-  $('floods').innerHTML=flooded.map(pk=>`<button class="buy" data-pump="${pk.id}" style="width:100%;justify-content:center;margin-top:6px" ${S.coins>=pk.pumpCost?'':'disabled'}>💧 Pump flooded pocket · <span class="coin sm"></span>${pk.pumpCost}</button>`).join('');
 }
 function setTool(i){
   const now=performance.now();
@@ -1181,10 +1324,9 @@ $('detect').addEventListener('click',e=>{
   S.coins-=cost; S.detectLvl=lv; save(); updateHUD(); renderShop();
   toast(`Detection upgraded — you now spot minerals ${lv+1} blocks away.`);
 });
-$('floods').addEventListener('click',e=>{
-  const b=e.target.closest('[data-pump]'); if(!b||b.disabled) return;
-  pumpPocket(+b.dataset.pump);
-});
+$('pumpcancel').addEventListener('click',closePump);
+$('pumpconfirm').addEventListener('click',pumpPocket);
+$('pumpmodal').addEventListener('click',e=>{if(e.target.id==='pumpmodal')closePump();});
 $('tools').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b||b.disabled) return;
   if(b.dataset.buy){const i=+b.dataset.buy;S.coins-=TOOLS[i].levels[0].price;S.owned[i]=1;S.dur[i]=1;S.wear[i]=0;setTool(i);toast(`Bought the ${TOOLS[i].name}!`);}
@@ -1290,9 +1432,18 @@ function tapToWalk(px,py){
   walkPath=path; followCam=true; held=null;
   if(!anim && walkPath.length){ const [nx,ny]=walkPath.shift(); moveTo(nx,ny,performance.now()); }
 }
+function tapWater(px,py){
+  const gx=Math.floor((px+cam.x)/cs), gyw=Math.floor((py+cam.y)/cs), gy=gyw-SKY;
+  if(gx<0||gx>=W||gy<0||gy>=D) return false;
+  const idx=gx+gy*W;
+  if(S.grid[idx]===EMPTY && S.flooded.has(idx)){ openPump(idx); return true; }
+  return false;
+}
 ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,e=>{
   longPress=null;
-  if(gesture&&!gesture.moved&&!gesture.onPlayer&&!modalOpen) tapToWalk(gesture.lastX,gesture.lastY);
+  if(gesture&&!gesture.moved&&!gesture.onPlayer&&!modalOpen){
+    if(!tapWater(gesture.lastX,gesture.lastY)) tapToWalk(gesture.lastX,gesture.lastY);
+  }
   gesture=null;
 }));
 cv.addEventListener('pointerleave',()=>{longPress=null; gesture=null;});
