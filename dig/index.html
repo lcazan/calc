@@ -88,9 +88,9 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #fillbtn.show{display:flex}
 #fillbtn:active{transform:translateY(2px)}
 
-#modal,#menu,#splash,#pumpmodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
+#modal,#menu,#splash,#pumpmodal,#supportmodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
 #splash{z-index:8}
-#modal[hidden],#menu[hidden],#splash[hidden],#pumpmodal[hidden]{display:none}
+#modal[hidden],#menu[hidden],#splash[hidden],#pumpmodal[hidden],#supportmodal[hidden]{display:none}
 .buy.sel{outline:3px solid #fff4e0;outline-offset:-3px}
 .sheet{width:min(780px,100%);max-height:100%;overflow:auto;background:linear-gradient(#3a2819,#2a1c12);border:3px solid var(--wood-ln);border-radius:18px;padding:10px 14px 12px;touch-action:pan-y}
 .sheet header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
@@ -213,7 +213,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button id="loadfilebtn" class="buy" style="justify-content:center;background:#5aa8d6;box-shadow:0 3px 0 #2a6d94">📂 Load from file</button>
       <button id="quitbtn" class="buy" style="justify-content:center;background:#c24a3a;box-shadow:0 3px 0 #7a2c20">🚪 Quit</button>
     </div>
-    <input type="file" id="loadinput" accept="application/json" style="display:none">
+    <input type="file" id="loadinput" style="display:none">
   </div>
 </div>
 
@@ -224,6 +224,17 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
     <div style="display:flex;gap:8px">
       <button id="pumpcancel" class="buy sm" style="flex:1;justify-content:center;background:#6b5a4b;box-shadow:0 2px 0 #3a2c20">Cancel</button>
       <button id="pumpconfirm" class="buy sm" style="flex:1;justify-content:center">Pump it out</button>
+    </div>
+  </div>
+</div>
+
+<div id="supportmodal" hidden>
+  <div class="sheet" style="max-width:320px;text-align:center" role="dialog" aria-label="Mine support">
+    <h2 class="disp" style="font-size:20px;margin:0 0 8px">🪵 Mine support</h2>
+    <div style="color:var(--muted);margin-bottom:14px">Remove this support? Without it, this stretch of tunnel can collapse again.</div>
+    <div style="display:flex;gap:8px">
+      <button id="supportcancel" class="buy sm" style="flex:1;justify-content:center;background:#6b5a4b;box-shadow:0 2px 0 #3a2c20">Keep it</button>
+      <button id="supportdel" class="buy sm" style="flex:1;justify-content:center;background:#c24a3a;box-shadow:0 2px 0 #7a2c20">🪓 Remove support</button>
     </div>
   </div>
 </div>
@@ -274,14 +285,20 @@ const curTime=i=>S.dur[i]>0?TOOLS[i].levels[S.dur[i]-1].time:Infinity;
 const RAIN_INTERVAL_MS=3*60*1000, RAIN_MIN_MS=5000, RAIN_MAX_MS=60000, RAIN_DROP_EVERY_MS=5000, PUMP_COST_PER_SQUARE=50;
 const KEY='deepdig-save-v1';
 const IDB_NAME='deepdig-db', IDB_STORE='saves';
+// One shared connection: IndexedDB runs transactions on the same connection in the order
+// they're created, so an older save can never land after (and overwrite) a newer one.
+let idbConn=null;
 function idbOpen(){
-  return new Promise((resolve,reject)=>{
+  if(idbConn) return idbConn;
+  idbConn=new Promise((resolve,reject)=>{
     if(!('indexedDB' in window)){ reject(new Error('no indexeddb')); return; }
     const req=indexedDB.open(IDB_NAME,1);
     req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE); };
     req.onsuccess=()=>resolve(req.result);
     req.onerror=()=>reject(req.error);
   });
+  idbConn.catch(()=>{idbConn=null;});
+  return idbConn;
 }
 async function idbGet(key){
   const db=await idbOpen();
@@ -422,18 +439,22 @@ function newGame(keep,sameMine){
      dur:keep?keep.dur:[1,0,0,0], wear:keep?keep.wear:[0,0,0,0], detectLvl:keep?keep.detectLvl:0,
      name:keep?keep.name:'', gender:keep?keep.gender:'boy',
      mine:keep?(sameMine?(keep.mine||1):(keep.mine||1)+1):1,
-     pockets, flooded:new Set(), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
+     pockets, flooded:new Set(), water:new Map(), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
      nextRainAt:keep&&keep.nextRainAt?keep.nextRainAt:Date.now()+RAIN_INTERVAL_MS, rain:null,
      dig:null};
-  reveal(sx,0); anim=null; walkPath=null; followCam=true; camInit=false; save();
+  reveal(sx,0); anim=null; walkPath=null; streams=[]; rainParts=[]; followCam=true; camInit=false; save();
 }
 let lastSavePayload=null;
+// One character per cell (value + 48). Joining the raw numbers — what older versions did —
+// turned two-digit blocks (walls, silver, platinum, stone) into two characters, so the map
+// could never be read back and got regenerated on every load.
+function encodeCells(a){ let out=''; for(let i=0;i<a.length;i+=4096) out+=String.fromCharCode.apply(null,Array.from(a.subarray(i,i+4096),v=>48+v)); return out; }
 async function save(){
   const payload={
-    v:1,g:Array.from(S.grid).join(''),r:Array.from(S.rev).join(''),
+    v:1,g:encodeCells(S.grid),r:encodeCells(S.rev),
     px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
     dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine,
-    pockets:S.pockets,flooded:[...S.flooded],supports:[...S.supports.entries()],fossils:[...S.fossils],
+    pockets:S.pockets,flooded:[...S.flooded],water:[...S.water.entries()].map(([i,l])=>[i,Math.round(l*1000)/1000]),supports:[...S.supports.entries()],fossils:[...S.fossils],
     nextRainAt:S.nextRainAt,rain:S.rain
   };
   lastSavePayload=payload;
@@ -445,32 +466,47 @@ function migrateOwned(o){
   if(o.length>=4) return o; // already the current 4-tool format
   return [1, o[1]?1:0, o[2]?1:0, 0]; // old 3-tool save: same price slots, no speed sub-levels yet, drill is new
 }
-async function load(){try{
+async function load(){
   let d=null;
   try{ d=await idbGet(KEY); }catch(e){}
   if(!d){
-    // First run after switching to IndexedDB (or a browser that lost it): fall back to
-    // whatever's in localStorage from before, and copy it into IndexedDB so it sticks.
+    // First run after switching to IndexedDB: pull in the older localStorage save.
     const raw=localStorage.getItem(KEY);
     if(raw){ try{ d=JSON.parse(raw); }catch(e){ d=null; } if(d) try{ await idbSet(KEY,d); }catch(e){} }
   }
-  if(!d||d.v!==1) return false;
+  return applySave(d);
+}
+// Turns a save object (from IndexedDB or a save file, any version so far) into the live
+// game state. Anything a newer version added gets a sensible default when missing.
+// Returns true when the map was restored, a "keep" object (coins/tools/etc.) when only the
+// map size changed, or false when the data isn't a Deep Dig save at all.
+function applySave(d){try{
+  if(typeof d==='string') d=JSON.parse(d);
+  if(!d||typeof d.g!=='string') return false;
+  if(d.v!==undefined && d.v!==1) return false;
   lastSavePayload=d;
   const ownedMig=migrateOwned(d.owned);
-  if(d.g.length!==W*D) return {inv:normInv(d.inv),coins:d.coins,tool:d.tool,owned:ownedMig,
+  const keep={inv:normInv(d.inv),coins:d.coins||0,tool:d.tool||0,owned:ownedMig,
     dur:d.dur||ownedMig.map(x=>x>0?x:0), wear:d.wear||[0,0,0,0], detectLvl:d.detectLvl||0,
     name:d.name||'', gender:d.gender||'boy', mine:d.mine||1, nextRainAt:d.nextRainAt};
-  const g=new Uint8Array(W*D), r=new Uint8Array(W*D);
-  for(let i=0;i<W*D;i++){g[i]=d.g.charCodeAt(i)-48;r[i]=d.r.charCodeAt(i)-48;}
-  S={grid:g,rev:r,px:d.px,py:d.py,inv:normInv(d.inv),coins:d.coins,tool:d.tool,owned:ownedMig,
-     dur:d.dur||ownedMig.map(x=>x>0?x:0), wear:d.wear||[0,0,0,0], detectLvl:d.detectLvl||0,
-     name:d.name||'', gender:d.gender||'boy', mine:d.mine||1,
-     pockets:d.pockets||[], flooded:new Set(d.flooded||[]), supports:new Map((d.supports||[]).map(e=>Array.isArray(e)?e:[e,1])),
+  if(d.g.length!==W*D) return keep;
+  const g=new Uint8Array(W*D), r=new Uint8Array(W*D), rs=typeof d.r==='string'&&d.r.length===W*D?d.r:null;
+  for(let i=0;i<W*D;i++){ const v=d.g.charCodeAt(i)-48; g[i]=v>=0&&v<=40?v:EARTH; r[i]=rs?(rs.charCodeAt(i)-48?1:0):0; }
+  let rain=d.rain||null;
+  if(rain && (!rain.flows||typeof rain.flows!=='object')) rain={startAt:rain.startAt||Date.now(),duration:rain.duration||0,flows:{},stopped:false};
+  S={grid:g,rev:r,px:clamp(d.px|0,0,W-1),py:clamp(d.py|0,0,D-1),
+     inv:keep.inv,coins:keep.coins,tool:keep.tool,owned:keep.owned,dur:keep.dur,wear:keep.wear,detectLvl:keep.detectLvl,
+     name:keep.name,gender:keep.gender,mine:keep.mine,
+     pockets:d.pockets||[], flooded:new Set(d.flooded||[]), water:new Map(Array.isArray(d.water)?d.water:[]), supports:new Map((d.supports||[]).map(e=>Array.isArray(e)?e:[e,1])),
      fossils:new Set(d.fossils||[]),
-     nextRainAt:d.nextRainAt||(Date.now()+RAIN_INTERVAL_MS), rain:d.rain||null,
+     nextRainAt:d.nextRainAt||(Date.now()+RAIN_INTERVAL_MS), rain,
      dig:null};
+  if(S.grid[S.px+S.py*W]!==EMPTY) S.grid[S.px+S.py*W]=EMPTY; // never load the miner inside solid ground
+  sanitizeFlooded();
+  anim=null; walkPath=null; queued=null; held=null; streams=[]; rainParts=[];
+  if(S.rain) refreshStreams();
   return true;
-}catch(e){return false}}
+}catch(e){ console.warn('Could not read save:',e); return false; }}
 
 /* ---------- colours per depth ---------- */
 const STOPS=[[0,[139,94,55]],[20,[116,76,45]],[45,[104,88,74]],[85,[88,85,88]],[160,[56,52,66]]];
@@ -619,6 +655,11 @@ function drawWaterCell(X,Y,x,y,now){
     ctx.lineTo(X+cs,wy+cs*.15); ctx.lineTo(X,wy+cs*.15); ctx.fill();
   }
 }
+function drawShallowWater(X,Y,x,y,lvl,now){
+  const h=Math.max(cs*.06,lvl*cs), top=Y+cs-h+Math.sin(now*.003+x*1.3)*cs*.012;
+  ctx.fillStyle='rgba(28,95,138,.85)'; ctx.fillRect(X,top,cs+.5,Y+cs-top+.5);
+  ctx.fillStyle='rgba(255,255,255,.28)'; ctx.fillRect(X,top,cs+.5,Math.max(1,cs*.035));
+}
 function drawSupport(X,Y,h){
   h=h||1;
   const cx=X+cs/2, topY=Y-(h-1)*cs;
@@ -652,6 +693,8 @@ function drawCell(x,y,now){
     if(solidAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(solidAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(solidAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
     if(solidAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
     if(S.supports.has(idx)) drawSupport(X,Y,S.supports.get(idx));
+    const lvl=S.water.get(idx);
+    if(lvl) drawShallowWater(X,Y,x,y,lvl,now);
     return;
   }
   if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
@@ -863,6 +906,7 @@ function fillHighlighted(){
   if(hx<0||hx>=W||hy<0||hy>=D){ toast("Can't fill there."); return; }
   const idx=hx+hy*W;
   if(S.grid[idx]!==EMPTY || S.flooded.has(idx)){ toast('That spot is already filled.'); return; }
+  S.water.delete(idx);
   S.grid[idx]=buildMaterial==='stone'?STONE:EARTH;
   S.rev[idx]=1;
   dust((hx+.5)*cs,(SKY+hy+.5)*cs, buildMaterial==='stone'?'#9a9691':'#6b4a2e', 10, true);
@@ -932,76 +976,137 @@ function breachPocket(pid,x,y,now){
   toast(`💧 Breached a water pocket! ${flood.length} square${flood.length===1?'':'s'} flooded — tap the water to pump it out.`,4200);
 }
 /* ---------- rain & flooding ---------- */
-let drips=[];
-function scheduleNextRain(){ S.nextRainAt=Date.now()+RAIN_INTERVAL_MS; }
-function rainEntrances(){
-  const cols=[];
-  for(let x=0;x<W;x++){ if(S.grid[x+1*W]===EMPTY) cols.push(x); }
-  return cols;
-}
+// While it rains, every open shaft entrance carries a steady stream of water. The stream
+// follows gravity (down first, then sideways; uphill only through water that has already
+// pooled, so pools level out) to the deepest dry spot it can reach — at equal depth, the
+// farthest one, so dead-end tunnels fill from the far end back. Once water reaches that
+// spot, every 5 s of flow fills one square. A rain lasting N seconds therefore gives each
+// entrance floor(N/5) squares of water, fixed the moment the rain starts.
+const FALL_MS_PER_CELL=70, FLOW_MS_PER_CELL=170, SKY_FALL_MS=260;
+let streams=[], rainParts=[], lastStreamRefresh=0, lastPartSpawn=0;
+function rainEndAt(){ return S.rain? S.rain.startAt+S.rain.duration : 0; }
+function isRaining(){ return !!S.rain && Date.now()<rainEndAt(); }
+function rainEntrances(){ const cols=[]; for(let x=0;x<W;x++) if(S.grid[x+W]===EMPTY) cols.push(x); return cols; }
 function startRain(){
-  const duration=RAIN_MIN_MS+Math.random()*(RAIN_MAX_MS-RAIN_MIN_MS);
-  S.rain={startAt:Date.now(),duration,entrances:rainEntrances(),dropsDone:0};
-  toast('🌧️ It started raining — watch for flooding in your shafts!',2600);
-}
-function endRain(){ S.rain=null; scheduleNextRain(); save(); }
-// Finds the lowest (deepest), farthest-flowing empty & dry cell reachable from startIdx
-// through open tunnels. Water always settles here first, so repeated calls naturally fill
-// a pocket from the bottom up (once the lowest cell is flooded, the next call finds the
-// next-lowest one instead).
-function findSettleCell(startIdx){
-  const seen=new Uint8Array(W*D); seen[startIdx]=1;
-  const dist=new Int32Array(W*D);
-  const q=[startIdx]; let qi=0, best=startIdx, bestY=(startIdx/W)|0, bestDist=0;
-  while(qi<q.length && qi<6000){
-    const cur=q[qi++], cx=cur%W, cy=(cur/W)|0, dcur=dist[cur];
-    if(cy>bestY||(cy===bestY&&dcur>bestDist)){ best=cur; bestY=cy; bestDist=dcur; }
-    for(let d2=0;d2<4;d2++){
-      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
-      const ni=nx+ny*W; if(seen[ni]) continue;
-      if(S.grid[ni]!==EMPTY||S.flooded.has(ni)) continue;
-      seen[ni]=1; dist[ni]=dcur+1; q.push(ni);
-    }
-  }
-  return best;
-}
-function spawnDroplet(x){
-  const startIdx=x+1*W;
-  if(S.grid[startIdx]!==EMPTY||S.flooded.has(startIdx)) return; // shaft already flooded to the top here
-  const settle=findSettleCell(startIdx), sx=settle%W, sy=(settle/W)|0;
-  drips.push({x,fromY:1,toX:sx,toY:sy,t0:performance.now(),
-    phase1:400+Math.abs(sy-1)*45, phase2:sx===x?0:220+Math.abs(sx-x)*28, settleIdx:settle});
-}
-function landDroplet(idx){
-  if(S.grid[idx]!==EMPTY||S.flooded.has(idx)) return;
-  S.flooded.add(idx);
-  const pidx=S.px+S.py*W;
-  if(pidx===idx){ const safe=nearestSafe(pidx); if(safe!==pidx) moveTo(safe%W,(safe/W)|0,performance.now()); }
-  dust((idx%W+.5)*cs,(SKY+((idx/W)|0)+.5)*cs,'#bfe6ff',8,true);
+  const now=Date.now(), duration=Math.round(RAIN_MIN_MS+Math.random()*(RAIN_MAX_MS-RAIN_MIN_MS));
+  S.rain={startAt:now,duration,flows:{},stopped:false};
+  refreshStreams();
+  toast('🌧️ It started raining — water is running into your shafts!',2800);
   save();
 }
-function updateRain(){
-  if(!S.rain){
-    if(Date.now()>=S.nextRainAt) startRain();
-    return;
+function findFlowPath(startIdx){
+  if(S.grid[startIdx]!==EMPTY) return null;
+  const N=W*D, seen=new Uint8Array(N), prev=new Int32Array(N).fill(-1), dist=new Int32Array(N);
+  seen[startIdx]=1;
+  const q=[startIdx]; let qi=0, best=-1, bestY=-1, bestDist=-1;
+  while(qi<q.length && qi<8000){
+    const cur=q[qi++], cx=cur%W, cy=(cur/W)|0, wet=S.flooded.has(cur);
+    if(!wet && (cy>bestY || (cy===bestY && dist[cur]>bestDist))){ best=cur; bestY=cy; bestDist=dist[cur]; }
+    for(let d2=0;d2<4;d2++){
+      if(d2===UP && !wet) continue; // water never climbs, except rising through its own pool
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<1||ny>=D) continue;
+      const ni=nx+ny*W; if(seen[ni]||S.grid[ni]!==EMPTY) continue;
+      seen[ni]=1; prev[ni]=cur; dist[ni]=dist[cur]+1; q.push(ni);
+    }
   }
-  const elapsed=Date.now()-S.rain.startAt;
-  if(elapsed>=S.rain.duration){ endRain(); return; }
-  const dropsShouldHave=Math.floor(elapsed/RAIN_DROP_EVERY_MS);
-  if(dropsShouldHave>S.rain.dropsDone){
-    const missed=Math.min(dropsShouldHave-S.rain.dropsDone,12); // cap catch-up if the app was closed mid-rain
-    for(let i=0;i<missed;i++) S.rain.entrances.forEach(x=>spawnDroplet(x));
-    S.rain.dropsDone=dropsShouldHave;
-    save();
+  if(best<0) return null; // everything reachable is already under water
+  const cells=[]; for(let c=best;c!==-1;c=prev[c]) cells.push(c); cells.reverse();
+  // Visual route: fall out of the sky, through the surface row, then follow the cells.
+  const x0=startIdx%W, pts=[[x0,-2.2],[x0,0]], times=[0,SKY_FALL_MS];
+  let t=SKY_FALL_MS, px=x0, py=0;
+  cells.forEach(c=>{ const cx=c%W, cy=(c/W)|0; t+= (cx===px? FALL_MS_PER_CELL*Math.abs(cy-py) : FLOW_MS_PER_CELL); pts.push([cx,cy]); times.push(t); px=cx; py=cy; });
+  return {target:best,pts,times,travelMs:t};
+}
+function refreshStreams(){
+  lastStreamRefresh=performance.now();
+  if(!S.rain) { streams=[]; return; }
+  const now=Date.now(), end=rainEndAt();
+  if(now<end) for(const x of rainEntrances()){
+    if(!S.rain.flows[x]){
+      const budget=Math.floor((end-now)/RAIN_DROP_EVERY_MS);
+      if(budget>0) S.rain.flows[x]={startAt:now,filled:0,budget,arriveAt:0};
+    }
+  }
+  streams=[];
+  for(const k in S.rain.flows){
+    const f=S.rain.flows[k], x=+k;
+    if(f.filled>=f.budget) continue;
+    const fp=findFlowPath(x+W); if(!fp) continue;
+    if(!f.arriveAt) f.arriveAt=f.startAt+fp.travelMs;
+    streams.push({x,...fp});
   }
 }
+// The open, not-yet-full cells in the same row that are connected sideways to idx.
+function waterRun(idx){
+  const y=(idx/W)|0, open=i=>S.grid[i]===EMPTY&&!S.flooded.has(i), run=[idx];
+  for(let x=idx%W-1;x>=0&&open(x+y*W);x--) run.push(x+y*W);
+  for(let x=idx%W+1;x<W&&open(x+y*W);x++) run.push(x+y*W);
+  return run;
+}
+// Pours `vol` blocks of water in through the shaft at entranceIdx. Water lands on the
+// deepest stretch it can reach and spreads evenly across it: one block on a 5-wide floor
+// is a layer 1/5 of a block deep. When a stretch is full, it becomes solid water (can't be
+// walked through) and whatever is left rises to the next stretch up.
+function addWater(entranceIdx,vol){
+  let guard=0;
+  while(vol>1e-6 && guard++<40){
+    const fp=findFlowPath(entranceIdx); if(!fp) return; // everything reachable is full; the rest runs off
+    const run=waterRun(fp.target);
+    const have=run.reduce((a,i)=>a+(S.water.get(i)||0),0), room=run.length-have;
+    if(vol<room-1e-6){
+      const lvl=(have+vol)/run.length;
+      run.forEach(i=>S.water.set(i,lvl));
+      vol=0;
+    } else {
+      run.forEach(i=>{ S.water.delete(i); S.flooded.add(i); });
+      vol-=room;
+      const pidx=S.px+S.py*W;
+      if(run.includes(pidx)){ const safe=nearestSafe(pidx); if(safe!==pidx){ S.dig=null; walkPath=null; moveTo(safe%W,(safe/W)|0,performance.now()); } }
+    }
+    const [tx,ty]=[fp.target%W,(fp.target/W)|0];
+    dust((tx+.5)*cs,(SKY+ty+.85)*cs,'#bfe6ff',8,true);
+  }
+}
+function updateRain(){
+  const now=Date.now();
+  if(!S.rain){ if(now>=S.nextRainAt) startRain(); return; }
+  if(performance.now()-lastStreamRefresh>400) refreshStreams();
+  let filledAny=false;
+  for(const k in S.rain.flows){
+    const f=S.rain.flows[k], x=+k; let guard=0;
+    while(f.arriveAt && f.filled<f.budget && now>=f.arriveAt+RAIN_DROP_EVERY_MS*(f.filled+1) && guard++<12){
+      if(!findFlowPath(x+W)) break;
+      addWater(x+W,1); f.filled++; filledAny=true;
+    }
+  }
+  if(filledAny) refreshStreams();
+  const end=rainEndAt();
+  if(now>=end){
+    if(!S.rain.stopped){ S.rain.stopped=true; S.nextRainAt=end+RAIN_INTERVAL_MS; filledAny=true; } // next rain counts from when this one stopped
+    const pending=streams.some(s=>{const f=S.rain.flows[s.x]; return f&&f.filled<f.budget;});
+    if(!pending){ S.rain=null; streams=[]; rainParts=[]; filledAny=true; }
+  }
+  if(filledAny) save();
+}
+function updateRainParts(now){
+  if(S.rain && streams.length && now-lastPartSpawn>60){
+    lastPartSpawn=now;
+    streams.forEach(s=>{ if(rainParts.length<700) rainParts.push({s,t0:now,j:(Math.random()-.5)*.3}); });
+  }
+  rainParts=rainParts.filter(p=>{
+    if(now-p.t0<p.s.travelMs) return true;
+    if(Math.random()<.15){ const [tx,ty]=p.s.pts[p.s.pts.length-1]; dust((tx+.5)*cs,(SKY+ty+.8)*cs,'#bfe6ff',1,false); }
+    return false;
+  });
+}
+const isWet=i=>S.flooded.has(i)||S.water.has(i);
 function poolAt(startIdx){
   const seen=new Set([startIdx]), q=[startIdx]; let qi=0;
-  while(qi<q.length&&q.length<4000){
+  while(qi<q.length){
     const cur=q[qi++], cx=cur%W, cy=(cur/W)|0;
     for(let d2=0;d2<4;d2++){
       const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
-      const ni=nx+ny*W; if(seen.has(ni)||!S.flooded.has(ni)) continue;
+      const ni=nx+ny*W; if(seen.has(ni)||!isWet(ni)) continue;
       seen.add(ni); q.push(ni);
     }
   }
@@ -1009,9 +1114,10 @@ function poolAt(startIdx){
 }
 let pumpTarget=null;
 function openPump(idx){
-  const cells=poolAt(idx), cost=cells.length*PUMP_COST_PER_SQUARE;
+  const cells=poolAt(idx), vol=cells.reduce((a,i)=>a+(S.flooded.has(i)?1:(S.water.get(i)||0)),0);
+  const blocks=Math.max(1,Math.ceil(vol-1e-6)), cost=blocks*PUMP_COST_PER_SQUARE;
   pumpTarget={cells,cost};
-  $('pumpinfo').textContent=`${cells.length} square${cells.length===1?'':'s'} of water — pump it out for ${cost} coins?`;
+  $('pumpinfo').textContent=`About ${blocks} block${blocks===1?'':'s'} of water — pump it out for ${cost} coins?`+(S.rain?' (It\'s still raining, so more may flow in.)':'');
   $('pumpconfirm').disabled=S.coins<cost;
   $('pumpmodal').hidden=false; modalOpen=true;
 }
@@ -1020,9 +1126,30 @@ function pumpPocket(){
   if(!pumpTarget) return;
   if(S.coins<pumpTarget.cost){ toast('Not enough coins.'); return; }
   S.coins-=pumpTarget.cost;
-  pumpTarget.cells.forEach(i=>S.flooded.delete(i));
-  save(); updateHUD(); closePump();
+  pumpTarget.cells.forEach(i=>{S.flooded.delete(i); S.water.delete(i);});
+  sanitizeFlooded();
+  refreshStreams(); save(); updateHUD(); closePump();
   toast('Pumped the water out — that stretch is clear now.');
+}
+// Drops any water marker sitting on a cell that isn't open tunnel (left over from older
+// versions or odd edge cases) — those were invisible and couldn't be tapped or pumped.
+function sanitizeFlooded(){
+  if(!S.water) S.water=new Map();
+  for(const i of [...S.flooded]) if(S.grid[i]!==EMPTY) S.flooded.delete(i);
+  for(const [i,l] of [...S.water]) if(S.grid[i]!==EMPTY||S.flooded.has(i)||!(l>0)) S.water.delete(i);
+}
+/* ---------- supports: tap to remove ---------- */
+function supportAt(gx,gy){
+  for(const [idx,h] of S.supports){ const sx=idx%W, sy=(idx/W)|0; if(gx===sx && gy<=sy && gy>sy-(h||1)) return idx; }
+  return -1;
+}
+let supportTarget=-1;
+function openSupport(idx){ supportTarget=idx; $('supportmodal').hidden=false; modalOpen=true; }
+function closeSupport(){ $('supportmodal').hidden=true; modalOpen=false; supportTarget=-1; }
+function removeSupport(){
+  if(supportTarget<0) return;
+  S.supports.delete(supportTarget); save(); closeSupport();
+  toast('Support removed.');
 }
 function finishDig(now){
   const d=S.dig; S.dig=null;
@@ -1096,14 +1223,9 @@ function update(now,dt){
   else if(rt.textContent){ring.style.background='rgba(0,0,0,.25)';rt.textContent='';}
   if(longPress&&now-longPress.t0>=5000){toggleDevReveal();longPress=null;}
   updateRain();
-  drips=drips.filter(d=>{
-    const total=d.phase1+d.phase2;
-    if(now-d.t0<total) return true;
-    landDroplet(d.settleIdx);
-    return false;
-  });
+  updateRainParts(now);
   const rtxt=$('raintxt');
-  if(S.rain){ rtxt.textContent='Raining '+fmtCountdown(S.rain.duration-(Date.now()-S.rain.startAt)); }
+  if(isRaining()){ rtxt.textContent='Raining '+fmtCountdown(rainEndAt()-Date.now()); }
   else { rtxt.textContent=fmtCountdown(S.nextRainAt-Date.now()); }
 }
 function fmtCountdown(ms){
@@ -1115,32 +1237,40 @@ function playerPos(now){
   const p=Math.min(1,(now-anim.t0)/anim.dur), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
   return [anim.fx+(anim.tx-anim.fx)*e, anim.fy+(anim.ty-anim.fy)*e];
 }
-function drawRainOverlay(now,cam,gyl){
+function drawRainOverlay(now){
+  const bottom=SKY*cs; if(cam.y>=bottom) return;
+  const top=cam.y, h=bottom-top, left=cam.x, w=vw;
   ctx.save();
-  ctx.strokeStyle='rgba(180,210,255,.5)'; ctx.lineWidth=Math.max(1,cs*.03); ctx.lineCap='round';
-  const top=cam.y-cs, bottom=gyl, span=bottom-top;
-  for(let i=0;i<36;i++){
-    const seedX=hsh(i,7,900)*W*cs;
-    const x=((seedX+cam.x*.15)%(W*cs)+W*cs)%(W*cs);
-    const y=top+((now*.7+i*61)%span);
-    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-cs*.14,y+cs*.42); ctx.stroke();
+  ctx.fillStyle='rgba(55,70,95,.28)'; ctx.fillRect(left-2,top-2,w+4,h+2); // overcast sky
+  ctx.strokeStyle='rgba(205,228,255,.6)'; ctx.lineWidth=Math.max(1,cs*.028); ctx.lineCap='round';
+  const n=Math.min(500,Math.round(w*h/(cs*cs)*2.2)), len=cs*.42, speed=cs*.016;
+  ctx.beginPath();
+  for(let i=0;i<n;i++){
+    const sp=.8+hsh(i,17,702)*.5;
+    const x=left+(((hsh(i,11,700)*w - now*speed*.22*sp)%w)+w)%w;
+    const y=top+((hsh(i,13,701)*h + now*speed*sp)%h);
+    ctx.moveTo(x,y); ctx.lineTo(x-len*.22,y+len);
   }
+  ctx.stroke();
   ctx.restore();
 }
-function drawDrips(now){
-  drips.forEach(d=>{
-    const t=now-d.t0, total=d.phase1+d.phase2;
-    let px,py;
-    if(t<d.phase1){
-      const p=clamp(t/d.phase1,0,1);
-      px=(d.x+.5)*cs; py=(SKY+d.fromY+p*(d.toY-d.fromY)+.5)*cs;
-    } else {
-      const p=d.phase2? clamp((t-d.phase1)/d.phase2,0,1):1;
-      px=(d.x+(d.toX-d.x)*p+.5)*cs; py=(SKY+d.toY+.5)*cs;
-    }
-    ctx.fillStyle='rgba(140,200,255,.92)';
-    ctx.beginPath(); ctx.ellipse(px,py,cs*.06,cs*.15,0,0,Math.PI*2); ctx.fill();
-  });
+// Water in transit: a droplet while falling down a shaft, a flat streak while running
+// along a tunnel floor.
+function drawRainParts(now){
+  if(!rainParts.length) return;
+  ctx.save();
+  ctx.fillStyle='rgba(150,205,255,.9)';
+  for(const p of rainParts){
+    const {pts,times}=p.s, t=now-p.t0;
+    let i=1; while(i<times.length-1 && times[i]<t) i++;
+    const t0=times[i-1], t1=times[i], k=t1>t0?clamp((t-t0)/(t1-t0),0,1):1;
+    const [ax,ay]=pts[i-1], [bx,by]=pts[i];
+    const x=ax+(bx-ax)*k, y=ay+(by-ay)*k;
+    const X=(x+.5+p.j)*cs, Yc=(SKY+y+.5)*cs;
+    if(ay===by){ rr(ctx,X-cs*.2,(SKY+y+1)*cs-cs*.13,cs*.4,cs*.08,cs*.04); } // streak on the floor
+    else { ctx.beginPath(); ctx.ellipse(X,Yc,cs*.045,cs*.13,0,0,Math.PI*2); ctx.fill(); }
+  }
+  ctx.restore();
 }
 function render(now,dt){
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -1155,12 +1285,12 @@ function render(now,dt){
   if(cam.x<0) ctx.fillRect(cam.x-2,Math.max(gyl,cam.y),-cam.x+2,vh+4);
   if(cam.x+vw>W*cs) ctx.fillRect(W*cs,Math.max(gyl,cam.y),cam.x+vw-W*cs+2,vh+4);
   if(cam.y<gyl) drawSky(now);
-  if(S.rain && cam.y<gyl) drawRainOverlay(now,cam,gyl);
   const c0=Math.max(0,Math.floor(cam.x/cs)), c1=Math.min(W-1,Math.floor((cam.x+vw)/cs));
   const r0=Math.max(0,Math.floor(cam.y/cs)-SKY), r1=Math.min(D-1,Math.floor((cam.y+vh)/cs)-SKY);
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
   if(cam.y<SKY*cs+cs) drawGrass();
-  drawDrips(now);
+  drawRainParts(now);
+  if(isRaining()) drawRainOverlay(now);
 
   if(buildMode){
     const hx=S.px+DX[aim], hy=S.py+DY[aim];
@@ -1325,6 +1455,9 @@ $('detect').addEventListener('click',e=>{
   toast(`Detection upgraded — you now spot minerals ${lv+1} blocks away.`);
 });
 $('pumpcancel').addEventListener('click',closePump);
+$('supportcancel').addEventListener('click',closeSupport);
+$('supportdel').addEventListener('click',removeSupport);
+$('supportmodal').addEventListener('click',e=>{if(e.target.id==='supportmodal')closeSupport();});
 $('pumpconfirm').addEventListener('click',pumpPocket);
 $('pumpmodal').addEventListener('click',e=>{if(e.target.id==='pumpmodal')closePump();});
 $('tools').addEventListener('click',e=>{
@@ -1366,28 +1499,35 @@ $('refreshbtn').addEventListener('click',()=>{
   }
   setTimeout(()=>location.reload(),150);
 });
+// Saving a file: iPhones/iPads can't download from a home-screen app, so they get the
+// share sheet ("Save to Files"); everything else gets a normal download.
 $('savefile').addEventListener('click',async()=>{
   await save();
-  const blob=new Blob([JSON.stringify(lastSavePayload)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`deep-dig-save-mine${S.mine}.json`;
+  const text=JSON.stringify(lastSavePayload), name=`deep-dig-save-mine${S.mine}.json`;
+  const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  try{
+    const file=new File([text],name,{type:'application/json'});
+    if(isIOS && navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); toast('Save file ready'); return; }
+  }catch(e){ if(e&&e.name==='AbortError') return; }
+  const url=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+  const a=document.createElement('a'); a.href=url; a.download=name;
   document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
   toast('Save file downloaded');
 });
 $('loadfilebtn').addEventListener('click',()=>$('loadinput').click());
 $('loadinput').addEventListener('change',e=>{
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
-  reader.onload=async()=>{
-    try{
-      const d=JSON.parse(reader.result);
-      if(!d||d.v!==1||typeof d.g!=='string') throw new Error('bad save');
-      try{ await idbSet(KEY,d); }catch(e){}
-      try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){}
-      const ok=await load();
-      if(ok===true){ closeMenu(); camInit=false; resize(); updateHUD(); toast('Save file loaded'); }
-      else { newGame(ok,true); closeMenu(); resize(); updateHUD(); toast('Save file loaded (older map, coins & tools kept)'); }
-    }catch(err){ toast("That file doesn't look like a Deep Dig save."); }
+  reader.onload=()=>{
+    // Apply the file straight into the game (no round-trip through storage, which an
+    // in-flight autosave could overwrite), then save the result.
+    const ok=applySave(reader.result);
+    if(ok===true){ closeMenu(); camInit=false; followCam=true; resize(); updateHUD(); save(); toast('Save file loaded'); }
+    else if(ok){ newGame(ok,true); closeMenu(); resize(); updateHUD(); toast('Save file loaded (older map, coins & tools kept)'); }
+    else toast("That file doesn't look like a Deep Dig save.",3000);
   };
+  reader.onerror=()=>toast("Couldn't read that file.");
   reader.readAsText(file);
   e.target.value='';
 });
@@ -1407,7 +1547,7 @@ cv.addEventListener('pointerdown',e=>{
   const now=performance.now(), [rx,ry]=playerPos(now);
   const px=(rx+.5)*cs-cam.x, py=(SKY+ry+.5)*cs-cam.y-cs*.15;
   const onPlayer=Math.hypot(e.offsetX-px,e.offsetY-py)<=cs*1.3;
-  gesture={x0:e.offsetX,y0:e.offsetY,lastX:e.offsetX,lastY:e.offsetY,onPlayer,moved:false};
+  gesture={x0:e.offsetX,y0:e.offsetY,lastX:e.offsetX,lastY:e.offsetY,onPlayer,moved:false,t0:now};
   if(onPlayer) longPress={t0:now};
 });
 cv.addEventListener('pointermove',e=>{
@@ -1432,18 +1572,23 @@ function tapToWalk(px,py){
   walkPath=path; followCam=true; held=null;
   if(!anim && walkPath.length){ const [nx,ny]=walkPath.shift(); moveTo(nx,ny,performance.now()); }
 }
-function tapWater(px,py){
-  const gx=Math.floor((px+cam.x)/cs), gyw=Math.floor((py+cam.y)/cs), gy=gyw-SKY;
-  if(gx<0||gx>=W||gy<0||gy>=D) return false;
-  const idx=gx+gy*W;
-  if(S.grid[idx]===EMPTY && S.flooded.has(idx)){ openPump(idx); return true; }
-  return false;
+function tapCell(px,py){
+  const gx=Math.floor((px+cam.x)/cs), gy=Math.floor((py+cam.y)/cs)-SKY;
+  return (gx<0||gx>=W||gy<0||gy>=D)?null:[gx,gy];
+}
+function handleTap(px,py,onPlayer){
+  const c=tapCell(px,py); if(!c) return;
+  const [gx,gy]=c, idx=gx+gy*W;
+  if(S.grid[idx]===EMPTY && isWet(idx)){ openPump(idx); return; }
+  const sup=supportAt(gx,gy);
+  if(sup<0 && onPlayer){ const own=supportAt(S.px,S.py); if(own>=0){ openSupport(own); return; } }
+  if(sup>=0){ openSupport(sup); return; }
+  if(!onPlayer) tapToWalk(px,py);
 }
 ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,e=>{
   longPress=null;
-  if(gesture&&!gesture.moved&&!gesture.onPlayer&&!modalOpen){
-    if(!tapWater(gesture.lastX,gesture.lastY)) tapToWalk(gesture.lastX,gesture.lastY);
-  }
+  if(ev==='pointerup'&&gesture&&!gesture.moved&&!modalOpen&&(!gesture.onPlayer||performance.now()-gesture.t0<450))
+    handleTap(gesture.lastX,gesture.lastY,gesture.onPlayer);
   gesture=null;
 }));
 cv.addEventListener('pointerleave',()=>{longPress=null; gesture=null;});
@@ -1456,7 +1601,7 @@ document.querySelectorAll('.db').forEach(b=>{
 });
 const KEYS={ArrowUp:UP,w:UP,W:UP,ArrowRight:RIGHT,d:RIGHT,D:RIGHT,ArrowDown:DOWN,s:DOWN,S:DOWN,ArrowLeft:LEFT,a:LEFT,A:LEFT};
 window.addEventListener('keydown',e=>{
-  if(modalOpen){if(e.key==='Escape'){if(!$('modal').hidden)closeShop();else if(!$('menu').hidden)closeMenu();}return;}
+  if(modalOpen){if(e.key==='Escape'){if(!$('pumpmodal').hidden)closePump();else if(!$('supportmodal').hidden)closeSupport();else if(!$('modal').hidden)closeShop();else if(!$('menu').hidden)closeMenu();}return;}
   if(e.key==='u'||e.key==='U'){openShop();return;}
   if(e.key==='b'||e.key==='B'){toggleBuildMode();return;}
   if((e.key==='f'||e.key==='F')&&buildMode){fillHighlighted();return;}
