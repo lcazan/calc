@@ -81,7 +81,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #supportbtn .bl,#buildbtn .bl{white-space:nowrap}
 #matpick{display:flex;gap:6px;width:100%;max-width:168px}
 #matpick{justify-content:center}
-#matpick[hidden]{display:none}
+#matpick[hidden]{display:flex;visibility:hidden} /* keeps its space, so switching modes never shifts the other buttons */
 #matbtn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;padding:4px 8px;background:#5aa8d6;color:#10243a;font-size:14px;box-shadow:0 3px 0 #2a6d94}
 #matbtn:active{transform:translateY(2px)}
 #matbtn .mat{width:24px;height:24px;border-width:1px;box-shadow:none}
