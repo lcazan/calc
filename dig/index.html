@@ -625,6 +625,7 @@ function applySave(d){try{
      dig:null};
   if(S.py>0 && S.grid[S.px+S.py*W]!==EMPTY) S.grid[S.px+S.py*W]=EMPTY; // never load the miner inside solid ground
   sanitizeWater();
+  settleSky();
   for(const [i] of [...S.pieces]) if(S.grid[i]!==PIECES) S.pieces.delete(i);
   for(const i of [...S.grass]) if(S.grid[i]!==EMPTY||S.grid[i+W]===EMPTY) S.grass.delete(i);
   for(const i of [...S.doors]) if(S.grid[i]!==EMPTY&&S.grid[i]!==DOOR) S.doors.delete(i);
@@ -831,7 +832,7 @@ function drawWaterFlows(c0,c1,r0,r1,now){
   if(isRaining()){
     ctx.strokeStyle='rgba(205,228,255,.6)'; ctx.lineWidth=Math.max(1,cs*.028); ctx.lineCap='round';
     for(let x=c0;x<=c1;x++){
-      if(S.grid[x+W]!==EMPTY || S.mass[x+W]>=W_FULL) continue;
+      if(S.grid[x+W]!==EMPTY || S.mass[x+W]>=W_FULL || !skyOpen(x)) continue;
       const top=GROUND*cs, bot=landingY(x,0), len=bot-top; if(len<=0) continue;
       const n=Math.max(3,Math.round(len/cs*3.2)), X=x*cs;
       ctx.beginPath();
@@ -936,25 +937,79 @@ function canEnter(x,y){
   if(y>=1) return S.grid[x+y*W]===EMPTY && !isFull(x+y*W);
   return standable(x,y);
 }
+// Blocks above ground (the grass row and the sky) have to be held up. A horizontal run of
+// blocks side by side stays up as long as at least one of them is held from below: by the
+// ground, by a held-up block underneath, or by a support post standing under it. Anything
+// that isn't held falls straight down until it lands on something.
+const MOVABLE=new Set([EARTH,STONE,GLASS,STEEL]);
+const isBlockAt=(x,y)=>y<=0 && y>=-SKYROWS && cellAt(x,y)!==EMPTY;
+function setCell(x,y,v){ if(y<0) setSky(x,y,v); else S.grid[x+y*W]=v; }
+function settleSky(){
+  let fell=0;
+  for(let pass=0;pass<200;pass++){
+    const held=new Set(); for(const [k,h0] of S.supports) held.add(k-(h0||1)*W);
+    const sup=new Set();
+    for(let y=0;y>=-SKYROWS;y--){
+      const direct=x=>{
+        const k=x+y*W;
+        if(held.has(k) || !MOVABLE.has(cellAt(x,y))) return true; // posts, and entrances/pieces stay put
+        if(y===0) return S.grid[x+W]!==EMPTY || (x>0&&S.grid[x-1+W]!==EMPTY) || (x<W-1&&S.grid[x+1+W]!==EMPTY); // on the ground (or bridging a narrow hole)
+        return sup.has(k+W);
+      };
+      let x=0;
+      while(x<W){
+        if(!isBlockAt(x,y)){ x++; continue; }
+        let x2=x, any=false; while(x2<W && isBlockAt(x2,y)){ if(direct(x2)) any=true; x2++; }
+        if(any) for(let k=x;k<x2;k++) sup.add(k+y*W);
+        x=x2;
+      }
+    }
+    let moved=false;
+    for(let y=0;y>=-SKYROWS;y--) for(let x=0;x<W;x++){   // lowest first, so a whole column drops together
+      if(!isBlockAt(x,y) || sup.has(x+y*W)) continue;
+      const v=cellAt(x,y); if(!MOVABLE.has(v)) continue;
+      if(cellAt(x,y+1)!==EMPTY) continue;
+      setCell(x,y,EMPTY); setCell(x,y+1,v);
+      if(y+1>=1){ displaceWater(x+(y+1)*W); S.grass.delete(x+(y+1)*W); S.rev[x+(y+1)*W]=1; }
+      moved=true; fell++;
+    }
+    if(!moved) break;
+  }
+  if(fell){
+    // a post whose load fell away, or that a block landed on, comes down too
+    for(const [k,h0] of [...S.supports]){ const h=h0||1, x=keyX(k), y=keyY(k); if(y>0) continue;
+      let bad=cellAt(x,y-h)===EMPTY; for(let j=0;j<h;j++) if(cellAt(x,y-j)!==EMPTY) bad=true;
+      if(bad) S.supports.delete(k); }
+    for(let i=0;i<14;i++) dust((S.px+.5+(Math.random()-.5)*6)*cs,(SKY+S.py+(Math.random()-.5)*4)*cs,'#8a857e',2,true);
+    toast('⚠️ Blocks with nothing holding them up came crashing down!',2600);
+  }
+  return fell;
+}
+function drawDoors(c0,c1,r0,r1){
+  for(const idx of S.doors){ const x=idx%W, y=(idx/W)|0; if(x<c0||x>c1||y<r0-1||y>r1) continue; drawDoor(x*cs,(SKY+y)*cs,x,y,S.grid[idx]===DOOR); }
+}
 function drawDoor(X,Y,x,y,closed){
   const openC=(xx,yy)=>{ const v=cellAt(xx,yy); return v===EMPTY||v===DOOR; };
-  const trap=(y===1||openC(x,y-1)) && openC(x,y+1) && !openC(x-1,y) && !openC(x+1,y);
-  const f=cs*.13, frame='#7a4e2a', edge='#3a2616';
+  const trap=(y===0&&openC(x,1)) || ((y===1||openC(x,y-1)) && openC(x,y+1) && !openC(x-1,y) && !openC(x+1,y));
+  const f=cs*.16, frame='#8a5a32', edge='#2a1a0e';
+  const low=trap&&y===0, FY=low?Y+cs*.6:Y, FH=low?cs*.4:cs; // at grass level the hatch sits flush with the ground
   const planks=(x0,y0,w,h,vertical)=>{
     for(let k=0;k<4;k++){ ctx.fillStyle=k%2?'#8f5d33':'#a26a3a'; vertical?ctx.fillRect(x0+k*w/4,y0,w/4+.5,h):ctx.fillRect(x0,y0+k*h/4,w,h/4+.5); }
     ctx.fillStyle='rgba(0,0,0,.25)'; for(let k=1;k<4;k++) vertical?ctx.fillRect(x0+k*w/4-.5,y0,1,h):ctx.fillRect(x0,y0+k*h/4-.5,w,1);
   };
   // the frame never moves: two posts, plus a lintel over an upright door
-  ctx.fillStyle=frame; ctx.fillRect(X,Y,f,cs); ctx.fillRect(X+cs-f,Y,f,cs); if(!trap) ctx.fillRect(X,Y,cs,f);
-  ctx.fillStyle='rgba(255,255,255,.18)'; ctx.fillRect(X,Y,f*.35,cs); ctx.fillRect(X+cs-f,Y,f*.35,cs);
-  ctx.fillStyle=edge; ctx.fillRect(X+f-1,Y+(trap?0:f),1.2,cs); ctx.fillRect(X+cs-f,Y+(trap?0:f),1.2,cs);
+  ctx.fillStyle=edge; ctx.fillRect(X-1,FY,f+2,FH); ctx.fillRect(X+cs-f-1,FY,f+2,FH); if(!trap) ctx.fillRect(X-1,Y-1,cs+2,f+2); else { ctx.fillRect(X-1,FY-1,f*1.8+2,f*.7+2); ctx.fillRect(X+cs-f*1.8-1,FY-1,f*1.8+2,f*.7+2); }
+  ctx.fillStyle=frame; ctx.fillRect(X,FY,f,FH); ctx.fillRect(X+cs-f,FY,f,FH); if(!trap) ctx.fillRect(X,Y,cs,f); else { ctx.fillRect(X,FY,f*1.8,f*.7); ctx.fillRect(X+cs-f*1.8,FY,f*1.8,f*.7); }
+  ctx.fillStyle='rgba(255,255,255,.18)'; ctx.fillRect(X,FY,f*.35,FH); ctx.fillRect(X+cs-f,FY,f*.35,FH);
+  ctx.fillStyle=edge; ctx.fillRect(X+f-1,FY+(trap?0:f),1.2,FH-(trap?0:f)); ctx.fillRect(X+cs-f,FY+(trap?0:f),1.2,FH-(trap?0:f));
   if(trap){
     if(closed){ // lid lying across the top of the shaft
-      planks(X+f,Y,cs-2*f,cs*.3,true);
-      ctx.fillStyle='#555a60'; ctx.fillRect(X+f+cs*.1,Y,cs*.06,cs*.3); ctx.fillRect(X+cs-f-cs*.16,Y,cs*.06,cs*.3);
-      ctx.fillStyle='#c9a64a'; circ(ctx,X+cs/2,Y+cs*.15,cs*.045);
-    } else if(y===1){ // flipped up, standing on the grass beside the hole
-      ctx.save(); ctx.translate(X+f*.5,Y); ctx.rotate(-.12);
+      const ly=low?Y+cs*.7:Y;
+      planks(X+f,ly,cs-2*f,cs*.3,true);
+      ctx.fillStyle='#555a60'; ctx.fillRect(X+f+cs*.1,ly,cs*.06,cs*.3); ctx.fillRect(X+cs-f-cs*.16,ly,cs*.06,cs*.3);
+      ctx.fillStyle='#c9a64a'; circ(ctx,X+cs/2,ly+cs*.15,cs*.045);
+    } else if(y<=1){ // flipped up, standing on the grass beside the hole
+      ctx.save(); ctx.translate(X+f*.5,y===0?Y+cs:Y); ctx.rotate(-.12);
       planks(-cs*.15,-cs*.72,cs*.15,cs*.72,false);
       ctx.fillStyle='#555a60'; ctx.fillRect(-cs*.15,-cs*.6,cs*.15,cs*.05); ctx.fillRect(-cs*.15,-cs*.2,cs*.15,cs*.05);
       ctx.restore();
@@ -1048,14 +1103,13 @@ function drawCell(x,y,now){
     if(solidAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(solidAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(solidAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
     if(solidAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
     if(S.grass.has(idx)) drawGrassFloor(X,Y,x,y);
-    if(S.doors.has(idx)) drawDoor(X,Y,x,y,false);
     if(S.piles.has(idx)) drawCoinPile(X,Y,x,y,S.piles.get(idx),now);
     if(wm>0.004) drawShallowWater(X,Y,x,y,wm,now);
     return;
   }
   if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
   if(v===STONE){ drawStoneWall(X,Y,x,y); return; }
-  if(v===DOOR){ if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);} drawDoor(X,Y,x,y,true); return; }
+  if(v===DOOR){ if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);} return; } // the entrance itself is drawn in drawDoors(), after the water
   if(v===STEEL){
     if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);}
     const st=(xx,yy)=>cellAt(xx,yy)===STEEL;
@@ -1364,7 +1418,7 @@ function pieceTarget(){
   if(!qbox) initQbox();
   const cx=Math.floor(qbox.qx/4), cy=Math.floor(qbox.qy/4), sub=(qbox.qx-cx*4)+(qbox.qy-cy*4)*4;
   const idx=cx+cy*W, v=S.grid[idx];
-  let ok=cy>=0 && !(cy===0&&buildMaterial==='water') && !(S.py<0) && !(cx===S.px&&cy===S.py) && !isFull(idx);
+  let ok=cy>=0 && !(cy===0&&buildMaterial==='water') && !(S.py<0) && !(cx===S.px&&cy===S.py) && !(buildMaterial==='water'&&isFull(idx));
   ok=ok&&(v===EMPTY||(v===PIECES&&S.pieces.get(idx)[sub]==='0'));
   return {cx,cy,sub,idx,ok};
 }
@@ -1494,7 +1548,7 @@ function drawCoinPile(X,Y,x,y,amt,now){
 function placeDoor(cx,cy){
   if(cx<0||cx>=W||cy<0||cy>=D-1){ toast('You can only build underground.'); return; }
   const idx=cx+cy*W;
-  if(S.grid[idx]!==EMPTY||S.doors.has(idx)||isFull(idx)){ toast('That spot is already filled.'); return; }
+  if(S.grid[idx]!==EMPTY||S.doors.has(idx)){ toast('That spot is already filled.'); return; }
   if(idx===S.px+S.py*W){ toast("You're standing there!"); return; }
   if(S.coins<DOOR_COST){ toast(`A mine entrance costs ${DOOR_COST} coins.`); return; }
   S.coins-=DOOR_COST; updateHUD();
@@ -1542,13 +1596,13 @@ function fillHighlighted(){
     if(!mat){ toast('Up in the sky you can build with dirt, stone, glass or steel.'); return; }
     if(cellAt(hx,hy)!==EMPTY){ toast('That spot is already filled.'); return; }
     if(hx===S.px&&hy===S.py){ toast("You're standing there!"); return; }
-    setSky(hx,hy,mat);
+    setSky(hx,hy,mat); settleSky();
     dust((hx+.5)*cs,(SKY+hy+.5)*cs,{stone:'#9a9691',glass:'#e6f5ff',steel:'#aab4bf'}[buildMaterial]||'#6b4a2e',10,true);
     save(); return;
   }
   if(hy===0 && buildMaterial==='water'){ toast('Water up there would just drain away.'); return; }
   const idx=hx+hy*W;
-  if(S.grid[idx]!==EMPTY || isFull(idx)){ toast(isFull(idx)?'That spot is full of water.':'That spot is already filled.'); return; }
+  if(S.grid[idx]!==EMPTY || (buildMaterial==='water'&&isFull(idx))){ toast(isFull(idx)?'That spot is already full of water.':'That spot is already filled.'); return; }
   if(idx===S.px+S.py*W){ toast("You're standing there!"); return; }
   if(buildMaterial==='water'){ // a block's worth of water, which then flows like any other
     S.mass[idx]+=1; wakeWater();
@@ -1560,7 +1614,7 @@ function fillHighlighted(){
   displaceWater(idx);
   S.rev[idx]=1;
   dust((hx+.5)*cs,(SKY+hy+.5)*cs,{stone:'#9a9691',glass:'#e6f5ff',steel:'#aab4bf'}[buildMaterial]||'#6b4a2e',10,true);
-  save();
+  settleSky(); save();
 }
 function cellColor(x,y){const v=cellAt(x,y),o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; if(v===GLASS)return '#e6f5ff'; if(v===PIECES)return '#9a8a78'; if(v===DOOR)return '#9a6638'; if(v===STEEL)return '#aab4bf'; return ROWC[y];}
 function autoSwitchTool(){
@@ -1666,6 +1720,8 @@ function levelRuns(){
   }
 }
 function wakeWater(){ waterAwake=true; }
+// Nothing between this column and the sky: no entrance, block or roof on the grass row or above.
+function skyOpen(x){ for(let y=0;y>=-SKYROWS;y--) if(cellAt(x,y)!==EMPTY) return false; return true; }
 function updateWater(dtMs){
   if(!newMass||newMass.length!==W*D) newMass=new Float32Array(W*D);
   const raining=isRaining();
@@ -1675,7 +1731,7 @@ function updateWater(dtMs){
   let any=false;
   while(simAcc>=W_STEP_MS){
     simAcc-=W_STEP_MS;
-    if(raining) for(let x=0;x<W;x++){ const i=x+W; if(S.grid[i]===EMPTY && S.mass[i]<W_MAX) S.mass[i]=Math.min(W_MAX,S.mass[i]+perStep); }
+    if(raining) for(let x=0;x<W;x++){ const i=x+W; if(S.grid[i]===EMPTY && S.mass[i]<W_MAX && skyOpen(x)) S.mass[i]=Math.min(W_MAX,S.mass[i]+perStep); }
     any=waterStep()||any;
   }
   if(!any && !raining) waterAwake=false;
@@ -1770,7 +1826,7 @@ function openSupport(idx){ supportTarget=idx; $('supportmodal').hidden=false; mo
 function closeSupport(){ $('supportmodal').hidden=true; modalOpen=false; supportTarget=null; }
 function removeSupport(){
   if(supportTarget===null) return;
-  S.supports.delete(supportTarget); save(); closeSupport();
+  S.supports.delete(supportTarget); settleSky(); save(); closeSupport();
   toast('Support removed.');
 }
 function breakSupport(base,h,msg){
@@ -1780,6 +1836,7 @@ function breakSupport(base,h,msg){
   let fell=false;
   for(let k=0;k<h && !fell;k++) fell=checkCollapse(sx,sy-k)===true;
   if(!fell) toast(msg,2800);
+  settleSky();
 }
 function finishDig(now){
   const d=S.dig; S.dig=null;
@@ -1787,7 +1844,7 @@ function finishDig(now){
     const col=cellColor(d.x,0); setSky(d.x,d.y,EMPTY);
     const idx=d.x+d.y*W;
     for(const [base,h0] of [...S.supports]){ const h=h0||1; if(base===idx-W||base-h*W===idx){ S.supports.delete(base); toast('🪵 That support lost its hold and fell.',2200); } }
-    dust((d.x+.5)*cs,(SKY+d.y+.5)*cs,col,14,true); save(); return;
+    dust((d.x+.5)*cs,(SKY+d.y+.5)*cs,col,14,true); settleSky(); save(); return;
   }
   const idx=d.x+d.y*W, v=S.grid[idx];
   const bx=(d.x+.5)*cs, by=(SKY+d.y+.5)*cs;
@@ -1831,6 +1888,7 @@ function finishDig(now){
     else { S.dur[S.tool]=0; toast(`${TOOLS[S.tool].name} broke down!`,2600); autoSwitchTool(); }
   }
   checkCollapse(d.x,d.y);
+  if(d.y<=1) settleSky();
   save();
 }
 function findPath(sx0,sy0,tx0,ty0){
@@ -1940,6 +1998,7 @@ function render(now,dt){
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
   for(let y=Math.max(-SKYROWS,Math.floor(cam.y/cs)-SKY);y<0;y++) for(let x=c0;x<=c1;x++) drawSkyBlock(x,y);
   drawWaterFlows(c0,c1,r0,r1,now);
+  drawDoors(c0,c1,r0,r1);
   drawSupports(c0,c1,r0,r1,now);
   if(cam.y<GROUND*cs+cs) drawGrass();
   if(isRaining()) drawRainOverlay(now);
@@ -1954,7 +2013,7 @@ function render(now,dt){
   } else if(buildMode){
     const hx=S.px+DX[aim], hy=S.py+DY[aim];
     if(hx>=0&&hx<W&&hy>=0&&hy<D){
-      const X=hx*cs, Y=(SKY+hy)*cs, fillable=hy>=-SKYROWS&&cellAt(hx,hy)===EMPTY&&(hy<0||!isFull(hx+hy*W))&&!(hx===S.px&&hy===S.py);
+      const X=hx*cs, Y=(SKY+hy)*cs, fillable=hy>=-SKYROWS&&cellAt(hx,hy)===EMPTY&&(hy<0||buildMaterial!=='water'||!isFull(hx+hy*W))&&!(hx===S.px&&hy===S.py);
       ctx.save();
       if(fillable){ ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(X,Y,cs,cs); }
       ctx.strokeStyle=fillable?'rgba(255,255,255,.95)':'rgba(255,255,255,.35)';
