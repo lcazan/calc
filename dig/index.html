@@ -58,18 +58,27 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #panel{width:clamp(150px,23vw,210px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2.4vh,14px);padding:8px;background:linear-gradient(90deg,#2c1f15,var(--wood) 30%,#33241a);border-left:3px solid var(--wood-ln);overflow-y:auto}
 #upg{width:100%;max-width:168px;border:none;border-radius:14px;padding:9px 6px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 4px 0 #9a6400,inset 0 2px 0 rgba(255,255,255,.5);font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}
 #upg:active{transform:translateY(3px);box-shadow:0 1px 0 #9a6400}
-#findme,#supportbtn{width:100%;max-width:168px;border:none;border-radius:12px;padding:7px 6px;color:#eaf4ff;box-shadow:0 3px 0 #1a3f6b,inset 0 2px 0 rgba(255,255,255,.35);font-size:14px;display:flex;align-items:center;justify-content:center;gap:5px}
+#findme,#supportbtn,#buildbtn{width:100%;max-width:168px;border:none;border-radius:12px;padding:7px 6px;color:#eaf4ff;box-shadow:0 3px 0 #1a3f6b,inset 0 2px 0 rgba(255,255,255,.35);font-size:14px;display:flex;align-items:center;justify-content:center;gap:5px}
 #findme{background:linear-gradient(#4a90d9,#2a63a6)}
 #supportbtn{background:linear-gradient(#8a6a52,#5e4533);color:var(--ink);box-shadow:0 3px 0 #2e2016}
-#findme:active,#supportbtn:active{transform:translateY(2px)}
+#buildbtn{background:linear-gradient(#5cb85c,#3d8b40);box-shadow:0 3px 0 #205e22,inset 0 2px 0 rgba(255,255,255,.35)}
+#buildbtn.on{background:linear-gradient(#e0a838,#b8790f);box-shadow:0 3px 0 #7a4c00,inset 0 2px 0 rgba(255,255,255,.35)}
+#findme:active,#supportbtn:active,#buildbtn:active{transform:translateY(2px)}
+#matpick{display:flex;gap:6px;width:100%;max-width:168px}
+#matpick .buy{flex:1;justify-content:center}
 #pad{--k:min(50px,14vh);display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
 .db{border:none;border-radius:14px;background:linear-gradient(#8a6a52,#5e4533);box-shadow:0 4px 0 #2e2016,inset 0 2px 0 rgba(255,255,255,.2);display:grid;place-items:center;touch-action:none}
 .db svg{width:55%;height:55%;fill:var(--ink)}
 .db.on,.db:active{transform:translateY(3px);box-shadow:0 1px 0 #2e2016;background:linear-gradient(#a07a5c,#6f513b)}
 .db[data-dir="1"] svg{transform:rotate(90deg)} .db[data-dir="2"] svg{transform:rotate(180deg)} .db[data-dir="3"] svg{transform:rotate(-90deg)}
+#pad.buildmode .db{background:linear-gradient(#7fae5a,#4f7d38);box-shadow:0 4px 0 #2e4a20,inset 0 2px 0 rgba(255,255,255,.2)}
+#pad.buildmode .db.on,#pad.buildmode .db:active{background:linear-gradient(#96c473,#628f49)}
 #ring{border-radius:50%;margin:4px;display:grid;place-items:center;background:rgba(0,0,0,.25);position:relative}
 #ring::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--wood)}
 #ring span{position:relative;z-index:1;font-family:'Lilita One','Arial Black',sans-serif;font-size:13px}
+#fillbtn{position:absolute;inset:7px;z-index:2;border:none;border-radius:50%;display:none;place-items:center;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);font-size:1.15em;box-shadow:inset 0 2px 0 rgba(255,255,255,.5)}
+#fillbtn.show{display:grid}
+#fillbtn:active{transform:translateY(2px)}
 
 #modal,#menu,#splash{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
 #splash{z-index:8}
@@ -138,7 +147,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button class="db" data-dir="0" aria-label="Dig up"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
       <span></span>
       <button class="db" data-dir="3" aria-label="Dig left"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
-      <div id="ring"><span id="ringt"></span></div>
+      <div id="ring"><span id="ringt"></span><button id="fillbtn" class="disp" aria-label="Fill the highlighted square">🧱</button></div>
       <button class="db" data-dir="1" aria-label="Dig right"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
       <span></span>
       <button class="db" data-dir="2" aria-label="Dig down"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
@@ -146,6 +155,11 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
     </div>
     <button id="findme" class="disp" aria-label="Center the screen on your miner">📍 Find me</button>
     <button id="supportbtn" class="disp" aria-label="Place a mine support here for 5 coins">🪵 Support · 5</button>
+    <button id="buildbtn" class="disp" aria-label="Switch to build mode">🧱 Build</button>
+    <div id="matpick" hidden>
+      <button id="matdirt" class="buy sm" aria-label="Fill with dirt">🟫 Dirt</button>
+      <button id="matstone" class="buy sm" aria-label="Fill with stone">⬜ Stone</button>
+    </div>
   </div>
 </div>
 
@@ -216,7 +230,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 (()=>{
 const SCREEN_W=14, SCREENS=7, SPAWN_SCREEN=3; // 3 screens left of spawn, 3 right, spawn in the middle
 const W=SCREEN_W*SCREENS, D=160, SKY=3;
-const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10;
+const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10, STONE=13;
 const UP=0, RIGHT=1, DOWN=2, LEFT=3;
 const DX=[0,1,0,-1], DY=[-1,0,1,0];
 const ORES=[
@@ -581,6 +595,7 @@ function drawCell(x,y,now){
     return;
   }
   if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
+  if(v===STONE){ drawRockTexture(X,Y,x,y,'#8f8b86','#a8a49c'); return; }
   const revealed=!!(S.rev[idx]||devReveal);
   ctx.fillStyle=ROWC[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
   for(let k=0;k<5;k++){
@@ -730,17 +745,30 @@ function floater(x,y,text,col){floats.push({x:(x+.5)*cs,y:(SKY+y+.35)*cs,text,co
 
 /* ---------- game logic ---------- */
 let anim=null, queued=null, held=null, modalOpen=false, walkPath=null, followCam=true;
+let buildMode=false, buildMaterial='dirt';
 function toast(msg,ms=1800){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),ms);}
 function moveTo(x,y,now){anim={fx:S.px,fy:S.py,tx:x,ty:y,t0:now,dur:150};S.px=x;S.py=y;reveal(x,y);updateHUD();}
 function pocketAt(idx){for(const pk of S.pockets) if(pk.shell.includes(idx)) return pk.id; return -1;}
-function act(dir){
+// Tapping a direction you're not already facing only turns you that way (and highlights
+// the build-mode target square). Tapping the direction you're already facing confirms the
+// action — walk, dig, or (in build mode) place. Holding a direction down auto-repeats it,
+// but only once it's already confirmed, so a single hold can never sneak past the turn step.
+function pressDir(dir){
   if(modalOpen) return;
   walkPath=null; longPress=null; followCam=true;
-  const now=performance.now();
+  if(dir!==aim){
+    aim=dir;
+    if(dir===LEFT) facing=-1; else if(dir===RIGHT) facing=1;
+    if(S.dig) S.dig=null; // changing direction mid-dig cancels it; this tap only re-aims
+    return;
+  }
   if(dir===LEFT) facing=-1; else if(dir===RIGHT) facing=1;
-  aim=dir;
-  if(S.dig){ if(S.dig.dir===dir) return; S.dig=null; }
+  if(buildMode) buildMove(dir); else doAct(dir);
+}
+function doAct(dir){
+  const now=performance.now();
   if(anim){ queued=dir; return; }
+  if(S.dig){ if(S.dig.dir===dir) return; S.dig=null; }
   const nx=S.px+DX[dir], ny=S.py+DY[dir];
   if(ny<0){ toast("That's the surface up there — dig down!"); return; }
   if(nx<0||nx>=W){ toast('Solid rock wall — try another way'); return; }
@@ -759,7 +787,28 @@ function act(dir){
   }
   else S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000};
 }
-function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; return ROWC[y];}
+// Build mode: confirming a direction just walks you into it (same collision rules as
+// normal movement); it never digs. The square you end up facing is the fill target.
+function buildMove(dir){
+  const now=performance.now();
+  if(anim){ queued=dir; return; }
+  const nx=S.px+DX[dir], ny=S.py+DY[dir];
+  if(ny<0||nx<0||nx>=W) return;
+  const idx=nx+ny*W;
+  if(S.grid[idx]===EMPTY && !S.flooded.has(idx)) moveTo(nx,ny,now);
+}
+function fillHighlighted(){
+  if(!buildMode) return;
+  const hx=S.px+DX[aim], hy=S.py+DY[aim];
+  if(hx<0||hx>=W||hy<0||hy>=D){ toast("Can't fill there."); return; }
+  const idx=hx+hy*W;
+  if(S.grid[idx]!==EMPTY || S.flooded.has(idx)){ toast('That spot is already filled.'); return; }
+  S.grid[idx]=buildMaterial==='stone'?STONE:EARTH;
+  S.rev[idx]=1;
+  dust((hx+.5)*cs,(SKY+hy+.5)*cs, buildMaterial==='stone'?'#9a9691':'#6b4a2e', 10, true);
+  save();
+}
+function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; return ROWC[y];}
 function autoSwitchTool(){
   let best=-1,bestTime=Infinity;
   for(let i=0;i<4;i++){ if(i===S.tool) continue; if(S.dur[i]>0){ const t=curTime(i); if(t<bestTime){bestTime=t;best=i;} } }
@@ -887,8 +936,8 @@ function update(now,dt){
   }
   if(anim&&now-anim.t0>=anim.dur){
     anim=null; const q=queued; queued=null;
-    if(q!==null) act(q);
-    else if(held!==null) act(held);
+    if(q!==null) pressDir(q);
+    else if(held!==null) pressDir(held);
     else if(walkPath&&walkPath.length){
       const [nx,ny]=walkPath.shift();
       if(S.grid[nx+ny*W]===EMPTY && !S.flooded.has(nx+ny*W)) moveTo(nx,ny,now);
@@ -926,6 +975,17 @@ function render(now,dt){
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
   if(cam.y<SKY*cs+cs) drawGrass();
 
+  if(buildMode){
+    const hx=S.px+DX[aim], hy=S.py+DY[aim];
+    if(hx>=0&&hx<W&&hy>=0&&hy<D){
+      const X=hx*cs, Y=(SKY+hy)*cs, fillable=S.grid[hx+hy*W]===EMPTY&&!S.flooded.has(hx+hy*W);
+      ctx.save();
+      if(fillable){ ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(X,Y,cs,cs); }
+      ctx.strokeStyle=fillable?'rgba(255,255,255,.95)':'rgba(255,255,255,.35)';
+      ctx.lineWidth=cs*.07; ctx.strokeRect(X+cs*.035,Y+cs*.035,cs*.93,cs*.93);
+      ctx.restore();
+    }
+  }
   if(S.dig){
     const d=S.dig, p=clamp((now-d.start)/d.dur,0,1), X=d.x*cs, Y=(SKY+d.y)*cs;
     ctx.fillStyle=`rgba(0,0,0,${p*.22})`; ctx.fillRect(X,Y,cs,cs);
@@ -966,7 +1026,9 @@ function updateHUD(){
   ORES.forEach(o=>{const el=$('ri-'+o.id);el.querySelector('b').textContent=S.inv[o.id];el.classList.toggle('zero',!S.inv[o.id]);});
   $('coins').textContent=S.coins;
   $('depth').textContent=S.py+' m';
-  $('toolinfo').textContent=`${TOOLS[S.tool].name}, ${curTime(S.tool)}s per block · Mine ${S.mine}`;
+  $('toolinfo').textContent=buildMode
+    ? `Building with ${buildMaterial==='stone'?'Stone':'Dirt'} · Mine ${S.mine}`
+    : `${TOOLS[S.tool].name}, ${curTime(S.tool)}s per block · Mine ${S.mine}`;
 }
 function renderShop(){
   $('scoins').textContent=S.coins;
@@ -1032,6 +1094,29 @@ $('supportbtn').addEventListener('click',()=>{
   S.coins-=5; S.supports.set(idx,h); save(); updateHUD();
   toast(h>1?`Support placed, reaching ${h} blocks up to the ceiling.`:'Support placed — this stretch is safer now.');
 });
+function setMatBtns(){
+  $('matdirt').classList.toggle('sel',buildMaterial==='dirt');
+  $('matstone').classList.toggle('sel',buildMaterial==='stone');
+}
+function toggleBuildMode(){
+  if(modalOpen) return;
+  buildMode=!buildMode;
+  S.dig=null; held=null; queued=null; walkPath=null;
+  const b=$('buildbtn');
+  b.classList.toggle('on',buildMode);
+  b.textContent=buildMode?'⛏️ Dig':'🧱 Build';
+  b.setAttribute('aria-label',buildMode?'Switch to dig mode':'Switch to build mode');
+  $('matpick').hidden=!buildMode;
+  $('fillbtn').classList.toggle('show',buildMode);
+  $('pad').classList.toggle('buildmode',buildMode);
+  if(buildMode) setMatBtns();
+  updateHUD();
+  toast(buildMode?'Build mode — aim with the arrows, tap the middle to fill':'Back to digging',2400);
+}
+$('buildbtn').addEventListener('click',toggleBuildMode);
+$('matdirt').addEventListener('click',()=>{buildMaterial='dirt';setMatBtns();updateHUD();});
+$('matstone').addEventListener('click',()=>{buildMaterial='stone';setMatBtns();updateHUD();});
+$('fillbtn').addEventListener('click',fillHighlighted);
 $('close').addEventListener('click',closeShop);
 $('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeShop();});
 $('sell').addEventListener('click',e=>{
@@ -1146,6 +1231,7 @@ cv.addEventListener('pointermove',e=>{
   gesture.lastX=e.offsetX; gesture.lastY=e.offsetY;
 });
 function tapToWalk(px,py){
+  if(buildMode) return;
   const gx=Math.floor((px+cam.x)/cs), gyw=Math.floor((py+cam.y)/cs), gy=gyw-SKY;
   if(gx<0||gx>=W||gy<0||gy>=D) return;
   if(gx===S.px&&gy===S.py) return;
@@ -1163,17 +1249,19 @@ function tapToWalk(px,py){
 cv.addEventListener('pointerleave',()=>{longPress=null; gesture=null;});
 document.querySelectorAll('.db').forEach(b=>{
   const d=+b.dataset.dir;
-  b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}held=d;b.classList.add('on');act(d);});
+  b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}held=d;b.classList.add('on');pressDir(d);});
   const up=()=>{if(held===d)held=null;b.classList.remove('on');};
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,up));
-  b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();act(d);}});
+  b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pressDir(d);}});
 });
 const KEYS={ArrowUp:UP,w:UP,W:UP,ArrowRight:RIGHT,d:RIGHT,D:RIGHT,ArrowDown:DOWN,s:DOWN,S:DOWN,ArrowLeft:LEFT,a:LEFT,A:LEFT};
 window.addEventListener('keydown',e=>{
   if(modalOpen){if(e.key==='Escape'){if(!$('modal').hidden)closeShop();else if(!$('menu').hidden)closeMenu();}return;}
   if(e.key==='u'||e.key==='U'){openShop();return;}
+  if(e.key==='b'||e.key==='B'){toggleBuildMode();return;}
+  if((e.key==='f'||e.key==='F')&&buildMode){fillHighlighted();return;}
   const d=KEYS[e.key]; if(d===undefined) return; e.preventDefault();
-  if(e.repeat) return; held=d; act(d);
+  if(e.repeat) return; held=d; pressDir(d);
 });
 window.addEventListener('keyup',e=>{const d=KEYS[e.key];if(d!==undefined&&held===d)held=null;});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
