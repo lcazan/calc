@@ -73,7 +73,15 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #buildbtn.on{background:linear-gradient(#e0a838,#b8790f);box-shadow:0 3px 0 #7a4c00,inset 0 2px 0 rgba(255,255,255,.35)}
 #supportbtn:active,#buildbtn:active{transform:translateY(2px)}
 #matpick{display:flex;gap:6px;width:100%;max-width:168px}
-#matpick .buy{flex:1;justify-content:center}
+#matpick{justify-content:center}
+#matpick[hidden]{display:none}
+.mat{width:34px;height:34px;flex:none;border-radius:8px;border:2px solid #2a1c12;padding:0;box-shadow:0 2px 0 #1a110a}
+.mat.sel{outline:3px solid #fff4e0;outline-offset:1px}
+.mat:active{transform:translateY(2px)}
+.mat[data-mat="dirt"]{background:radial-gradient(circle at 30% 35%,#a97646 0 12%,transparent 13%),radial-gradient(circle at 70% 70%,#6b4a2e 0 10%,transparent 11%),#8b5e37}
+.mat[data-mat="stone"]{background:radial-gradient(ellipse at 35% 35%,#b3afa7 0 18%,transparent 19%),radial-gradient(ellipse at 70% 68%,#a8a49c 0 16%,transparent 17%),#8f8b86}
+.mat[data-mat="water"]{background:repeating-linear-gradient(170deg,transparent 0 6px,rgba(255,255,255,.22) 6px 8px),#1c5f8a}
+.mat[data-mat="glass"]{background:linear-gradient(135deg,transparent 30%,rgba(255,255,255,.75) 32%,transparent 40%,transparent 55%,rgba(255,255,255,.5) 57%,transparent 63%),rgba(190,230,255,.35);border-color:#dff2ff}
 #pad{--k:min(50px,14vh);display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
 .db{border:none;border-radius:14px;background:linear-gradient(#8a6a52,#5e4533);box-shadow:0 4px 0 #2e2016,inset 0 2px 0 rgba(255,255,255,.2);display:grid;place-items:center;touch-action:none}
 .db svg{width:55%;height:55%;fill:var(--ink)}
@@ -163,8 +171,10 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
     <button id="supportbtn" class="disp" aria-label="Place a mine support here for 5 coins">🪵 Support · 5</button>
     <button id="buildbtn" class="disp" aria-label="Switch to build mode">🧱 Build</button>
     <div id="matpick" hidden>
-      <button id="matdirt" class="buy sm" aria-label="Fill with dirt">🟫 Dirt</button>
-      <button id="matstone" class="buy sm" aria-label="Fill with stone">⬜ Stone</button>
+      <button class="mat" data-mat="dirt" aria-label="Dirt"></button>
+      <button class="mat" data-mat="stone" aria-label="Stone"></button>
+      <button class="mat" data-mat="water" aria-label="Water"></button>
+      <button class="mat" data-mat="glass" aria-label="Glass"></button>
     </div>
   </div>
 </div>
@@ -255,8 +265,8 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 <script>
 (()=>{
 const SCREEN_W=14, SCREENS=7, SPAWN_SCREEN=3; // 3 screens left of spawn, 3 right, spawn in the middle
-const W=SCREEN_W*SCREENS, D=160, SKY=3;
-const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10, STONE=13;
+const W=SCREEN_W*SCREENS, D=160, SKY=3, GROUND=SKY+1; // map row 0 is the open air above the grass
+const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10, STONE=13, GLASS=14;
 const UP=0, RIGHT=1, DOWN=2, LEFT=3;
 const DX=[0,1,0,-1], DY=[-1,0,1,0];
 const ORES=[
@@ -535,7 +545,8 @@ function resize(){
   const st=$('stage'); vw=st.clientWidth; vh=st.clientHeight;
   dpr=Math.min(3,window.devicePixelRatio||1);
   cv.width=Math.round(vw*dpr); cv.height=Math.round(vh*dpr); cv.style.width=vw+'px'; cv.style.height=vh+'px';
-  cs=Math.max(16,Math.floor(vh/8.5)); camInit=false;
+  // Block size comes from the screen's short side, so turning the phone doesn't zoom in or out.
+  cs=Math.max(16,Math.floor(Math.min(window.innerWidth,window.innerHeight)/8.5)); camInit=false;
   const pad=$('pad'); const k=parseFloat(getComputedStyle(pad).gridTemplateColumns)||54;
   $('ring').style.width=$('ring').style.height=(k-8)+'px';
 }
@@ -574,7 +585,7 @@ for(let s=0;s<SCREENS;s++){
   }
 }
 function drawSky(now){
-  const gy=SKY*cs, ww=W*cs;
+  const gy=GROUND*cs, ww=W*cs;
   ctx.fillStyle='rgba(255,243,176,.35)'; circ(ctx,ww*.62,gy*.32,cs*.9);
   ctx.fillStyle='#fff3b0'; circ(ctx,ww*.62,gy*.32,cs*.55);
   for(let i=0;i<7;i++){
@@ -630,7 +641,7 @@ function sign(cx,gy){
   ctx.fillStyle='#fff4e0'; ctx.font=`${Math.round(cs*.22)}px "Lilita One","Arial Black",sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('MINE',cx,gy-cs*.6);
 }
 function drawGrass(){
-  const gy=SKY*cs, ww=W*cs;
+  const gy=GROUND*cs, ww=W*cs;
   ctx.fillStyle='#4f9a33'; ctx.fillRect(0,gy-cs*.06,ww,cs*.17);
   ctx.fillStyle='#6fc044'; ctx.fillRect(0,gy-cs*.06,ww,cs*.06);
   ctx.fillStyle='#4f9a33';
@@ -695,6 +706,7 @@ function drawStream(cx,y0,y1,w,now,seed){
   const n=Math.max(1,Math.round(len/(cs*.5)));
   for(let k=0;k<n;k++){ const dy=(now*.4+k*len/n+seed*97)%len; ctx.beginPath(); ctx.ellipse(cx+(k%2?-1:1)*w*.15,y0+dy,Math.max(1.1,cs*.03),cs*.09,0,0,Math.PI*2); ctx.fill(); }
 }
+function openToSky(x,y){ for(let yy=1;yy<=y;yy++) if(S.grid[x+yy*W]!==EMPTY) return false; return true; }
 function drawWaterFlows(c0,c1,r0,r1,now){
   ctx.save();
   // Rain keeps falling down any shaft that's open to the sky, all the way to its bottom or waterline.
@@ -702,8 +714,8 @@ function drawWaterFlows(c0,c1,r0,r1,now){
     ctx.strokeStyle='rgba(205,228,255,.6)'; ctx.lineWidth=Math.max(1,cs*.028); ctx.lineCap='round';
     for(let x=c0;x<=c1;x++){
       if(S.grid[x+W]!==EMPTY || S.mass[x+W]>=W_FULL) continue;
-      const top=SKY*cs, bot=landingY(x,0), len=bot-top; if(len<=0) continue;
-      const n=Math.max(2,Math.round(len/cs*2.2)), X=x*cs;
+      const top=GROUND*cs, bot=landingY(x,0), len=bot-top; if(len<=0) continue;
+      const n=Math.max(3,Math.round(len/cs*3.2)), X=x*cs;
       ctx.beginPath();
       for(let k=0;k<n;k++){
         const px=X+cs*(.12+hsh(x,k,710)*.76), py=top+((hsh(x,k,711)*len+now*cs*.016*(.8+hsh(x,k,712)*.5))%len);
@@ -719,6 +731,7 @@ function drawWaterFlows(c0,c1,r0,r1,now){
     if(!isFalling(i) || isFalling(i-W)) continue; // only start at the top of each fall
     const fromL=x>0 && S.grid[i-1]===EMPTY && S.mass[i-1]>0.0003;
     const fromR=x<W-1 && S.grid[i+1]===EMPTY && S.mass[i+1]>0.0003;
+    if(!fromL && !fromR && openToSky(x,y)) continue; // rain coming straight down a shaft is drawn as rain
     let flow=0; for(let k=0;k<3 && y+k<D;k++) flow=Math.max(flow,S.mass[i+k*W]);
     const w=cs*clamp(.06+flow*1.4,.06,.42), X=x*cs;
     let cx=X+cs/2, y0=(SKY+y)*cs;
@@ -726,7 +739,7 @@ function drawWaterFlows(c0,c1,r0,r1,now){
       const side=fromL?i-1:i+1;
       cx=fromL? X+w/2 : X+cs-w/2;
       y0=(SKY+y+1)*cs-Math.max(.05,Math.min(1,S.mass[side]))*cs; // starts at the level of the water spilling in
-    } else if(y===1 && isRaining()) y0=SKY*cs; // rain pouring in from the surface
+    }
     drawStream(cx,y0,landingY(x,y),w,now,x+y);
   }
   ctx.restore();
@@ -769,6 +782,7 @@ function drawFossil(X,Y,x,y){
 function drawCell(x,y,now){
   const idx=x+y*W, v=S.grid[idx], X=x*cs, Y=(SKY+y)*cs;
   if(v===EMPTY){
+    if(y===0) return; // open air above the grass: the sky is already drawn there
     const wm=S.mass[idx];
     if(wm>=W_FULL){ drawWaterCell(X,Y,x,y,now); return; }
     ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
@@ -782,6 +796,14 @@ function drawCell(x,y,now){
   }
   if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
   if(v===STONE){ drawRockTexture(X,Y,x,y,'#8f8b86','#a8a49c'); return; }
+  if(v===GLASS){ // see-through: the tunnel shows behind a pale pane with a frame and a glint
+    ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
+    ctx.fillStyle='rgba(190,230,255,.22)'; ctx.fillRect(X,Y,cs+.5,cs+.5);
+    ctx.strokeStyle='rgba(225,243,255,.75)'; ctx.lineWidth=Math.max(1,cs*.05); ctx.strokeRect(X+cs*.04,Y+cs*.04,cs*.92,cs*.92);
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=Math.max(1,cs*.04);
+    ctx.beginPath(); ctx.moveTo(X+cs*.22,Y+cs*.55); ctx.lineTo(X+cs*.55,Y+cs*.22); ctx.moveTo(X+cs*.4,Y+cs*.78); ctx.lineTo(X+cs*.78,Y+cs*.4); ctx.stroke();
+    return;
+  }
   const revealed=!!(S.rev[idx]||devReveal);
   ctx.fillStyle=ROWC[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
   for(let k=0;k<5;k++){
@@ -932,6 +954,7 @@ function floater(x,y,text,col){floats.push({x:(x+.5)*cs,y:(SKY+y+.35)*cs,text,co
 /* ---------- game logic ---------- */
 let anim=null, queued=null, held=null, modalOpen=false, walkPath=null, followCam=true;
 let buildMode=false, buildMaterial='dirt';
+const MATNAME={dirt:'Dirt',stone:'Stone',water:'Water',glass:'Glass'};
 function toast(msg,ms=1800){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),ms);}
 function moveTo(x,y,now){anim={fx:S.px,fy:S.py,tx:x,ty:y,t0:now,dur:150};S.px=x;S.py=y;reveal(x,y);updateHUD();}
 function pocketAt(idx){for(const pk of S.pockets) if(pk.shell.includes(idx)) return pk.id; return -1;}
@@ -957,7 +980,7 @@ function doAct(dir){
   if(anim){ queued=dir; return; }
   if(S.dig){ if(S.dig.dir===dir) return; S.dig=null; }
   const nx=S.px+DX[dir], ny=S.py+DY[dir];
-  if(ny<0){ toast("That's the surface up there — dig down!"); return; }
+  if(ny<0){ toast("That's the sky up there — dig down to go underground!"); return; }
   if(nx<0||nx>=W){ toast('Solid rock wall — try another way'); return; }
   const v=S.grid[nx+ny*W];
   if(v===EMPTY){
@@ -988,16 +1011,22 @@ function fillHighlighted(){
   if(!buildMode) return;
   const hx=S.px+DX[aim], hy=S.py+DY[aim];
   if(hx<0||hx>=W||hy<0||hy>=D){ toast("Can't fill there."); return; }
+  if(S.py<=0 || hy<=0){ toast('You can only build underground.'); return; }
   const idx=hx+hy*W;
   if(S.grid[idx]!==EMPTY || isFull(idx)){ toast(isFull(idx)?'That spot is full of water.':'That spot is already filled.'); return; }
   if(idx===S.px+S.py*W){ toast("You're standing there!"); return; }
-  S.grid[idx]=buildMaterial==='stone'?STONE:EARTH;
+  if(buildMaterial==='water'){ // a block's worth of water, which then flows like any other
+    S.mass[idx]+=1; wakeWater();
+    dust((hx+.5)*cs,(SKY+hy+.5)*cs,'#bfe6ff',10,true);
+    save(); return;
+  }
+  S.grid[idx]={stone:STONE,glass:GLASS}[buildMaterial]||EARTH;
   displaceWater(idx);
   S.rev[idx]=1;
-  dust((hx+.5)*cs,(SKY+hy+.5)*cs, buildMaterial==='stone'?'#9a9691':'#6b4a2e', 10, true);
+  dust((hx+.5)*cs,(SKY+hy+.5)*cs,{stone:'#9a9691',glass:'#e6f5ff'}[buildMaterial]||'#6b4a2e',10,true);
   save();
 }
-function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; return ROWC[y];}
+function cellColor(x,y){const v=S.grid[x+y*W],o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; if(v===GLASS)return '#e6f5ff'; return ROWC[y];}
 function autoSwitchTool(){
   let best=-1,bestTime=Infinity;
   for(let i=0;i<4;i++){ if(i===S.tool) continue; if(S.dur[i]>0){ const t=curTime(i); if(t<bestTime){bestTime=t;best=i;} } }
@@ -1307,7 +1336,7 @@ function playerPos(now){
   return [anim.fx+(anim.tx-anim.fx)*e, anim.fy+(anim.ty-anim.fy)*e];
 }
 function drawRainOverlay(now){
-  const bottom=SKY*cs; if(cam.y>=bottom) return;
+  const bottom=GROUND*cs; if(cam.y>=bottom) return;
   const top=cam.y, h=bottom-top, left=cam.x, w=vw;
   ctx.save();
   ctx.fillStyle='rgba(55,70,95,.28)'; ctx.fillRect(left-2,top-2,w+4,h+2); // overcast sky
@@ -1332,7 +1361,7 @@ function render(now,dt){
   if(followCam){ cam.x=(rx+.5)*cs-vw/2; cam.y=(SKY+ry+.5)*cs-vh/2; camInit=true; }
   ctx.translate(-Math.round(cam.x),-Math.round(cam.y));
 
-  const gyl=SKY*cs;
+  const gyl=GROUND*cs;
   if(cam.y<gyl){const g=ctx.createLinearGradient(0,0,0,gyl);g.addColorStop(0,'#58b1ee');g.addColorStop(1,'#c8ebff');ctx.fillStyle=g;ctx.fillRect(cam.x-2,cam.y-2,vw+4,gyl-cam.y+2);}
   ctx.fillStyle='#231f29';
   if(cam.x<0) ctx.fillRect(cam.x-2,Math.max(gyl,cam.y),-cam.x+2,vh+4);
@@ -1343,13 +1372,13 @@ function render(now,dt){
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
   drawWaterFlows(c0,c1,r0,r1,now);
   drawSupports(c0,c1,r0,r1,now);
-  if(cam.y<SKY*cs+cs) drawGrass();
+  if(cam.y<GROUND*cs+cs) drawGrass();
   if(isRaining()) drawRainOverlay(now);
 
   if(buildMode){
     const hx=S.px+DX[aim], hy=S.py+DY[aim];
     if(hx>=0&&hx<W&&hy>=0&&hy<D){
-      const X=hx*cs, Y=(SKY+hy)*cs, fillable=S.grid[hx+hy*W]===EMPTY&&!isFull(hx+hy*W)&&!(hx===S.px&&hy===S.py);
+      const X=hx*cs, Y=(SKY+hy)*cs, fillable=S.py>0&&hy>0&&S.grid[hx+hy*W]===EMPTY&&!isFull(hx+hy*W)&&!(hx===S.px&&hy===S.py);
       ctx.save();
       if(fillable){ ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(X,Y,cs,cs); }
       ctx.strokeStyle=fillable?'rgba(255,255,255,.95)':'rgba(255,255,255,.35)';
@@ -1398,7 +1427,7 @@ function updateHUD(){
   $('coins').textContent=S.coins;
   $('depth').textContent=S.py+' m';
   $('toolinfo').textContent=buildMode
-    ? `Building with ${buildMaterial==='stone'?'Stone':'Dirt'} · Mine ${S.mine}`
+    ? `Building with ${MATNAME[buildMaterial]} · Mine ${S.mine}`
     : `${TOOLS[S.tool].name}, ${curTime(S.tool)}s per block · Mine ${S.mine}`;
 }
 function renderShop(){
@@ -1462,8 +1491,7 @@ $('supportbtn').addEventListener('click',()=>{
   toast(sp.h>1?`Support placed, ${sp.h} blocks from floor to ceiling.`:'Support placed — this stretch is safer now.');
 });
 function setMatBtns(){
-  $('matdirt').classList.toggle('sel',buildMaterial==='dirt');
-  $('matstone').classList.toggle('sel',buildMaterial==='stone');
+  document.querySelectorAll('.mat').forEach(b=>b.classList.toggle('sel',b.dataset.mat===buildMaterial));
 }
 function toggleBuildMode(){
   if(modalOpen) return;
@@ -1481,8 +1509,10 @@ function toggleBuildMode(){
   toast(buildMode?'Build mode — aim with the arrows, tap the middle to fill':'Back to digging',2400);
 }
 $('buildbtn').addEventListener('click',toggleBuildMode);
-$('matdirt').addEventListener('click',()=>{buildMaterial='dirt';setMatBtns();updateHUD();});
-$('matstone').addEventListener('click',()=>{buildMaterial='stone';setMatBtns();updateHUD();});
+$('matpick').addEventListener('click',e=>{
+  const b=e.target.closest('.mat'); if(!b) return;
+  buildMaterial=b.dataset.mat; setMatBtns(); updateHUD(); toast(MATNAME[buildMaterial],1100);
+});
 $('fillbtn').addEventListener('click',fillHighlighted);
 $('close').addEventListener('click',closeShop);
 $('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeShop();});
