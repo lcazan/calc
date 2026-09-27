@@ -118,9 +118,9 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #fillbtn.show{display:flex}
 #fillbtn:active{transform:translateY(2px)}
 
-#modal,#menu,#splash,#pumpmodal,#supportmodal,#matmodal,#coinmodal,#pilemodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
+#modal,#menu,#splash,#pumpmodal,#supportmodal,#matmodal,#coinmodal,#pilemodal,#confirmmodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
 #splash{z-index:8}
-#modal[hidden],#menu[hidden],#splash[hidden],#pumpmodal[hidden],#supportmodal[hidden],#matmodal[hidden],#coinmodal[hidden],#pilemodal[hidden]{display:none}
+#modal[hidden],#menu[hidden],#splash[hidden],#pumpmodal[hidden],#supportmodal[hidden],#matmodal[hidden],#coinmodal[hidden],#pilemodal[hidden],#confirmmodal[hidden]{display:none}
 .buy.sel{outline:3px solid #fff4e0;outline-offset:-3px}
 .sheet{width:min(780px,100%);max-height:100%;overflow:auto;background:linear-gradient(#3a2819,#2a1c12);border:3px solid var(--wood-ln);border-radius:18px;padding:10px 14px 12px;touch-action:pan-y}
 .sheet header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
@@ -303,6 +303,16 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button class="buy sm" data-amt="all" style="flex:1;justify-content:center">All</button>
     </div>
     <button id="coinok" class="buy" style="width:100%;justify-content:center">Use this amount</button>
+  </div>
+</div>
+
+<div id="confirmmodal" hidden>
+  <div class="sheet" style="max-width:320px;text-align:center" role="dialog" aria-label="Confirm">
+    <div id="confirmtext" style="font-weight:800;margin:4px 0 14px"></div>
+    <div style="display:flex;gap:8px">
+      <button id="confirmno" class="buy sm" style="flex:1;justify-content:center;background:#6b5a4b;box-shadow:0 2px 0 #3a2c20">Keep it</button>
+      <button id="confirmyes" class="buy sm" style="flex:1;justify-content:center;background:#c24a3a;box-shadow:0 2px 0 #7a2c20">Remove</button>
+    </div>
   </div>
 </div>
 
@@ -868,8 +878,8 @@ function drawWaterFlows(c0,c1,r0,r1,now){
 }
 // Is there steel at this ¼-position? (a whole steel block counts as steel all over)
 function beamQ(qx,qy,full,code){
-  const cx=Math.floor(qx/4), cy=Math.floor(qy/4); if(cx<0||cx>=W||cy<0||cy>=D) return false;
-  const v=S.grid[cx+cy*W]; if(v===full) return true;
+  const cx=Math.floor(qx/4), cy=Math.floor(qy/4); if(cx<0||cx>=W||cy<-SKYROWS||cy>=D) return false;
+  const v=cellAt(cx,cy); if(v===full) return true;
   return v===PIECES && (S.pieces.get(cx+cy*W)||'')[(qx-cx*4)+(qy-cy*4)*4]===code;
 }
 const steelQ=(qx,qy)=>beamQ(qx,qy,STEEL,'5'), woodQ=(qx,qy)=>beamQ(qx,qy,WOOD,'6');
@@ -1039,10 +1049,41 @@ function drawDoor(X,Y,x,y,closed){
     }
   }
 }
+// One straight run of beam in local coordinates, from x0 to x1 along the x axis, centred on y=0.
+function beamRun(x0,x1,th,capA,capB,pal){
+  const h=th, f=h*.2, w=x1-x0;
+  ctx.fillStyle=pal.web; ctx.fillRect(x0,-h/2+f,w,h-2*f);
+  ctx.fillStyle=pal.fl; ctx.fillRect(x0,-h/2,w,f); ctx.fillRect(x0,h/2-f,w,f);
+  ctx.fillStyle=pal.hi; ctx.fillRect(x0,-h/2,w,Math.max(.8,f*.3)); ctx.fillRect(x0,h/2-f,w,Math.max(.8,f*.3));
+  ctx.fillStyle=pal.cap; const c=Math.max(1.2,h*.08);
+  if(capA) ctx.fillRect(x0,-h/2,c,h); if(capB) ctx.fillRect(x1-c,-h/2,c,h);
+}
+// Beams made of ¼ pieces. Pieces side by side or stacked join as before; pieces touching
+// only corner to corner are joined by a diagonal beam running between their centres.
+function drawBeamPieces(c0,c1,rTop,r1){
+  const q=cs/4, th=q*.78, half=q*Math.SQRT2/2;
+  for(const [idx,str] of S.pieces){
+    if(str.indexOf('5')<0 && str.indexOf('6')<0) continue;
+    const x=keyX(idx), y=keyY(idx); if(x<c0-1||x>c1+1||y<rTop-1||y>r1+1) continue;
+    for(let k=0;k<16;k++){
+      const c=str[k]; if(c!=='5'&&c!=='6') continue;
+      const fq=c==='5'?steelQ:woodQ, pal=c==='6'?BEAM_WOOD:BEAM_STEEL;
+      const qx=x*4+k%4, qy=y*4+((k/4)|0), X=qx*q, Y=SKY*cs+qy*q, cx=X+q/2, cy=Y+q/2;
+      const L=fq(qx-1,qy), R=fq(qx+1,qy), U=fq(qx,qy-1), Dn=fq(qx,qy+1);
+      const diags=[[1,-1],[-1,-1],[1,1],[-1,1]].filter(([dx,dy])=>fq(qx+dx,qy+dy)&&!fq(qx+dx,qy)&&!fq(qx,qy+dy));
+      if(L||R||U||Dn||!diags.length) drawBeam(X,Y,q,L,R,U,Dn,pal);
+      for(const [dx,dy] of diags){ ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.atan2(dy,dx)); beamRun(-q*.05,half+q*.05,th,false,false,pal); ctx.restore(); }
+      if(!(L||R||U||Dn) && diags.length===1){ // the loose end of a diagonal gets a short capped stub
+        const [dx,dy]=diags[0]; ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.atan2(-dy,-dx)); beamRun(-q*.05,q*.42,th,false,true,pal); ctx.restore();
+      }
+    }
+  }
+}
 function drawSkyBlock(x,y){
   const v=cellAt(x,y); if(v===EMPTY) return;
   const X=x*cs, Y=(SKY+y)*cs;
   if(v===STONE){ drawStoneWall(X,Y,x,y); return; }
+  if(v===PIECES){ drawPieces(X,Y,x,y,x+y*W,performance.now()); return; }
   if(v===STEEL||v===WOOD){ const st=(xx,yy)=>cellAt(xx,yy)===v; drawBeam(X,Y,cs,st(x-1,y),st(x+1,y),st(x,y-1),st(x,y+1),v===WOOD?BEAM_WOOD:BEAM_STEEL); return; }
   if(v===GLASS){
     ctx.fillStyle='rgba(190,230,255,.22)'; ctx.fillRect(X,Y,cs+.5,cs+.5);
@@ -1053,6 +1094,20 @@ function drawSkyBlock(x,y){
   }
   ctx.fillStyle=ROWC[0]; ctx.fillRect(X,Y,cs+.5,cs+.5);          // dirt
   for(let k=0;k<5;k++){ ctx.fillStyle=k%2?ROWD[0]:ROWL[0]; const sz=cs*(.05+hsh(x,y,k+9)*.07); rr(ctx,X+hsh(x,y,k)*cs*.86,Y+hsh(x,y,k+5)*cs*.86,sz,sz*.8,sz*.3); }
+}
+// Everything built from ¼ pieces in one square, except beams (drawn later so they can join
+// up across squares, including on the diagonal).
+function drawPieces(X,Y,x,y,idx,now){
+  const str=S.pieces.get(idx)||'', q=cs/4;
+  for(let k=0;k<16;k++){
+    const c=str[k]; if(!c||c==='0'||c==='5'||c==='6') continue;
+    const sx=X+(k%4)*q, sy=Y+((k/4)|0)*q;
+      if(c==='3'){ ctx.fillStyle='#1c5f8a'; ctx.fillRect(sx,sy,q+.5,q+.5); ctx.fillStyle='rgba(255,255,255,.22)'; ctx.fillRect(sx,sy+q*(.3+Math.sin(now*.004+k)*.08),q+.5,Math.max(1,q*.12)); continue; }
+      if(c==='2'){ ctx.fillStyle='#4d4843'; ctx.fillRect(sx,sy,q+.5,q+.5); drawStone1(sx+q/2,sy+q/2,q*.46,q*.4,(hsh(x,y,570+k)-.5)*.5,STONE_COLS[(hsh(x,y,580+k)*STONE_COLS.length)|0]); continue; }
+      ctx.fillStyle=c==='1'?ROWC[Math.max(0,y)]:PIECE_COL[c]; ctx.fillRect(sx,sy,q+.5,q+.5);
+      if(c==='4'){ ctx.strokeStyle='rgba(235,248,255,.8)'; ctx.lineWidth=1; ctx.strokeRect(sx+.5,sy+.5,q-1,q-1); }
+      else { ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(sx,sy+q*.8,q+.5,q*.2); }
+  }
 }
 function drawGrassFloor(X,Y,x,y){
   const g=Y+cs;
@@ -1108,8 +1163,9 @@ function drawCell(x,y,now){
     ctx.fillStyle='rgba(255,255,255,.05)';
     for(let k=0;k<3;k++) ctx.fillRect(X+hsh(x,y,k+10)*cs*.85,Y+hsh(x,y,k+20)*cs*.85,cs*.12,cs*.07);
     const e=cs*.12; ctx.fillStyle='rgba(0,0,0,.35)';
-    if(solidAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(solidAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(solidAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
-    if(solidAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
+    const wallAt=(xx,yy)=>solidAt(xx,yy)&&cellAt(xx,yy)!==PIECES; // pieces only part-fill their square, so no wall shadow
+    if(wallAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(wallAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(wallAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
+    if(wallAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
     if(S.grass.has(idx)) drawGrassFloor(X,Y,x,y);
     if(S.piles.has(idx)) drawCoinPile(X,Y,x,y,S.piles.get(idx),now);
     if(wm>0.004) drawShallowWater(X,Y,x,y,wm,now);
@@ -1124,21 +1180,7 @@ function drawCell(x,y,now){
     drawBeam(X,Y,cs,st(x-1,y),st(x+1,y),st(x,y-1),st(x,y+1),v===WOOD?BEAM_WOOD:BEAM_STEEL);
     return;
   }
-  if(v===PIECES){
-    const str=S.pieces.get(idx)||'', q=cs/4;
-    if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);}
-    for(let k=0;k<16;k++){
-      const c=str[k]; if(!c||c==='0') continue;
-      const sx=X+(k%4)*q, sy=Y+((k/4)|0)*q;
-      if(c==='5'||c==='6'){ const qx=x*4+k%4, qy=y*4+((k/4)|0), fq=c==='5'?steelQ:woodQ; drawBeam(sx,sy,q,fq(qx-1,qy),fq(qx+1,qy),fq(qx,qy-1),fq(qx,qy+1),c==='6'?BEAM_WOOD:BEAM_STEEL); continue; }
-      if(c==='3'){ ctx.fillStyle='#1c5f8a'; ctx.fillRect(sx,sy,q+.5,q+.5); ctx.fillStyle='rgba(255,255,255,.22)'; ctx.fillRect(sx,sy+q*(.3+Math.sin(now*.004+k)*.08),q+.5,Math.max(1,q*.12)); continue; }
-      if(c==='2'){ ctx.fillStyle='#4d4843'; ctx.fillRect(sx,sy,q+.5,q+.5); drawStone1(sx+q/2,sy+q/2,q*.46,q*.4,(hsh(x,y,570+k)-.5)*.5,STONE_COLS[(hsh(x,y,580+k)*STONE_COLS.length)|0]); continue; }
-      ctx.fillStyle=c==='1'?ROWC[y]:PIECE_COL[c]; ctx.fillRect(sx,sy,q+.5,q+.5);
-      if(c==='4'){ ctx.strokeStyle='rgba(235,248,255,.8)'; ctx.lineWidth=1; ctx.strokeRect(sx+.5,sy+.5,q-1,q-1); }
-      else { ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(sx,sy+q*.8,q+.5,q*.2); }
-    }
-    return;
-  }
+  if(v===PIECES){ if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);} drawPieces(X,Y,x,y,idx,now); return; }
   if(v===GLASS){ // see-through: the tunnel (or sky) shows behind a pale pane with a frame and a glint
     if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);}
     ctx.fillStyle='rgba(190,230,255,.22)'; ctx.fillRect(X,Y,cs+.5,cs+.5);
@@ -1349,7 +1391,7 @@ function initQbox(){
 function moveQbox(dir){
   if(!qbox) initQbox();
   const nqx=qbox.qx+DX[dir], nqy=qbox.qy+DY[dir], cx=Math.floor(nqx/4), cy=Math.floor(nqy/4);
-  if(Math.abs(cx-S.px)>1||Math.abs(cy-S.py)>1||cx<0||cx>=W||cy<0||cy>=D) return; // stays within reach
+  if(Math.abs(cx-S.px)>1||Math.abs(cy-S.py)>1||cx<0||cx>=W||cy<-SKYROWS||cy>=D) return; // stays within reach
   qbox.qx=nqx; qbox.qy=nqy;
 }
 function setQuarter(on){
@@ -1394,7 +1436,7 @@ function doAct(dir){
       else toast(ny<0?'Nothing to stand on up there — build a block first.':"That's the sky up there — dig down to go underground!");
       return;
     }
-    if(ny<0){ S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000}; return; }
+    if(ny<0){ S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000/(v0===PIECES?16:1)}; return; }
   }
   const v=S.grid[nx+ny*W];
   if(v===EMPTY){
@@ -1431,8 +1473,8 @@ function buildMove(dir){
 function pieceTarget(){
   if(!qbox) initQbox();
   const cx=Math.floor(qbox.qx/4), cy=Math.floor(qbox.qy/4), sub=(qbox.qx-cx*4)+(qbox.qy-cy*4)*4;
-  const idx=cx+cy*W, v=S.grid[idx];
-  let ok=cy>=0 && !(cy===0&&buildMaterial==='water') && !(S.py<0) && !(cx===S.px&&cy===S.py) && !(buildMaterial==='water'&&isFull(idx));
+  const idx=cx+cy*W, v=cellAt(cx,cy);
+  let ok=cy>=-SKYROWS && !(cy<=0&&buildMaterial==='water') && !(cx===S.px&&cy===S.py) && !(cy>0&&buildMaterial==='water'&&isFull(idx));
   ok=ok&&(v===EMPTY||(v===PIECES&&S.pieces.get(idx)[sub]==='0'));
   return {cx,cy,sub,idx,ok};
 }
@@ -1442,7 +1484,8 @@ function normalizePieceCell(idx){
   const str=S.pieces.get(idx); if(str===undefined) return false;
   if(/[12456]/.test(str)) return false;
   const w=(str.match(/3/g)||[]).length;
-  S.pieces.delete(idx); S.grid[idx]=EMPTY; if(w) S.mass[idx]+=w/16;
+  const y=keyY(idx), x=keyX(idx);
+  S.pieces.delete(idx); setCell(x,y,EMPTY); if(w&&y>0) S.mass[idx]+=w/16;
   wakeWater(); return true;
 }
 // Water pieces inside pieced squares behave like water at ¼ scale: they fall, slide toward
@@ -1490,7 +1533,7 @@ function pieceWaterStep(){
 }
 function placePiece(){
   const t=pieceTarget();
-  if(t.cy===0 && buildMaterial==='water'){ toast('Water up there would just drain away.'); return; }
+  if(t.cy<=0 && buildMaterial==='water'){ toast('Water up there would just drain away.'); return; }
   if(t.cx===S.px&&t.cy===S.py){ toast("You're standing there!"); return; }
   if(!t.ok){ toast('That spot is already filled.'); return; }
   const px=(qbox.qx+.5)*cs/4, py=SKY*cs+(qbox.qy+.5)*cs/4;
@@ -1499,11 +1542,11 @@ function placePiece(){
     else { S.mass[t.idx]+=1/16; wakeWater(); } // open square: it's ordinary water there
     dust(px,py,'#bfe6ff',4,false); save(); return;
   }
-  if(S.grid[t.idx]===EMPTY){ S.grid[t.idx]=PIECES; S.pieces.set(t.idx,'0'.repeat(16)); displaceWater(t.idx); }
+  if(cellAt(t.cx,t.cy)===EMPTY){ setCell(t.cx,t.cy,PIECES); S.pieces.set(t.idx,'0'.repeat(16)); if(t.cy>0) displaceWater(t.idx); }
   const code=PIECE_CODE[buildMaterial], cur=S.pieces.get(t.idx), next=cur.slice(0,t.sub)+code+cur.slice(t.sub+1);
-  if(next===code.repeat(16)){ S.pieces.delete(t.idx); S.grid[t.idx]=FULL_OF[code]; } // a full square of one material becomes a normal block
+  if(next===code.repeat(16)){ S.pieces.delete(t.idx); setCell(t.cx,t.cy,FULL_OF[code]); } // a full square of one material becomes a normal block
   else S.pieces.set(t.idx,next);
-  S.rev[t.idx]=1;
+  if(t.cy>=0) S.rev[t.idx]=1;
   dust(px,py,{stone:'#9a9691',glass:'#e6f5ff',steel:'#aab4bf',wood:'#a26a3a'}[buildMaterial]||'#6b4a2e',4,false);
   save();
 }
@@ -1574,6 +1617,16 @@ function placeDoor(cx,cy){
   dust((cx+.5)*cs,(SKY+cy+.5)*cs,'#9a6638',10,true); save();
   toast('Entrance built — tap it to open or close it.',2200);
 }
+let confirmCb=null;
+function openConfirm(text,yes,cb){ $('confirmtext').textContent=text; $('confirmyes').textContent=yes; confirmCb=cb; $('confirmmodal').hidden=false; modalOpen=true; held=null; }
+function closeConfirm(){ $('confirmmodal').hidden=true; modalOpen=false; confirmCb=null; }
+function removeDoor(i){
+  if(!S.doors.has(i)) return;
+  S.doors.delete(i); if(S.grid[i]===DOOR) S.grid[i]=EMPTY;
+  dust((i%W+.5)*cs,(SKY+((i/W)|0)+.5)*cs,'#9a6638',16,true);
+  wakeWater(); settleSky(); save(); toast('Mine entrance removed.');
+}
+let doorHold=null; // {idx,t0} while a finger is held on an entrance
 function toggleDoor(idx){
   if(S.grid[idx]===DOOR){ S.grid[idx]=EMPTY; wakeWater(); toast('Entrance opened.',1100); }
   else {
@@ -1874,15 +1927,15 @@ function breakSupport(base,h,msg){
 }
 function finishDig(now){
   const d=S.dig; S.dig=null;
-  if(d.y<0){ // a block you built up in the sky
+  if(d.y<0 && cellAt(d.x,d.y)!==PIECES){ // a block you built up in the sky
     const col=cellColor(d.x,0); setSky(d.x,d.y,EMPTY);
     const idx=d.x+d.y*W;
     for(const [base,h0] of [...S.supports]){ const h=h0||1; if(base===idx-W||base-h*W===idx){ S.supports.delete(base); toast('🪵 That support lost its hold and fell.',2200); } }
     dust((d.x+.5)*cs,(SKY+d.y+.5)*cs,col,14,true); settleSky(); save(); return;
   }
-  const idx=d.x+d.y*W, v=S.grid[idx];
+  const idx=d.x+d.y*W, v=cellAt(d.x,d.y);
   const bx=(d.x+.5)*cs, by=(SKY+d.y+.5)*cs;
-  dust(bx,by,ROWC[d.y],14,true);
+  dust(bx,by,ROWC[Math.max(0,d.y)],14,true);
   if(v===WALL && d.breach!=null){ breachPocket(d.breach,d.x,d.y,now); save(); return; }
   if(v===DOOR) S.doors.delete(idx);
   if(v===PIECES){
@@ -1894,7 +1947,7 @@ function finishDig(now){
     }
     if(pick>=0) str=str.slice(0,pick)+'0'+str.slice(pick+1);
     S.pieces.set(idx,str);
-    if(normalizePieceCell(idx)){ if(!isFull(idx)) moveTo(d.x,d.y,now); }
+    if(normalizePieceCell(idx)){ if(d.y>0?!isFull(idx):canEnter(d.x,d.y)) moveTo(d.x,d.y,now); if(d.y<=0) settleSky(); }
     else { if(held===d.dir) setTimeout(()=>{ if(held===d.dir&&!S.dig) doAct(d.dir); },0); }
     save(); return;
   }
@@ -1977,6 +2030,10 @@ function update(now,dt){
   if(S.dig){const p=clamp((now-S.dig.start)/S.dig.dur,0,1);ring.style.background=`conic-gradient(#ffc21a ${p*360}deg, rgba(0,0,0,.3) 0)`;rt.textContent=Math.ceil((1-p)*S.dig.dur/1000)+'s';}
   else if(rt.textContent){ring.style.background='rgba(0,0,0,.25)';rt.textContent='';}
   if(longPress&&now-longPress.t0>=5000){toggleDevReveal();longPress=null;}
+  if(doorHold&&now-doorHold.t0>=3000){
+    const i=doorHold.idx; doorHold=null; if(gesture) gesture.doorDone=true;
+    openConfirm('Remove this mine entrance? You won\u2019t get the coins back.','🪓 Remove',()=>removeDoor(i));
+  }
   updateRain();
   updateWater(dt*1000);
   pieceWaterAcc+=dt*1000; if(pieceWaterAcc>=70){ pieceWaterAcc=0; if(pieceWaterStep() && performance.now()-lastWaterSave>2000){ lastWaterSave=performance.now(); save(); } }
@@ -2048,9 +2105,18 @@ function render(now,dt){
   const c0=Math.max(0,Math.floor(cam.x/cs)), c1=Math.min(W-1,Math.floor((cam.x+vw)/cs));
   const r0=Math.max(0,Math.floor(cam.y/cs)-SKY), r1=Math.min(D-1,Math.floor((cam.y+vh)/cs)-SKY);
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
-  for(let y=Math.max(-SKYROWS,Math.floor(cam.y/cs)-SKY);y<0;y++) for(let x=c0;x<=c1;x++) drawSkyBlock(x,y);
+  const skyTop=Math.max(-SKYROWS,Math.floor(cam.y/cs)-SKY);
+  for(let y=skyTop;y<0;y++) for(let x=c0;x<=c1;x++) drawSkyBlock(x,y);
+  drawBeamPieces(c0,c1,Math.min(skyTop,r0),r1);
   drawWaterFlows(c0,c1,r0,r1,now);
   drawDoors(c0,c1,r0,r1);
+  if(doorHold){ // a ring fills up around the entrance while you hold it
+    const k=clamp((now-doorHold.t0)/3000,0,1), ex=(doorHold.idx%W+.5)*cs, ey=(SKY+((doorHold.idx/W)|0)+.5)*cs;
+    ctx.save(); ctx.lineCap='round';
+    ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.lineWidth=cs*.12; ctx.beginPath(); ctx.arc(ex,ey,cs*.62,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.strokeStyle='#e0563f'; ctx.lineWidth=cs*.08; ctx.beginPath(); ctx.arc(ex,ey,cs*.62,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.restore();
+  }
   drawSupports(c0,c1,r0,r1,now);
   if(cam.y<GROUND*cs+cs) drawGrass();
   if(isRaining()) drawRainOverlay(now);
@@ -2059,17 +2125,20 @@ function render(now,dt){
   if(buildMode && quarterMode){
     const t=pieceTarget(), q=cs/4, X=qbox.qx*q, Y=SKY*cs+qbox.qy*q;
     ctx.save();
-    ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=Math.max(1,cs*.02); ctx.strokeRect(t.cx*cs+.5,(SKY+t.cy)*cs+.5,cs-1,cs-1); // the square it's in
-    if(t.ok){ ctx.fillStyle='rgba(255,255,255,.3)'; ctx.fillRect(X,Y,q,q); }
-    ctx.strokeStyle=t.ok?'rgba(255,255,255,.95)':'rgba(255,255,255,.4)'; ctx.lineWidth=Math.max(1.5,cs*.035); ctx.strokeRect(X+1,Y+1,q-2,q-2);
+    ctx.strokeStyle='rgba(20,12,6,.35)'; ctx.lineWidth=Math.max(2,cs*.045); ctx.strokeRect(t.cx*cs+.5,(SKY+t.cy)*cs+.5,cs-1,cs-1);
+    ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=Math.max(1,cs*.02); ctx.strokeRect(t.cx*cs+.5,(SKY+t.cy)*cs+.5,cs-1,cs-1); // the square it's in
+    if(t.ok){ ctx.fillStyle='rgba(255,255,255,.35)'; ctx.fillRect(X,Y,q,q); }
+    ctx.strokeStyle='rgba(20,12,6,.7)'; ctx.lineWidth=Math.max(3,cs*.07); ctx.strokeRect(X+1,Y+1,q-2,q-2);
+    ctx.strokeStyle=t.ok?'rgba(255,255,255,.98)':'rgba(255,255,255,.45)'; ctx.lineWidth=Math.max(1.5,cs*.035); ctx.strokeRect(X+1,Y+1,q-2,q-2);
     ctx.restore();
   } else if(buildMode){
     const hx=S.px+DX[aim], hy=S.py+DY[aim];
-    if(hx>=0&&hx<W&&hy>=0&&hy<D){
+    if(hx>=0&&hx<W&&hy>=-SKYROWS&&hy<D){
       const X=hx*cs, Y=(SKY+hy)*cs, fillable=hy>=-SKYROWS&&cellAt(hx,hy)===EMPTY&&(hy<0||buildMaterial!=='water'||!isFull(hx+hy*W))&&!(hx===S.px&&hy===S.py);
       ctx.save();
       if(fillable){ ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(X,Y,cs,cs); }
-      ctx.strokeStyle=fillable?'rgba(255,255,255,.95)':'rgba(255,255,255,.35)';
+      ctx.strokeStyle='rgba(20,12,6,.6)'; ctx.lineWidth=cs*.12; ctx.strokeRect(X+cs*.035,Y+cs*.035,cs*.93,cs*.93);
+      ctx.strokeStyle=fillable?'rgba(255,255,255,.95)':'rgba(255,255,255,.4)';
       ctx.lineWidth=cs*.07; ctx.strokeRect(X+cs*.035,Y+cs*.035,cs*.93,cs*.93);
       ctx.restore();
     }
@@ -2216,6 +2285,9 @@ $('coinok').addEventListener('click',()=>{
   $('coinmodal').hidden=true; modalOpen=false; updateHUD(); toast(`Dropping ${coinDrop} coins per pile — aim and tap the middle button.`,2400);
 });
 $('pileleave').addEventListener('click',closePile);
+$('confirmno').addEventListener('click',closeConfirm);
+$('confirmyes').addEventListener('click',()=>{ const cb=confirmCb; closeConfirm(); if(cb) cb(); });
+$('confirmmodal').addEventListener('click',e=>{ if(e.target.id==='confirmmodal'&&performance.now()-lastCanvasTap>500) closeConfirm(); });
 $('piletake').addEventListener('click',pickUpPile);
 $('pilemodal').addEventListener('click',e=>{ if(e.target.id==='pilemodal'&&performance.now()-lastCanvasTap>500) closePile(); });
 $('fillbtn').addEventListener('click',fillHighlighted);
@@ -2434,12 +2506,13 @@ cv.addEventListener('pointerdown',e=>{
   const px=(rx+.5)*cs-cam.x, py=(SKY+ry+.5)*cs-cam.y-cs*.15;
   const onPlayer=Math.hypot(e.offsetX-px,e.offsetY-py)<=cs*1.3;
   gesture={x0:e.offsetX,y0:e.offsetY,lastX:e.offsetX,lastY:e.offsetY,onPlayer,moved:false,t0:now};
+  { const c=tapCell(e.offsetX,e.offsetY); if(c&&c[1]>=0&&S.doors.has(c[0]+c[1]*W)) doorHold={idx:c[0]+c[1]*W,t0:now}; }
   if(onPlayer) longPress={t0:now};
 });
 cv.addEventListener('pointermove',e=>{
   if(!gesture) return;
   const dx=e.offsetX-gesture.lastX, dy=e.offsetY-gesture.lastY;
-  if(!gesture.moved && Math.hypot(e.offsetX-gesture.x0,e.offsetY-gesture.y0)>8){gesture.moved=true; longPress=null;}
+  if(!gesture.moved && Math.hypot(e.offsetX-gesture.x0,e.offsetY-gesture.y0)>8){gesture.moved=true; longPress=null; doorHold=null;}
   if(gesture.moved){
     followCam=false;
     cam.x=clamp(cam.x-dx,-vw*.5,Math.max(-vw*.5,W*cs-vw*.5));
@@ -2479,11 +2552,12 @@ function handleTap(px,py,onPlayer){
 let lastCanvasTap=0;
 ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,e=>{
   longPress=null; lastCanvasTap=performance.now();
-  if(ev==='pointerup'&&gesture&&!gesture.moved&&!modalOpen&&(!gesture.onPlayer||performance.now()-gesture.t0<450))
+  doorHold=null;
+  if(ev==='pointerup'&&gesture&&!gesture.moved&&!gesture.doorDone&&!modalOpen&&(!gesture.onPlayer||performance.now()-gesture.t0<450))
     handleTap(gesture.lastX,gesture.lastY,gesture.onPlayer);
   gesture=null;
 }));
-cv.addEventListener('pointerleave',()=>{longPress=null; gesture=null;});
+cv.addEventListener('pointerleave',()=>{longPress=null; gesture=null; doorHold=null;});
 document.querySelectorAll('.db').forEach(b=>{
   const d=+b.dataset.dir;
   b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}held=d;b.classList.add('on');pressDir(d);});
@@ -2493,7 +2567,7 @@ document.querySelectorAll('.db').forEach(b=>{
 });
 const KEYS={ArrowUp:UP,w:UP,W:UP,ArrowRight:RIGHT,d:RIGHT,D:RIGHT,ArrowDown:DOWN,s:DOWN,S:DOWN,ArrowLeft:LEFT,a:LEFT,A:LEFT};
 window.addEventListener('keydown',e=>{
-  if(modalOpen){if(e.key==='Escape'){if(!$('pilemodal').hidden)closePile();else if(!$('coinmodal').hidden){$('coinmodal').hidden=true;modalOpen=false;}else if(!$('mapmodal').hidden)closeMap();else if(!$('matmodal').hidden)closeMats();else if(!$('pumpmodal').hidden)closePump();else if(!$('supportmodal').hidden)closeSupport();else if(!$('modal').hidden)closeShop();else if(!$('menu').hidden)closeMenu();}return;}
+  if(modalOpen){if(e.key==='Escape'){if(!$('confirmmodal').hidden)closeConfirm();else if(!$('pilemodal').hidden)closePile();else if(!$('coinmodal').hidden){$('coinmodal').hidden=true;modalOpen=false;}else if(!$('mapmodal').hidden)closeMap();else if(!$('matmodal').hidden)closeMats();else if(!$('pumpmodal').hidden)closePump();else if(!$('supportmodal').hidden)closeSupport();else if(!$('modal').hidden)closeShop();else if(!$('menu').hidden)closeMenu();}return;}
   if(e.key==='u'||e.key==='U'){openShop();return;}
   if(e.key==='b'||e.key==='B'){toggleBuildMode();return;}
   if((e.key==='f'||e.key==='F')&&buildMode){fillHighlighted();return;}
