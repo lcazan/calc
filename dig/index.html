@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Deep Dig">
-<title>Nia's Mine</title>
+<title>Neya's Mine</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -177,7 +177,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 <div id="menu" hidden>
   <div class="sheet" style="max-width:360px" role="dialog" aria-label="Menu">
     <header>
-      <h2 class="disp">Nia's Mine</h2>
+      <h2 class="disp">Neya's Mine</h2>
       <button id="menuclose" aria-label="Close">✕</button>
     </header>
     <div style="color:var(--muted);font-size:12px;margin:-6px 0 10px">Menu</div>
@@ -199,7 +199,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 
 <div id="splash" hidden>
   <div class="sheet" style="max-width:380px;text-align:center">
-    <h1 class="disp" style="font-size:32px;margin:0 0 4px">Nia's Mine</h1>
+    <h1 class="disp" style="font-size:32px;margin:0 0 4px">Neya's Mine</h1>
     <div style="color:var(--muted);margin-bottom:14px">Who's digging today?</div>
     <input id="nameinput" type="text" placeholder="Your name" maxlength="16" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--wood-ln);background:#2a1c12;color:var(--ink);font-size:16px;margin-bottom:10px;box-sizing:border-box;text-align:center">
     <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -303,7 +303,7 @@ function genMine(){
   }
   // groundwater pockets, sealed behind an impenetrable rock shell
   const pockets=[];
-  const POCKET_TRIES=Math.round(W*D/200); // roughly one pocket attempt per 200 diggable blocks
+  const POCKET_TRIES=Math.round(W*D/60); // dense enough that a shell wall shows up roughly every ~15-20 blocks you dig
   for(let p=0;p<POCKET_TRIES;p++){
     const py0=ri(15,D-8), px0=ri(2,W-3);
     if(Math.abs(px0-spawnCol)<5) continue;
@@ -668,10 +668,17 @@ function drawMiner(cx,cy,now){
   ctx.fillStyle='#ffd24a'; circ(ctx,-3,-.4,.9); circ(ctx,3,-.4,.9);
   ctx.fillStyle='#f3c69c'; circ(ctx,0,-8.5,6.2);
   ctx.fillStyle='#e7ae84'; circ(ctx,-3.9,-8,1.4); circ(ctx,5.6,-7.6,1.6);
+  if(S.gender==='girl'){ // long light-brown hair framing the face
+    ctx.fillStyle='#a9784a';
+    ctx.beginPath(); ctx.moveTo(-6,-11); ctx.quadraticCurveTo(-9.5,-2,-7.2,4.5); ctx.quadraticCurveTo(-5,4.3,-5.6,-3); ctx.quadraticCurveTo(-5,-9,-6,-11); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(6.5,-11); ctx.quadraticCurveTo(10,-2,7.7,4.5); ctx.quadraticCurveTo(5.5,4.3,6.1,-3); ctx.quadraticCurveTo(5.5,-9,6.5,-11); ctx.closePath(); ctx.fill();
+  }
   ctx.fillStyle='#2a1a10';
   if(now%3400<130) ctx.fillRect(1.8,-9.4,2.6,.8); else ell(ctx,3,-9.2,1.1,1.45);
-  ctx.fillStyle='rgba(230,110,90,.45)'; circ(ctx,1.4,-5.9,1.3);
-  ctx.fillStyle='#6b3d22'; rr(ctx,2.6,-6.2,4.2,1.6,.8);
+  if(S.gender!=='girl'){
+    ctx.fillStyle='rgba(230,110,90,.45)'; circ(ctx,1.4,-5.9,1.3);
+    ctx.fillStyle='#6b3d22'; rr(ctx,2.6,-6.2,4.2,1.6,.8);
+  }
   ctx.fillStyle='#ffc21a'; ctx.beginPath(); ctx.arc(0,-11,6.9,Math.PI,0); ctx.fill(); rr(ctx,-8.2,-11.8,16.4,2.5,1.2);
   if(S.gender==='girl'){ // a small bow tells her apart from across the mine, peeking out under the helmet brim
     ctx.fillStyle='#e0567f';
@@ -1110,9 +1117,9 @@ $('loadinput').addEventListener('change',e=>{
 });
 let quitting=false;
 $('quitbtn').addEventListener('click',()=>{
-  if(!confirm("Quit Nia's Mine? Your progress is saved automatically.")) return;
+  if(!confirm("Quit Neya's Mine? Your progress is saved automatically.")) return;
   save(); quitting=true; closeMenu();
-  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:\'Lilita One\',sans-serif;font-size:22px;color:#fff4e0;background:#23170f;text-align:center;padding:20px">Thanks for playing Nia\'s Mine!<br>You can close this tab now.</div>';
+  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:\'Lilita One\',sans-serif;font-size:22px;color:#fff4e0;background:#23170f;text-align:center;padding:20px">Thanks for playing Neya\'s Mine!<br>You can close this tab now.</div>';
   try{window.close();}catch(e){}
 });
 
