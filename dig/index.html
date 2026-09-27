@@ -934,7 +934,7 @@ function render(now,dt){
         const spx=(sx2+.5)*cs-cam.x, spy=(SKY+sy2+.16)*cs-cam.y;
         if(spx<-rad||spx>vw+rad||spy<-rad||spy>vh+rad) return;
         const gg=ctx.createRadialGradient(spx,spy,0,spx,spy,rad);
-        gg.addColorStop(0,'rgba(0,0,0,.95)'); gg.addColorStop(.7,'rgba(0,0,0,.6)'); gg.addColorStop(1,'rgba(0,0,0,0)');
+        gg.addColorStop(0,'rgba(0,0,0,1)'); gg.addColorStop(.82,'rgba(0,0,0,1)'); gg.addColorStop(1,'rgba(0,0,0,0)');
         ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(spx,spy,rad,0,Math.PI*2); ctx.fill();
       });
       ctx.restore();
