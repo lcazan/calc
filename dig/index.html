@@ -668,16 +668,81 @@ function drawWaterCell(X,Y,x,y,now){
 // falling stream (its width shows how much water is pouring through).
 function drawShallowWater(X,Y,x,y,m,now){
   const below=x+(y+1)*W, falling=y<D-1 && S.grid[below]===EMPTY && S.mass[below]<W_FULL;
-  if(falling){
-    const w=cs*clamp(.07+m*1.6,.07,.6), cx=X+cs/2;
-    ctx.fillStyle='rgba(90,160,225,.8)'; ctx.fillRect(cx-w/2,Y,w,cs+.5);
-    ctx.fillStyle='rgba(215,238,255,.85)';
-    for(let k=0;k<2;k++){ const dy=((now*.35+hsh(x,y,300+k)*cs)%cs); ctx.beginPath(); ctx.ellipse(cx+(k?-1:1)*w*.18,Y+dy,Math.max(1.2,cs*.035),cs*.1,0,0,Math.PI*2); ctx.fill(); }
-    return;
+  if(falling) return; // drawn as part of a continuous stream in drawWaterFlows()
+  // Resting water: the very same animated water as a full block, cropped to the level,
+  // so a rising pool simply reveals more of it.
+  const h=Math.max(cs*.05,Math.min(1,m)*cs), top=Y+cs-h;
+  ctx.save(); ctx.beginPath(); ctx.rect(X,top,cs+.5,Y+cs-top+.5); ctx.clip();
+  drawWaterCell(X,Y,x,y,now);
+  ctx.restore();
+}
+// Posts stand in front of the water; the part below the water line gets a blue tint so
+// it reads as submerged.
+// Where falling water lands: the top of the solid block or full water below it, or the
+// surface of the resting water it's pouring into. Returns a y in world pixels.
+function landingY(x,y){
+  for(let yy=y;;yy++){
+    const nb=x+(yy+1)*W;
+    if(yy+1>=D || S.grid[nb]!==EMPTY || S.mass[nb]>=W_FULL) return (SKY+yy+1)*cs;
+    if(restingCell(nb)) return (SKY+yy+2)*cs-Math.min(1,S.mass[nb])*cs;
   }
-  const h=Math.max(cs*.05,Math.min(1,m)*cs), top=Y+cs-h+Math.sin(now*.003+x*1.3)*cs*.012;
-  ctx.fillStyle='rgba(28,95,138,.85)'; ctx.fillRect(X,top,cs+.5,Y+cs-top+.5);
-  ctx.fillStyle='rgba(255,255,255,.28)'; ctx.fillRect(X,top,cs+.5,Math.max(1,cs*.035));
+}
+const isFalling=i=>S.grid[i]===EMPTY && S.mass[i]>0.0003 && i+W<W*D && S.grid[i+W]===EMPTY && S.mass[i+W]<W_FULL;
+function drawStream(cx,y0,y1,w,now,seed){
+  const len=y1-y0; if(len<=0) return;
+  ctx.fillStyle='rgba(90,160,225,.82)'; rr(ctx,cx-w/2,y0,w,len,Math.min(w/2,cs*.05));
+  ctx.fillStyle='rgba(215,238,255,.85)';
+  const n=Math.max(1,Math.round(len/(cs*.5)));
+  for(let k=0;k<n;k++){ const dy=(now*.4+k*len/n+seed*97)%len; ctx.beginPath(); ctx.ellipse(cx+(k%2?-1:1)*w*.15,y0+dy,Math.max(1.1,cs*.03),cs*.09,0,0,Math.PI*2); ctx.fill(); }
+}
+function drawWaterFlows(c0,c1,r0,r1,now){
+  ctx.save();
+  // Rain keeps falling down any shaft that's open to the sky, all the way to its bottom or waterline.
+  if(isRaining()){
+    ctx.strokeStyle='rgba(205,228,255,.6)'; ctx.lineWidth=Math.max(1,cs*.028); ctx.lineCap='round';
+    for(let x=c0;x<=c1;x++){
+      if(S.grid[x+W]!==EMPTY || S.mass[x+W]>=W_FULL) continue;
+      const top=SKY*cs, bot=landingY(x,0), len=bot-top; if(len<=0) continue;
+      const n=Math.max(2,Math.round(len/cs*2.2)), X=x*cs;
+      ctx.beginPath();
+      for(let k=0;k<n;k++){
+        const px=X+cs*(.12+hsh(x,k,710)*.76), py=top+((hsh(x,k,711)*len+now*cs*.016*(.8+hsh(x,k,712)*.5))%len);
+        ctx.moveTo(px,py); ctx.lineTo(px-cs*.06,Math.min(bot,py+cs*.4));
+      }
+      ctx.stroke();
+    }
+  }
+  // Falling water: one unbroken stream from where it starts to where it lands. Water that
+  // spills over a ledge hugs the wall on the side it came from.
+  for(let y=Math.max(1,r0-2);y<=r1;y++) for(let x=c0;x<=c1;x++){
+    const i=x+y*W;
+    if(!isFalling(i) || isFalling(i-W)) continue; // only start at the top of each fall
+    const fromL=x>0 && S.grid[i-1]===EMPTY && S.mass[i-1]>0.0003;
+    const fromR=x<W-1 && S.grid[i+1]===EMPTY && S.mass[i+1]>0.0003;
+    let flow=0; for(let k=0;k<3 && y+k<D;k++) flow=Math.max(flow,S.mass[i+k*W]);
+    const w=cs*clamp(.06+flow*1.4,.06,.42), X=x*cs;
+    let cx=X+cs/2, y0=(SKY+y)*cs;
+    if(fromL||fromR){
+      const side=fromL?i-1:i+1;
+      cx=fromL? X+w/2 : X+cs-w/2;
+      y0=(SKY+y+1)*cs-Math.max(.05,Math.min(1,S.mass[side]))*cs; // starts at the level of the water spilling in
+    } else if(y===1 && isRaining()) y0=SKY*cs; // rain pouring in from the surface
+    drawStream(cx,y0,landingY(x,y),w,now,x+y);
+  }
+  ctx.restore();
+}
+function drawSupports(c0,c1,r0,r1,now){
+  for(const [idx,h0] of S.supports){
+    const x=idx%W, y=(idx/W)|0, h=h0||1;
+    if(x<c0-1||x>c1+1||y<r0||y-h+1>r1) continue;
+    const X=x*cs, Y=(SKY+y)*cs;
+    drawSupport(X,Y,h);
+    for(let k=0;k<h;k++){
+      const cy=y-k, m=S.mass[x+cy*W]; if(!(m>0.0003)) continue;
+      const lvl=Math.min(1,m), top=(SKY+cy+1)*cs-lvl*cs;
+      ctx.fillStyle='rgba(28,95,138,.5)'; ctx.fillRect(X+cs*.28,top,cs*.44,lvl*cs+.5);
+    }
+  }
 }
 function drawSupport(X,Y,h){
   h=h||1;
@@ -712,8 +777,7 @@ function drawCell(x,y,now){
     const e=cs*.12; ctx.fillStyle='rgba(0,0,0,.35)';
     if(solidAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(solidAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(solidAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
     if(solidAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
-    if(S.supports.has(idx)) drawSupport(X,Y,S.supports.get(idx));
-    if(wm>0.0003) drawShallowWater(X,Y,x,y,wm,now);
+    if(wm>0.004) drawShallowWater(X,Y,x,y,wm,now);
     return;
   }
   if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
@@ -943,18 +1007,19 @@ function autoSwitchTool(){
 function checkCollapse(x,y){
   if(y<=0) return;
   let lo=x,hi=x;
-  while(lo-1>=0 && S.grid[(lo-1)+y*W]===EMPTY && !S.supports.has((lo-1)+y*W) && !isFull((lo-1)+y*W)) lo--;
-  while(hi+1<W && S.grid[(hi+1)+y*W]===EMPTY && !S.supports.has((hi+1)+y*W) && !isFull((hi+1)+y*W)) hi++;
+  while(lo-1>=0 && S.grid[(lo-1)+y*W]===EMPTY && supportAt(lo-1,y)<0 && !isFull((lo-1)+y*W)) lo--;
+  while(hi+1<W && S.grid[(hi+1)+y*W]===EMPTY && supportAt(hi+1,y)<0 && !isFull((hi+1)+y*W)) hi++;
   const len=hi-lo+1;
-  if(len<=5) return;
+  if(len<=5) return false;
   const chance=Math.min(.6,.05*(len-5));
-  if(Math.random()>=chance) return;
+  if(Math.random()>=chance) return false;
   let c,tries=0;
   do{ c=lo+Math.floor(Math.random()*len); tries++; } while(c===S.px&&y===S.py&&tries<20);
-  if(c===S.px&&y===S.py) return;
+  if(c===S.px&&y===S.py) return false;
   const idx=c+y*W, becomesRock=Math.random()<0.2;
   S.grid[idx]=becomesRock?ROCK:EARTH; S.supports.delete(idx); displaceWater(idx);
   toast(becomesRock?'⚠️ The tunnel collapsed — a shifted rock is blocking it now!':'⚠️ Part of the tunnel collapsed behind you — you can dig through it again.',3400);
+  return true;
 }
 // Breaking a pocket's rock shell lets its water out; the simulation takes it from there.
 function breachPocket(pid,x,y,now){
@@ -974,7 +1039,7 @@ function breachPocket(pid,x,y,now){
 // compressed, like real water). So pools fill from the bottom up, spread across floors,
 // rise through U-bends, and drain by themselves the moment you dig a way out. A cell only
 // blocks the miner once it's essentially full; shallow water can be walked through.
-const W_MAX=1, W_COMPRESS=0.02, W_MIN=0.0005, W_MINFLOW=0.01, W_FULL=0.96, W_STEP_MS=8;
+const W_MAX=1, W_COMPRESS=0.02, W_MIN=0.00001, W_MINFLOW=0.01, W_FULL=0.96, W_STEP_MS=8, W_LEVEL=0.12;
 let simAcc=0, newMass=null, waterAwake=true, lastWaterSave=0;
 const isFull=i=>S.mass[i]>=W_FULL;
 const isWet=i=>S.mass[i]>0.04;
@@ -1010,7 +1075,30 @@ function waterStep(){
     }
   }
   for(let i=0;i<W*D;i++){ const v=n[i]; m[i]=v<W_MIN?0:v; }
+  if(any) levelRuns();
   return any;
+}
+// A square of water is "resting" when it sits on something: solid ground or a full square
+// of water. Resting water on the same row, side by side, finds one common level — the total
+// volume divided evenly by the number of squares (1 block over 10 squares = 10% deep).
+// The flow rules alone spread water sideways very slowly over long tunnels; this pass makes
+// the level correct and conserves every drop.
+const restingCell=i=>S.grid[i]===EMPTY && (S.grid[i+W]!==EMPTY || S.mass[i+W]>=W_FULL);
+function levelRuns(){
+  const m=S.mass;
+  for(let y=1;y<D-1;y++){
+    let x=0;
+    while(x<W){
+      if(!restingCell(x+y*W)){ x++; continue; }
+      let x2=x, sum=0;
+      while(x2<W && restingCell(x2+y*W)){ sum+=m[x2+y*W]; x2++; }
+      if(x2-x>1 && sum>0){
+        const avg=sum/(x2-x);
+        for(let k=x;k<x2;k++){ const j=k+y*W; m[j]+=(avg-m[j])*W_LEVEL; }
+      }
+      x=x2;
+    }
+  }
 }
 function wakeWater(){ waterAwake=true; }
 function updateWater(dtMs){
@@ -1130,6 +1218,16 @@ function finishDig(now){
     const el=$('ri-'+o.id); if(el){el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');}
   }
   S.grid[idx]=EMPTY; wakeWater();
+  // Dug out the floor under a support? It topples, and the tunnel it was holding up
+  // gets its usual chance to cave in.
+  if(S.supports.has(idx-W)){
+    const base=idx-W, h=S.supports.get(base)||1, sx=base%W, sy=(base/W)|0;
+    S.supports.delete(base);
+    dust((sx+.5)*cs,(SKY+sy+.5)*cs,'#8a6640',14,true);
+    let fell=false;
+    for(let k=0;k<h && !fell;k++) fell=checkCollapse(sx,sy-k)===true;
+    if(!fell) toast('🪵 You dug out the floor under a support — it toppled over.',2800);
+  }
   moveTo(d.x,d.y,now);
   S.wear[S.tool]++;
   if(S.wear[S.tool]>=33){
@@ -1243,6 +1341,8 @@ function render(now,dt){
   const c0=Math.max(0,Math.floor(cam.x/cs)), c1=Math.min(W-1,Math.floor((cam.x+vw)/cs));
   const r0=Math.max(0,Math.floor(cam.y/cs)-SKY), r1=Math.min(D-1,Math.floor((cam.y+vh)/cs)-SKY);
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
+  drawWaterFlows(c0,c1,r0,r1,now);
+  drawSupports(c0,c1,r0,r1,now);
   if(cam.y<SKY*cs+cs) drawGrass();
   if(isRaining()) drawRainOverlay(now);
 
@@ -1344,23 +1444,22 @@ function setTool(i){
 function openShop(){modalOpen=true;held=null;walkPath=null;$('modal').hidden=false;renderShop();$('close').focus();}
 function closeShop(){modalOpen=false;$('modal').hidden=true;armNew(false);}
 $('upg').addEventListener('click',openShop);
-function supportHeight(x,y){
-  let h=1, cy=y-1;
-  while(cy>=0 && h<8){
-    if(S.grid[x+cy*W]!==EMPTY) return h; // hit a ceiling: the post reaches it
-    h++; cy--;
-  }
-  return null; // no ceiling within range — treat as an open vertical shaft
+// A support always runs from the floor to the ceiling of the space you're in — straight
+// through water, full or not. Returns {base, h}, or null if there's no ceiling above.
+function supportSpan(x,y){
+  let by=y; while(by+1<D && S.grid[x+(by+1)*W]===EMPTY) by++;
+  let h=1, cy=by-1;
+  while(cy>=1 && h<24){ if(S.grid[x+cy*W]!==EMPTY) return {base:x+by*W,h}; h++; cy--; }
+  return null; // reaches the surface: an open shaft
 }
 $('supportbtn').addEventListener('click',()=>{
-  const idx=S.px+S.py*W;
   if(S.py<=0){toast("You're on the surface — no support needed here."); return;}
-  if(S.supports.has(idx)){toast('Already supported here.'); return;}
-  const h=supportHeight(S.px,S.py);
-  if(h===null){toast("This looks like an open vertical shaft — supports only work where there's a ceiling."); return;}
+  if(supportAt(S.px,S.py)>=0){toast('Already supported here.'); return;}
+  const sp=supportSpan(S.px,S.py);
+  if(!sp){toast("This looks like an open vertical shaft — supports only work where there's a ceiling."); return;}
   if(S.coins<5){toast('Not enough coins.'); return;}
-  S.coins-=5; S.supports.set(idx,h); save(); updateHUD();
-  toast(h>1?`Support placed, reaching ${h} blocks up to the ceiling.`:'Support placed — this stretch is safer now.');
+  S.coins-=5; S.supports.set(sp.base,sp.h); save(); updateHUD();
+  toast(sp.h>1?`Support placed, ${sp.h} blocks from floor to ceiling.`:'Support placed — this stretch is safer now.');
 });
 function setMatBtns(){
   $('matdirt').classList.toggle('sel',buildMaterial==='dirt');
