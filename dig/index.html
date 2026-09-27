@@ -439,22 +439,32 @@ function newGame(keep,sameMine){
      dur:keep?keep.dur:[1,0,0,0], wear:keep?keep.wear:[0,0,0,0], detectLvl:keep?keep.detectLvl:0,
      name:keep?keep.name:'', gender:keep?keep.gender:'boy',
      mine:keep?(sameMine?(keep.mine||1):(keep.mine||1)+1):1,
-     pockets, flooded:new Set(), water:new Map(), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
+     pockets, mass:new Float32Array(W*D), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
      nextRainAt:keep&&keep.nextRainAt?keep.nextRainAt:Date.now()+RAIN_INTERVAL_MS, rain:null,
      dig:null};
-  reveal(sx,0); anim=null; walkPath=null; streams=[]; rainParts=[]; followCam=true; camInit=false; save();
+  reveal(sx,0); anim=null; walkPath=null; wakeWater(); followCam=true; camInit=false; save();
 }
 let lastSavePayload=null;
 // One character per cell (value + 48). Joining the raw numbers — what older versions did —
 // turned two-digit blocks (walls, silver, platinum, stone) into two characters, so the map
 // could never be read back and got regenerated on every load.
+function encodeMass(){ const out=[]; for(let i=0;i<W*D;i++){ const v=S.mass[i]; if(v>0.001) out.push([i,Math.round(v*1000)/1000]); } return out; }
+function decodeMass(d){
+  const m=new Float32Array(W*D), put=(i,v)=>{ if(Number.isInteger(i)&&i>=0&&i<W*D&&v>0) m[i]=Math.min(2,v); };
+  if(Array.isArray(d.mass)) d.mass.forEach(e=>Array.isArray(e)&&put(e[0],+e[1]));
+  else { // older saves: a list of full squares, plus (briefly) a list of partly filled ones
+    (d.flooded||[]).forEach(i=>put(i,1));
+    if(Array.isArray(d.water)) d.water.forEach(e=>Array.isArray(e)&&put(e[0],+e[1]));
+  }
+  return m;
+}
 function encodeCells(a){ let out=''; for(let i=0;i<a.length;i+=4096) out+=String.fromCharCode.apply(null,Array.from(a.subarray(i,i+4096),v=>48+v)); return out; }
 async function save(){
   const payload={
     v:1,g:encodeCells(S.grid),r:encodeCells(S.rev),
     px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
     dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine,
-    pockets:S.pockets,flooded:[...S.flooded],water:[...S.water.entries()].map(([i,l])=>[i,Math.round(l*1000)/1000]),supports:[...S.supports.entries()],fossils:[...S.fossils],
+    pockets:S.pockets,mass:encodeMass(),supports:[...S.supports.entries()],fossils:[...S.fossils],
     nextRainAt:S.nextRainAt,rain:S.rain
   };
   lastSavePayload=payload;
@@ -493,18 +503,17 @@ function applySave(d){try{
   const g=new Uint8Array(W*D), r=new Uint8Array(W*D), rs=typeof d.r==='string'&&d.r.length===W*D?d.r:null;
   for(let i=0;i<W*D;i++){ const v=d.g.charCodeAt(i)-48; g[i]=v>=0&&v<=40?v:EARTH; r[i]=rs?(rs.charCodeAt(i)-48?1:0):0; }
   let rain=d.rain||null;
-  if(rain && (!rain.flows||typeof rain.flows!=='object')) rain={startAt:rain.startAt||Date.now(),duration:rain.duration||0,flows:{},stopped:false};
+  if(rain) rain={startAt:+rain.startAt||Date.now(),duration:+rain.duration||0};
   S={grid:g,rev:r,px:clamp(d.px|0,0,W-1),py:clamp(d.py|0,0,D-1),
      inv:keep.inv,coins:keep.coins,tool:keep.tool,owned:keep.owned,dur:keep.dur,wear:keep.wear,detectLvl:keep.detectLvl,
      name:keep.name,gender:keep.gender,mine:keep.mine,
-     pockets:d.pockets||[], flooded:new Set(d.flooded||[]), water:new Map(Array.isArray(d.water)?d.water:[]), supports:new Map((d.supports||[]).map(e=>Array.isArray(e)?e:[e,1])),
+     pockets:d.pockets||[], mass:decodeMass(d), supports:new Map((d.supports||[]).map(e=>Array.isArray(e)?e:[e,1])),
      fossils:new Set(d.fossils||[]),
      nextRainAt:d.nextRainAt||(Date.now()+RAIN_INTERVAL_MS), rain,
      dig:null};
   if(S.grid[S.px+S.py*W]!==EMPTY) S.grid[S.px+S.py*W]=EMPTY; // never load the miner inside solid ground
-  sanitizeFlooded();
-  anim=null; walkPath=null; queued=null; held=null; streams=[]; rainParts=[];
-  if(S.rain) refreshStreams();
+  sanitizeWater();
+  anim=null; walkPath=null; queued=null; held=null; wakeWater();
   return true;
 }catch(e){ console.warn('Could not read save:',e); return false; }}
 
@@ -655,8 +664,18 @@ function drawWaterCell(X,Y,x,y,now){
     ctx.lineTo(X+cs,wy+cs*.15); ctx.lineTo(X,wy+cs*.15); ctx.fill();
   }
 }
-function drawShallowWater(X,Y,x,y,lvl,now){
-  const h=Math.max(cs*.06,lvl*cs), top=Y+cs-h+Math.sin(now*.003+x*1.3)*cs*.012;
+// Partly filled square: a layer on the floor if it's resting on something, otherwise a
+// falling stream (its width shows how much water is pouring through).
+function drawShallowWater(X,Y,x,y,m,now){
+  const below=x+(y+1)*W, falling=y<D-1 && S.grid[below]===EMPTY && S.mass[below]<W_FULL;
+  if(falling){
+    const w=cs*clamp(.07+m*1.6,.07,.6), cx=X+cs/2;
+    ctx.fillStyle='rgba(90,160,225,.8)'; ctx.fillRect(cx-w/2,Y,w,cs+.5);
+    ctx.fillStyle='rgba(215,238,255,.85)';
+    for(let k=0;k<2;k++){ const dy=((now*.35+hsh(x,y,300+k)*cs)%cs); ctx.beginPath(); ctx.ellipse(cx+(k?-1:1)*w*.18,Y+dy,Math.max(1.2,cs*.035),cs*.1,0,0,Math.PI*2); ctx.fill(); }
+    return;
+  }
+  const h=Math.max(cs*.05,Math.min(1,m)*cs), top=Y+cs-h+Math.sin(now*.003+x*1.3)*cs*.012;
   ctx.fillStyle='rgba(28,95,138,.85)'; ctx.fillRect(X,top,cs+.5,Y+cs-top+.5);
   ctx.fillStyle='rgba(255,255,255,.28)'; ctx.fillRect(X,top,cs+.5,Math.max(1,cs*.035));
 }
@@ -685,7 +704,8 @@ function drawFossil(X,Y,x,y){
 function drawCell(x,y,now){
   const idx=x+y*W, v=S.grid[idx], X=x*cs, Y=(SKY+y)*cs;
   if(v===EMPTY){
-    if(S.flooded.has(idx)){ drawWaterCell(X,Y,x,y,now); return; }
+    const wm=S.mass[idx];
+    if(wm>=W_FULL){ drawWaterCell(X,Y,x,y,now); return; }
     ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
     ctx.fillStyle='rgba(255,255,255,.05)';
     for(let k=0;k<3;k++) ctx.fillRect(X+hsh(x,y,k+10)*cs*.85,Y+hsh(x,y,k+20)*cs*.85,cs*.12,cs*.07);
@@ -693,8 +713,7 @@ function drawCell(x,y,now){
     if(solidAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(solidAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(solidAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
     if(solidAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
     if(S.supports.has(idx)) drawSupport(X,Y,S.supports.get(idx));
-    const lvl=S.water.get(idx);
-    if(lvl) drawShallowWater(X,Y,x,y,lvl,now);
+    if(wm>0.0003) drawShallowWater(X,Y,x,y,wm,now);
     return;
   }
   if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
@@ -858,6 +877,7 @@ function pocketAt(idx){for(const pk of S.pockets) if(pk.shell.includes(idx)) ret
 // but only once it's already confirmed, so a single hold can never sneak past the turn step.
 function pressDir(dir){
   if(modalOpen) return;
+  if(walkPath&&walkPath.swim) return;
   walkPath=null; longPress=null; followCam=true;
   if(dir!==aim){
     aim=dir;
@@ -877,7 +897,7 @@ function doAct(dir){
   if(nx<0||nx>=W){ toast('Solid rock wall — try another way'); return; }
   const v=S.grid[nx+ny*W];
   if(v===EMPTY){
-    if(S.flooded.has(nx+ny*W)){ toast('Flooded — pump the water out first'); return; }
+    if(isFull(nx+ny*W)){ toast('Flooded — tap the water to pump it out'); return; }
     moveTo(nx,ny,now);
   }
   else if(v===BEDROCK) toast("Bedrock — nothing can dig through that");
@@ -898,16 +918,17 @@ function buildMove(dir){
   const nx=S.px+DX[dir], ny=S.py+DY[dir];
   if(ny<0||nx<0||nx>=W) return;
   const idx=nx+ny*W;
-  if(S.grid[idx]===EMPTY && !S.flooded.has(idx)) moveTo(nx,ny,now);
+  if(S.grid[idx]===EMPTY && !isFull(idx)) moveTo(nx,ny,now);
 }
 function fillHighlighted(){
   if(!buildMode) return;
   const hx=S.px+DX[aim], hy=S.py+DY[aim];
   if(hx<0||hx>=W||hy<0||hy>=D){ toast("Can't fill there."); return; }
   const idx=hx+hy*W;
-  if(S.grid[idx]!==EMPTY || S.flooded.has(idx)){ toast('That spot is already filled.'); return; }
-  S.water.delete(idx);
+  if(S.grid[idx]!==EMPTY || isFull(idx)){ toast(isFull(idx)?'That spot is full of water.':'That spot is already filled.'); return; }
+  if(idx===S.px+S.py*W){ toast("You're standing there!"); return; }
   S.grid[idx]=buildMaterial==='stone'?STONE:EARTH;
+  displaceWater(idx);
   S.rev[idx]=1;
   dust((hx+.5)*cs,(SKY+hy+.5)*cs, buildMaterial==='stone'?'#9a9691':'#6b4a2e', 10, true);
   save();
@@ -922,8 +943,8 @@ function autoSwitchTool(){
 function checkCollapse(x,y){
   if(y<=0) return;
   let lo=x,hi=x;
-  while(lo-1>=0 && S.grid[(lo-1)+y*W]===EMPTY && !S.supports.has((lo-1)+y*W) && !S.flooded.has((lo-1)+y*W)) lo--;
-  while(hi+1<W && S.grid[(hi+1)+y*W]===EMPTY && !S.supports.has((hi+1)+y*W) && !S.flooded.has((hi+1)+y*W)) hi++;
+  while(lo-1>=0 && S.grid[(lo-1)+y*W]===EMPTY && !S.supports.has((lo-1)+y*W) && !isFull((lo-1)+y*W)) lo--;
+  while(hi+1<W && S.grid[(hi+1)+y*W]===EMPTY && !S.supports.has((hi+1)+y*W) && !isFull((hi+1)+y*W)) hi++;
   const len=hi-lo+1;
   if(len<=5) return;
   const chance=Math.min(.6,.05*(len-5));
@@ -932,181 +953,134 @@ function checkCollapse(x,y){
   do{ c=lo+Math.floor(Math.random()*len); tries++; } while(c===S.px&&y===S.py&&tries<20);
   if(c===S.px&&y===S.py) return;
   const idx=c+y*W, becomesRock=Math.random()<0.2;
-  S.grid[idx]=becomesRock?ROCK:EARTH; S.supports.delete(idx);
+  S.grid[idx]=becomesRock?ROCK:EARTH; S.supports.delete(idx); displaceWater(idx);
   toast(becomesRock?'⚠️ The tunnel collapsed — a shifted rock is blocking it now!':'⚠️ Part of the tunnel collapsed behind you — you can dig through it again.',3400);
 }
-function nearestSafe(startIdx){
-  if(!S.flooded.has(startIdx)) return startIdx;
-  const seen=new Set([startIdx]), q=[startIdx]; let qi=0;
-  while(qi<q.length && qi<4000){
-    const cur=q[qi++], cx=cur%W, cy=(cur/W)|0;
-    for(let d2=0;d2<4;d2++){
-      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
-      const ni=nx+ny*W; if(seen.has(ni)||S.grid[ni]!==EMPTY) continue;
-      seen.add(ni);
-      if(!S.flooded.has(ni)) return ni;
-      q.push(ni);
-    }
-  }
-  return startIdx;
-}
+// Breaking a pocket's rock shell lets its water out; the simulation takes it from there.
 function breachPocket(pid,x,y,now){
   const pk=S.pockets[pid]; if(!pk||pk.breached) return;
   pk.breached=true;
-  const breachIdx=x+y*W;
-  S.grid[breachIdx]=EMPTY;
-  const pocketSet=new Set(pk.cells);
-  const flood=[breachIdx], seen=new Set(flood); let qi=0;
-  while(qi<flood.length && flood.length<pk.cells.length){
-    const cur=flood[qi++], cx=cur%W, cy=(cur/W)|0;
-    for(let d2=0;d2<4;d2++){
-      if(flood.length>=pk.cells.length) break;
-      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
-      const ni=nx+ny*W; if(seen.has(ni)||pocketSet.has(ni)||S.grid[ni]!==EMPTY) continue;
-      seen.add(ni); flood.push(ni);
+  S.grid[x+y*W]=EMPTY;
+  const oreSet=new Set(pk.ore.map(o=>o.x+o.y*W));
+  pk.cells.forEach(i=>{ if(!oreSet.has(i)){ S.grid[i]=EMPTY; S.mass[i]=W_MAX; } });
+  pk.cells.forEach(i=>S.rev[i]=1); pk.shell.forEach(i=>S.rev[i]=1);
+  wakeWater();
+  toast('💧 You broke into a water pocket! Tap the water to pump it out.',4200);
+}
+/* ---------- water: cell-based flow simulation ---------- */
+// Every open cell holds some amount of water (S.mass; 1 = a full block). Over a hundred
+// times a second, water flows down into the cell below, levels out with its left and right
+// neighbours, and gets pushed up by pressure from below (a full column is very slightly
+// compressed, like real water). So pools fill from the bottom up, spread across floors,
+// rise through U-bends, and drain by themselves the moment you dig a way out. A cell only
+// blocks the miner once it's essentially full; shallow water can be walked through.
+const W_MAX=1, W_COMPRESS=0.02, W_MIN=0.0005, W_MINFLOW=0.01, W_FULL=0.96, W_STEP_MS=8;
+let simAcc=0, newMass=null, waterAwake=true, lastWaterSave=0;
+const isFull=i=>S.mass[i]>=W_FULL;
+const isWet=i=>S.mass[i]>0.04;
+const waterOpen=i=>i>=W && i<W*D && S.grid[i]===EMPTY; // the surface row drains away, water never sits there
+function stableState(total){
+  if(total<=W_MAX) return W_MAX;
+  if(total<2*W_MAX+W_COMPRESS) return (W_MAX*W_MAX+total*W_COMPRESS)/(W_MAX+W_COMPRESS);
+  return (total+W_COMPRESS)/2;
+}
+function waterStep(){
+  const m=S.mass, n=newMass; n.set(m);
+  let any=false;
+  for(let i=W;i<W*D;i++){
+    let rem=m[i]; if(rem<=0) continue;
+    any=true;
+    if(S.grid[i]!==EMPTY){ n[i]=0; continue; }
+    const x=i%W, b=i+W, u=i-W;
+    if(waterOpen(b)){ // down
+      let f=stableState(rem+m[b])-m[b]; if(f>W_MINFLOW) f*=.5; f=clamp(f,0,Math.min(1,rem));
+      n[i]-=f; n[b]+=f; rem-=f; if(rem<=0) continue;
+    }
+    if(x>0 && waterOpen(i-1)){ // left
+      let f=(m[i]-m[i-1])/4; if(f>W_MINFLOW) f*=.5; f=clamp(f,0,rem);
+      n[i]-=f; n[i-1]+=f; rem-=f; if(rem<=0) continue;
+    }
+    if(x<W-1 && waterOpen(i+1)){ // right
+      let f=(m[i]-m[i+1])/4; if(f>W_MINFLOW) f*=.5; f=clamp(f,0,rem);
+      n[i]-=f; n[i+1]+=f; rem-=f; if(rem<=0) continue;
+    }
+    if(waterOpen(u)){ // up, only under pressure
+      let f=rem-stableState(rem+m[u]); if(f>W_MINFLOW) f*=.5; f=clamp(f,0,Math.min(1,rem));
+      n[i]-=f; n[u]+=f;
     }
   }
-  flood.forEach(i=>S.flooded.add(i));
-  pk.floodedCells=flood;
-  const oreSet=new Set(pk.ore.map(o=>o.x+o.y*W));
-  pk.cells.forEach(i=>{ if(!oreSet.has(i)) S.grid[i]=EMPTY; });
-  pk.cells.forEach(i=>S.rev[i]=1); pk.shell.forEach(i=>S.rev[i]=1);
-  const safe=nearestSafe(S.px+S.py*W);
-  if(safe!==S.px+S.py*W){ moveTo(safe%W,(safe/W)|0,now); }
-  toast(`💧 Breached a water pocket! ${flood.length} square${flood.length===1?'':'s'} flooded — tap the water to pump it out.`,4200);
+  for(let i=0;i<W*D;i++){ const v=n[i]; m[i]=v<W_MIN?0:v; }
+  return any;
 }
-/* ---------- rain & flooding ---------- */
-// While it rains, every open shaft entrance carries a steady stream of water. The stream
-// follows gravity (down first, then sideways; uphill only through water that has already
-// pooled, so pools level out) to the deepest dry spot it can reach — at equal depth, the
-// farthest one, so dead-end tunnels fill from the far end back. Once water reaches that
-// spot, every 5 s of flow fills one square. A rain lasting N seconds therefore gives each
-// entrance floor(N/5) squares of water, fixed the moment the rain starts.
-const FALL_MS_PER_CELL=70, FLOW_MS_PER_CELL=170, SKY_FALL_MS=260;
-let streams=[], rainParts=[], lastStreamRefresh=0, lastPartSpawn=0;
+function wakeWater(){ waterAwake=true; }
+function updateWater(dtMs){
+  if(!newMass||newMass.length!==W*D) newMass=new Float32Array(W*D);
+  const raining=isRaining();
+  if(!waterAwake && !raining){ simAcc=0; return; }
+  simAcc=Math.min(simAcc+dtMs,W_STEP_MS*12);
+  const perStep=W_STEP_MS/RAIN_DROP_EVERY_MS; // each open shaft takes in one block of water every 5 s of rain
+  let any=false;
+  while(simAcc>=W_STEP_MS){
+    simAcc-=W_STEP_MS;
+    if(raining) for(let x=0;x<W;x++){ const i=x+W; if(S.grid[i]===EMPTY && S.mass[i]<W_MAX) S.mass[i]=Math.min(W_MAX,S.mass[i]+perStep); }
+    any=waterStep()||any;
+  }
+  if(!any && !raining) waterAwake=false;
+  if(any && performance.now()-lastWaterSave>3000){ lastWaterSave=performance.now(); save(); }
+}
+// When a cell turns solid (building, a collapse), its water is pushed out rather than lost.
+function displaceWater(idx){
+  const v=S.mass[idx]; if(!(v>0)) return;
+  S.mass[idx]=0;
+  for(const j of [idx-W,idx-1,idx+1,idx+W]) if(waterOpen(j)){ S.mass[j]+=v; break; }
+  wakeWater();
+}
+// If the miner ends up inside a completely flooded square, he swims along the tunnel to
+// the nearest square that still has air in it.
+function swimOut(){
+  const start=S.px+S.py*W; if(!isFull(start)) return;
+  const prev=new Int32Array(W*D).fill(-1), seen=new Uint8Array(W*D); seen[start]=1;
+  const q=[start]; let qi=0, goal=-1;
+  while(qi<q.length){
+    const cur=q[qi++]; if(!isFull(cur)){ goal=cur; break; }
+    const cx=cur%W, cy=(cur/W)|0;
+    for(let d2=0;d2<4;d2++){
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(seen[ni]||S.grid[ni]!==EMPTY) continue;
+      seen[ni]=1; prev[ni]=cur; q.push(ni);
+    }
+  }
+  if(goal<0) return;
+  const path=[]; for(let c=goal;c!==start;c=prev[c]) path.push([c%W,(c/W)|0]); path.reverse();
+  S.dig=null; held=null; queued=null;
+  walkPath=path; walkPath.swim=true; followCam=true;
+  if(!anim && walkPath.length){ const [nx,ny]=walkPath.shift(); moveTo(nx,ny,performance.now()); anim.dur=110; }
+  if(!walkPath.length) walkPath=null;
+  toast('💦 Swimming to the nearest air!',1600);
+}
+/* ---------- rain ---------- */
 function rainEndAt(){ return S.rain? S.rain.startAt+S.rain.duration : 0; }
 function isRaining(){ return !!S.rain && Date.now()<rainEndAt(); }
-function rainEntrances(){ const cols=[]; for(let x=0;x<W;x++) if(S.grid[x+W]===EMPTY) cols.push(x); return cols; }
 function startRain(){
-  const now=Date.now(), duration=Math.round(RAIN_MIN_MS+Math.random()*(RAIN_MAX_MS-RAIN_MIN_MS));
-  S.rain={startAt:now,duration,flows:{},stopped:false};
-  refreshStreams();
+  S.rain={startAt:Date.now(),duration:Math.round(RAIN_MIN_MS+Math.random()*(RAIN_MAX_MS-RAIN_MIN_MS))};
+  wakeWater();
   toast('🌧️ It started raining — water is running into your shafts!',2800);
   save();
-}
-function findFlowPath(startIdx){
-  if(S.grid[startIdx]!==EMPTY) return null;
-  const N=W*D, seen=new Uint8Array(N), prev=new Int32Array(N).fill(-1), dist=new Int32Array(N);
-  seen[startIdx]=1;
-  const q=[startIdx]; let qi=0, best=-1, bestY=-1, bestDist=-1;
-  while(qi<q.length && qi<8000){
-    const cur=q[qi++], cx=cur%W, cy=(cur/W)|0, wet=S.flooded.has(cur);
-    if(!wet && (cy>bestY || (cy===bestY && dist[cur]>bestDist))){ best=cur; bestY=cy; bestDist=dist[cur]; }
-    for(let d2=0;d2<4;d2++){
-      if(d2===UP && !wet) continue; // water never climbs, except rising through its own pool
-      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<1||ny>=D) continue;
-      const ni=nx+ny*W; if(seen[ni]||S.grid[ni]!==EMPTY) continue;
-      seen[ni]=1; prev[ni]=cur; dist[ni]=dist[cur]+1; q.push(ni);
-    }
-  }
-  if(best<0) return null; // everything reachable is already under water
-  const cells=[]; for(let c=best;c!==-1;c=prev[c]) cells.push(c); cells.reverse();
-  // Visual route: fall out of the sky, through the surface row, then follow the cells.
-  const x0=startIdx%W, pts=[[x0,-2.2],[x0,0]], times=[0,SKY_FALL_MS];
-  let t=SKY_FALL_MS, px=x0, py=0;
-  cells.forEach(c=>{ const cx=c%W, cy=(c/W)|0; t+= (cx===px? FALL_MS_PER_CELL*Math.abs(cy-py) : FLOW_MS_PER_CELL); pts.push([cx,cy]); times.push(t); px=cx; py=cy; });
-  return {target:best,pts,times,travelMs:t};
-}
-function refreshStreams(){
-  lastStreamRefresh=performance.now();
-  if(!S.rain) { streams=[]; return; }
-  const now=Date.now(), end=rainEndAt();
-  if(now<end) for(const x of rainEntrances()){
-    if(!S.rain.flows[x]){
-      const budget=Math.floor((end-now)/RAIN_DROP_EVERY_MS);
-      if(budget>0) S.rain.flows[x]={startAt:now,filled:0,budget,arriveAt:0};
-    }
-  }
-  streams=[];
-  for(const k in S.rain.flows){
-    const f=S.rain.flows[k], x=+k;
-    if(f.filled>=f.budget) continue;
-    const fp=findFlowPath(x+W); if(!fp) continue;
-    if(!f.arriveAt) f.arriveAt=f.startAt+fp.travelMs;
-    streams.push({x,...fp});
-  }
-}
-// The open, not-yet-full cells in the same row that are connected sideways to idx.
-function waterRun(idx){
-  const y=(idx/W)|0, open=i=>S.grid[i]===EMPTY&&!S.flooded.has(i), run=[idx];
-  for(let x=idx%W-1;x>=0&&open(x+y*W);x--) run.push(x+y*W);
-  for(let x=idx%W+1;x<W&&open(x+y*W);x++) run.push(x+y*W);
-  return run;
-}
-// Pours `vol` blocks of water in through the shaft at entranceIdx. Water lands on the
-// deepest stretch it can reach and spreads evenly across it: one block on a 5-wide floor
-// is a layer 1/5 of a block deep. When a stretch is full, it becomes solid water (can't be
-// walked through) and whatever is left rises to the next stretch up.
-function addWater(entranceIdx,vol){
-  let guard=0;
-  while(vol>1e-6 && guard++<40){
-    const fp=findFlowPath(entranceIdx); if(!fp) return; // everything reachable is full; the rest runs off
-    const run=waterRun(fp.target);
-    const have=run.reduce((a,i)=>a+(S.water.get(i)||0),0), room=run.length-have;
-    if(vol<room-1e-6){
-      const lvl=(have+vol)/run.length;
-      run.forEach(i=>S.water.set(i,lvl));
-      vol=0;
-    } else {
-      run.forEach(i=>{ S.water.delete(i); S.flooded.add(i); });
-      vol-=room;
-      const pidx=S.px+S.py*W;
-      if(run.includes(pidx)){ const safe=nearestSafe(pidx); if(safe!==pidx){ S.dig=null; walkPath=null; moveTo(safe%W,(safe/W)|0,performance.now()); } }
-    }
-    const [tx,ty]=[fp.target%W,(fp.target/W)|0];
-    dust((tx+.5)*cs,(SKY+ty+.85)*cs,'#bfe6ff',8,true);
-  }
 }
 function updateRain(){
   const now=Date.now();
   if(!S.rain){ if(now>=S.nextRainAt) startRain(); return; }
-  if(performance.now()-lastStreamRefresh>400) refreshStreams();
-  let filledAny=false;
-  for(const k in S.rain.flows){
-    const f=S.rain.flows[k], x=+k; let guard=0;
-    while(f.arriveAt && f.filled<f.budget && now>=f.arriveAt+RAIN_DROP_EVERY_MS*(f.filled+1) && guard++<12){
-      if(!findFlowPath(x+W)) break;
-      addWater(x+W,1); f.filled++; filledAny=true;
-    }
-  }
-  if(filledAny) refreshStreams();
   const end=rainEndAt();
-  if(now>=end){
-    if(!S.rain.stopped){ S.rain.stopped=true; S.nextRainAt=end+RAIN_INTERVAL_MS; filledAny=true; } // next rain counts from when this one stopped
-    const pending=streams.some(s=>{const f=S.rain.flows[s.x]; return f&&f.filled<f.budget;});
-    if(!pending){ S.rain=null; streams=[]; rainParts=[]; filledAny=true; }
-  }
-  if(filledAny) save();
+  if(now>=end){ S.rain=null; S.nextRainAt=end+RAIN_INTERVAL_MS; save(); } // next rain counts from when this one stopped
 }
-function updateRainParts(now){
-  if(S.rain && streams.length && now-lastPartSpawn>60){
-    lastPartSpawn=now;
-    streams.forEach(s=>{ if(rainParts.length<700) rainParts.push({s,t0:now,j:(Math.random()-.5)*.3}); });
-  }
-  rainParts=rainParts.filter(p=>{
-    if(now-p.t0<p.s.travelMs) return true;
-    if(Math.random()<.15){ const [tx,ty]=p.s.pts[p.s.pts.length-1]; dust((tx+.5)*cs,(SKY+ty+.8)*cs,'#bfe6ff',1,false); }
-    return false;
-  });
-}
-const isWet=i=>S.flooded.has(i)||S.water.has(i);
+/* ---------- pumping ---------- */
 function poolAt(startIdx){
   const seen=new Set([startIdx]), q=[startIdx]; let qi=0;
   while(qi<q.length){
     const cur=q[qi++], cx=cur%W, cy=(cur/W)|0;
     for(let d2=0;d2<4;d2++){
       const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
-      const ni=nx+ny*W; if(seen.has(ni)||!isWet(ni)) continue;
+      const ni=nx+ny*W; if(seen.has(ni)||!(S.mass[ni]>0.005)) continue;
       seen.add(ni); q.push(ni);
     }
   }
@@ -1114,10 +1088,10 @@ function poolAt(startIdx){
 }
 let pumpTarget=null;
 function openPump(idx){
-  const cells=poolAt(idx), vol=cells.reduce((a,i)=>a+(S.flooded.has(i)?1:(S.water.get(i)||0)),0);
-  const blocks=Math.max(1,Math.ceil(vol-1e-6)), cost=blocks*PUMP_COST_PER_SQUARE;
+  const cells=poolAt(idx), vol=cells.reduce((a,i)=>a+Math.min(1,S.mass[i]),0);
+  const blocks=Math.max(1,Math.ceil(vol-0.05)), cost=blocks*PUMP_COST_PER_SQUARE;
   pumpTarget={cells,cost};
-  $('pumpinfo').textContent=`About ${blocks} block${blocks===1?'':'s'} of water — pump it out for ${cost} coins?`+(S.rain?' (It\'s still raining, so more may flow in.)':'');
+  $('pumpinfo').textContent=`About ${blocks} block${blocks===1?'':'s'} of water — pump it out for ${cost} coins?`+(isRaining()?' (It\'s still raining, so more may flow in.)':'');
   $('pumpconfirm').disabled=S.coins<cost;
   $('pumpmodal').hidden=false; modalOpen=true;
 }
@@ -1126,18 +1100,11 @@ function pumpPocket(){
   if(!pumpTarget) return;
   if(S.coins<pumpTarget.cost){ toast('Not enough coins.'); return; }
   S.coins-=pumpTarget.cost;
-  pumpTarget.cells.forEach(i=>{S.flooded.delete(i); S.water.delete(i);});
-  sanitizeFlooded();
-  refreshStreams(); save(); updateHUD(); closePump();
+  pumpTarget.cells.forEach(i=>{S.mass[i]=0;});
+  wakeWater(); save(); updateHUD(); closePump();
   toast('Pumped the water out — that stretch is clear now.');
 }
-// Drops any water marker sitting on a cell that isn't open tunnel (left over from older
-// versions or odd edge cases) — those were invisible and couldn't be tapped or pumped.
-function sanitizeFlooded(){
-  if(!S.water) S.water=new Map();
-  for(const i of [...S.flooded]) if(S.grid[i]!==EMPTY) S.flooded.delete(i);
-  for(const [i,l] of [...S.water]) if(S.grid[i]!==EMPTY||S.flooded.has(i)||!(l>0)) S.water.delete(i);
-}
+function sanitizeWater(){ for(let i=0;i<W*D;i++) if(S.mass[i] && (i<W||S.grid[i]!==EMPTY||!(S.mass[i]>0))) S.mass[i]=0; }
 /* ---------- supports: tap to remove ---------- */
 function supportAt(gx,gy){
   for(const [idx,h] of S.supports){ const sx=idx%W, sy=(idx/W)|0; if(gx===sx && gy<=sy && gy>sy-(h||1)) return idx; }
@@ -1162,7 +1129,7 @@ function finishDig(now){
     S.inv[o.id]++; dust(bx,by,o.h,10,true); floater(d.x,d.y,`+1 ${o.name}`,o.h);
     const el=$('ri-'+o.id); if(el){el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');}
   }
-  S.grid[idx]=EMPTY;
+  S.grid[idx]=EMPTY; wakeWater();
   moveTo(d.x,d.y,now);
   S.wear[S.tool]++;
   if(S.wear[S.tool]>=33){
@@ -1185,7 +1152,7 @@ function findPath(sx0,sy0,tx0,ty0){
     const cx=cur%W, cy=(cur/W)|0;
     for(let d2=0;d2<4;d2++){
       const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
-      const ni=nx+ny*W; if(visited[ni]||S.grid[ni]!==EMPTY||S.flooded.has(ni)) continue;
+      const ni=nx+ny*W; if(visited[ni]||S.grid[ni]!==EMPTY||isFull(ni)) continue;
       visited[ni]=1; prev[ni]=cur; q.push(ni);
       if(ni===targetIdx){found=true;qi=q.length;break;}
     }
@@ -1207,11 +1174,14 @@ function update(now,dt){
   }
   if(anim&&now-anim.t0>=anim.dur){
     anim=null; const q=queued; queued=null;
-    if(q!==null) pressDir(q);
-    else if(held!==null) pressDir(held);
+    if(walkPath&&!walkPath.length) walkPath=null;
+    const swimming=!!(walkPath&&walkPath.swim);
+    if(!swimming && q!==null) pressDir(q);
+    else if(!swimming && held!==null) pressDir(held);
     else if(walkPath&&walkPath.length){
       const [nx,ny]=walkPath.shift();
-      if(S.grid[nx+ny*W]===EMPTY && !S.flooded.has(nx+ny*W)) moveTo(nx,ny,now);
+      const swim=walkPath.swim;
+      if(S.grid[nx+ny*W]===EMPTY && (swim||!isFull(nx+ny*W))){ moveTo(nx,ny,now); if(swim) anim.dur=110; if(!walkPath.length) walkPath=null; }
       else { walkPath=null; toast('Path blocked'); }
     }
   }
@@ -1223,7 +1193,8 @@ function update(now,dt){
   else if(rt.textContent){ring.style.background='rgba(0,0,0,.25)';rt.textContent='';}
   if(longPress&&now-longPress.t0>=5000){toggleDevReveal();longPress=null;}
   updateRain();
-  updateRainParts(now);
+  updateWater(dt*1000);
+  if(!anim && !(walkPath&&walkPath.swim) && isFull(S.px+S.py*W)) swimOut();
   const rtxt=$('raintxt');
   if(isRaining()){ rtxt.textContent='Raining '+fmtCountdown(rainEndAt()-Date.now()); }
   else { rtxt.textContent=fmtCountdown(S.nextRainAt-Date.now()); }
@@ -1256,22 +1227,6 @@ function drawRainOverlay(now){
 }
 // Water in transit: a droplet while falling down a shaft, a flat streak while running
 // along a tunnel floor.
-function drawRainParts(now){
-  if(!rainParts.length) return;
-  ctx.save();
-  ctx.fillStyle='rgba(150,205,255,.9)';
-  for(const p of rainParts){
-    const {pts,times}=p.s, t=now-p.t0;
-    let i=1; while(i<times.length-1 && times[i]<t) i++;
-    const t0=times[i-1], t1=times[i], k=t1>t0?clamp((t-t0)/(t1-t0),0,1):1;
-    const [ax,ay]=pts[i-1], [bx,by]=pts[i];
-    const x=ax+(bx-ax)*k, y=ay+(by-ay)*k;
-    const X=(x+.5+p.j)*cs, Yc=(SKY+y+.5)*cs;
-    if(ay===by){ rr(ctx,X-cs*.2,(SKY+y+1)*cs-cs*.13,cs*.4,cs*.08,cs*.04); } // streak on the floor
-    else { ctx.beginPath(); ctx.ellipse(X,Yc,cs*.045,cs*.13,0,0,Math.PI*2); ctx.fill(); }
-  }
-  ctx.restore();
-}
 function render(now,dt){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.fillStyle='#120b07'; ctx.fillRect(0,0,vw,vh);
@@ -1289,13 +1244,12 @@ function render(now,dt){
   const r0=Math.max(0,Math.floor(cam.y/cs)-SKY), r1=Math.min(D-1,Math.floor((cam.y+vh)/cs)-SKY);
   for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
   if(cam.y<SKY*cs+cs) drawGrass();
-  drawRainParts(now);
   if(isRaining()) drawRainOverlay(now);
 
   if(buildMode){
     const hx=S.px+DX[aim], hy=S.py+DY[aim];
     if(hx>=0&&hx<W&&hy>=0&&hy<D){
-      const X=hx*cs, Y=(SKY+hy)*cs, fillable=S.grid[hx+hy*W]===EMPTY&&!S.flooded.has(hx+hy*W);
+      const X=hx*cs, Y=(SKY+hy)*cs, fillable=S.grid[hx+hy*W]===EMPTY&&!isFull(hx+hy*W)&&!(hx===S.px&&hy===S.py);
       ctx.save();
       if(fillable){ ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(X,Y,cs,cs); }
       ctx.strokeStyle=fillable?'rgba(255,255,255,.95)':'rgba(255,255,255,.35)';
@@ -1566,7 +1520,8 @@ function tapToWalk(px,py){
   const gx=Math.floor((px+cam.x)/cs), gyw=Math.floor((py+cam.y)/cs), gy=gyw-SKY;
   if(gx<0||gx>=W||gy<0||gy>=D) return;
   if(gx===S.px&&gy===S.py) return;
-  if(S.grid[gx+gy*W]!==EMPTY||S.flooded.has(gx+gy*W)){toast("You'll need to dig your way there first."); return;}
+  if(S.grid[gx+gy*W]!==EMPTY){toast("You'll need to dig your way there first."); return;}
+  if(isFull(gx+gy*W)){toast('That spot is flooded.'); return;}
   const path=findPath(S.px,S.py,gx,gy);
   if(!path){toast("Can't find a path there through what you've already dug."); return;}
   walkPath=path; followCam=true; held=null;
