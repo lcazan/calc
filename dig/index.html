@@ -56,6 +56,15 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #toast.show{opacity:1}
 
 #panel{width:clamp(150px,23vw,210px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2.4vh,14px);padding:8px;background:linear-gradient(90deg,#2c1f15,var(--wood) 30%,#33241a);border-left:3px solid var(--wood-ln);overflow-y:auto}
+
+@media (orientation:portrait){
+  #app{flex-direction:column}
+  #panel{width:100%;max-width:none;flex-direction:row;flex-wrap:wrap;align-content:flex-start;justify-content:center;gap:6px;padding:6px;max-height:38vh;border-left:none;border-top:3px solid var(--wood-ln)}
+  #panel #pad{--k:min(46px,8vh);order:1}
+  #panel #upg{order:0;flex:1 1 100%}
+  #panel #findme,#panel #supportbtn,#panel #buildbtn{width:auto;max-width:none;flex:1 1 auto;font-size:12.5px;padding:6px 8px}
+  #panel #matpick{width:auto;max-width:none;flex:1 1 100%}
+}
 #upg{width:100%;max-width:168px;border:none;border-radius:14px;padding:9px 6px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 4px 0 #9a6400,inset 0 2px 0 rgba(255,255,255,.5);font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}
 #upg:active{transform:translateY(3px);box-shadow:0 1px 0 #9a6400}
 #findme,#supportbtn,#buildbtn{width:100%;max-width:168px;border:none;border-radius:12px;padding:7px 6px;color:#eaf4ff;box-shadow:0 3px 0 #1a3f6b,inset 0 2px 0 rgba(255,255,255,.35);font-size:14px;display:flex;align-items:center;justify-content:center;gap:5px}
@@ -119,11 +128,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
 #newmine.arm{border-color:#e0563f;color:#ffb3a5}
 #floods:empty,#detect:empty{display:none}
 
-#rotate{display:none;position:fixed;inset:0;z-index:9;background:var(--wood-dk);flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px}
-#rotate .phone{width:46px;height:78px;border:4px solid var(--lamp);border-radius:10px;animation:turn 2s ease-in-out infinite}
-@keyframes turn{50%,100%{transform:rotate(-90deg)}}
-@media (orientation:portrait) and (max-width:700px){#rotate{display:flex}}
-@media (prefers-reduced-motion:reduce){#rotate .phone{animation:none;transform:rotate(-90deg)}.pop{animation:none}}
+@media (prefers-reduced-motion:reduce){.pop{animation:none}}
 </style>
 </head>
 <body>
@@ -202,6 +207,7 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
       <button id="menugirl" class="buy sm" style="flex:1;justify-content:center">👧 Girl</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
+      <button id="refreshbtn" class="buy" style="justify-content:center;background:#4a90d9;box-shadow:0 3px 0 #2a63a6">🔄 Refresh app</button>
       <button id="newmine" class="buy" style="justify-content:center;background:#e0a838;box-shadow:0 3px 0 #9a6400">⛏️ Start a new mine</button>
       <button id="savefile" class="buy" style="justify-content:center">💾 Save to file</button>
       <button id="loadfilebtn" class="buy" style="justify-content:center;background:#5aa8d6;box-shadow:0 3px 0 #2a6d94">📂 Load from file</button>
@@ -223,8 +229,6 @@ button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
     <button id="startbtn" class="disp" style="width:100%;border:none;border-radius:14px;padding:10px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);font-size:18px;box-shadow:0 4px 0 #9a6400">⛏️ Start Digging</button>
   </div>
 </div>
-
-<div id="rotate"><div class="phone"></div><div class="disp" style="font-size:22px">Turn your phone sideways</div><div style="color:var(--muted)">Deep Dig plays in landscape.</div></div>
 
 <script>
 (()=>{
@@ -1175,6 +1179,14 @@ $('menugirl').addEventListener('click',()=>{S.gender='girl';setGenderBtns('girl'
 $('menubtn').addEventListener('click',openMenu);
 $('menuclose').addEventListener('click',closeMenu);
 $('menu').addEventListener('click',e=>{if(e.target.id==='menu')closeMenu();});
+$('refreshbtn').addEventListener('click',()=>{
+  save();
+  toast('Refreshing…',1200);
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistration().then(reg=>{ if(reg) reg.update().catch(()=>{}); }).catch(()=>{});
+  }
+  setTimeout(()=>location.reload(),150);
+});
 $('savefile').addEventListener('click',()=>{
   save();
   const raw=localStorage.getItem(KEY);
