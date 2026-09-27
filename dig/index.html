@@ -840,6 +840,7 @@ function drawCell(x,y,now){
     for(let k=0;k<16;k++){
       const c=str[k]; if(!c||c==='0') continue;
       const sx=X+(k%4)*q, sy=Y+((k/4)|0)*q;
+      if(c==='3'){ ctx.fillStyle='#1c5f8a'; ctx.fillRect(sx,sy,q+.5,q+.5); ctx.fillStyle='rgba(255,255,255,.22)'; ctx.fillRect(sx,sy+q*(.3+Math.sin(now*.004+k)*.08),q+.5,Math.max(1,q*.12)); continue; }
       ctx.fillStyle=c==='1'?ROWC[y]:PIECE_COL[c]; ctx.fillRect(sx,sy,q+.5,q+.5);
       if(c==='4'){ ctx.strokeStyle='rgba(235,248,255,.8)'; ctx.lineWidth=1; ctx.strokeRect(sx+.5,sy+.5,q-1,q-1); }
       else { ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(sx,sy+q*.8,q+.5,q*.2); }
@@ -1095,9 +1096,60 @@ function pieceTarget(){
   const cx=Math.floor(qbox.qx/4), cy=Math.floor(qbox.qy/4), sub=(qbox.qx-cx*4)+(qbox.qy-cy*4)*4;
   const idx=cx+cy*W, v=S.grid[idx];
   let ok=cy>0 && !(cx===S.px&&cy===S.py) && !isFull(idx);
-  if(buildMaterial==='water') ok=ok&&v===EMPTY;
-  else ok=ok&&(v===EMPTY||(v===PIECES&&S.pieces.get(idx)[sub]==='0'));
+  ok=ok&&(v===EMPTY||(v===PIECES&&S.pieces.get(idx)[sub]==='0'));
   return {cx,cy,sub,idx,ok};
+}
+// A pieced square with nothing solid left in it goes back to being an open square; any
+// water pieces in it become ordinary water (1/16 of a block each). Returns true if it opened.
+function normalizePieceCell(idx){
+  const str=S.pieces.get(idx); if(str===undefined) return false;
+  if(/[124]/.test(str)) return false;
+  const w=(str.match(/3/g)||[]).length;
+  S.pieces.delete(idx); S.grid[idx]=EMPTY; if(w) S.mass[idx]+=w/16;
+  wakeWater(); return true;
+}
+// Water pieces inside pieced squares behave like water at ¼ scale: they fall, slide toward
+// the nearest spot where they can drop (so a cup fills evenly from the bottom), and pour out
+// through gaps — into open squares as ordinary water, or into the next pieced square.
+let pieceWaterAcc=0;
+function pieceWaterStep(){
+  const moves=[];
+  for(const [idx,str] of S.pieces){ if(str.includes('3')) moves.push(idx); }
+  if(!moves.length) return false;
+  const get=(i,k)=>S.pieces.get(i)[k], set=(i,k,c)=>{ const t=S.pieces.get(i); S.pieces.set(i,t.slice(0,k)+c+t.slice(k+1)); };
+  // where would a piece at (cell i, slot sx,sy) go if it moved one ¼ step in direction d? null if blocked
+  const step=(i,sx,sy,dx,dy)=>{
+    let nx=sx+dx, ny=sy+dy, ni=i;
+    if(nx<0){ni=i-1;nx=3;} else if(nx>3){ni=i+1;nx=0;} else if(ny>3){ni=i+W;ny=0;}
+    if(ni<W||ni>=W*D||Math.abs((ni%W)-(i%W))>1) return null;
+    if(ni===i||S.grid[ni]===PIECES) return get(ni,ny*4+nx)==='0'?{ni,k:ny*4+nx,open:false}:null;
+    if(S.grid[ni]===EMPTY && S.mass[ni]<W_FULL-1/16) return {ni,open:true};
+    return null;
+  };
+  const moveTo_=(i,k,t)=>{ set(i,k,'0'); if(t.open){ S.mass[t.ni]+=1/16; wakeWater(); } else set(t.ni,t.k,'3'); };
+  let moved=false;
+  for(const i of moves){
+    if(S.grid[i]!==PIECES) continue;
+    for(let sy=3;sy>=0;sy--) for(let sx=0;sx<4;sx++){
+      const k=sy*4+sx; if(get(i,k)!=='3') continue;
+      const down=step(i,sx,sy,0,1);
+      if(down){ moveTo_(i,k,down); moved=true; continue; }
+      // look along the row each way (through empty spots) for the nearest place it could drop
+      let best=null, bestDist=9;
+      for(const dx of [-1,1]){
+        let ci=i, cx=sx;
+        for(let n=1;n<=6;n++){
+          const t=step(ci,cx,sy,dx,0); if(!t) break;
+          if(t.open){ if(n<bestDist){best=dx;bestDist=n;} break; }
+          const tx=t.k%4; if(step(t.ni,tx,sy,0,1) && n<bestDist){ best=dx; bestDist=n; break; }
+          ci=t.ni; cx=tx;
+        }
+      }
+      if(best!==null){ const t=step(i,sx,sy,best,0); if(t){ moveTo_(i,k,t); moved=true; } }
+    }
+    normalizePieceCell(i);
+  }
+  return moved;
 }
 function placePiece(){
   const t=pieceTarget();
@@ -1105,7 +1157,11 @@ function placePiece(){
   if(t.cx===S.px&&t.cy===S.py){ toast("You're standing there!"); return; }
   if(!t.ok){ toast('That spot is already filled.'); return; }
   const px=(qbox.qx+.5)*cs/4, py=SKY*cs+(qbox.qy+.5)*cs/4;
-  if(buildMaterial==='water'){ S.mass[t.idx]+=1/16; wakeWater(); dust(px,py,'#bfe6ff',4,false); save(); return; }
+  if(buildMaterial==='water'){
+    if(S.grid[t.idx]===PIECES){ const cur=S.pieces.get(t.idx); S.pieces.set(t.idx,cur.slice(0,t.sub)+'3'+cur.slice(t.sub+1)); }
+    else { S.mass[t.idx]+=1/16; wakeWater(); } // open square: it's ordinary water there
+    dust(px,py,'#bfe6ff',4,false); save(); return;
+  }
   if(S.grid[t.idx]===EMPTY){ S.grid[t.idx]=PIECES; S.pieces.set(t.idx,'0'.repeat(16)); displaceWater(t.idx); }
   const code=PIECE_CODE[buildMaterial], cur=S.pieces.get(t.idx), next=cur.slice(0,t.sub)+code+cur.slice(t.sub+1);
   if(next===code.repeat(16)){ S.pieces.delete(t.idx); S.grid[t.idx]=FULL_OF[code]; } // a full square of one material becomes a normal block
@@ -1354,11 +1410,12 @@ function finishDig(now){
     let str=S.pieces.get(idx)||'0'.repeat(16), pick=-1;
     for(let line=0;line<4&&pick<0;line++) for(let j=0;j<4&&pick<0;j++){
       const k= d.dir===RIGHT? j*4+line : d.dir===LEFT? j*4+(3-line) : d.dir===DOWN? line*4+j : (3-line)*4+j;
-      if(str[k]!=='0') pick=k;
+      if(str[k]!=='0'&&str[k]!=='3') pick=k;
     }
     if(pick>=0) str=str.slice(0,pick)+'0'+str.slice(pick+1);
-    if(str==='0'.repeat(16)){ S.pieces.delete(idx); S.grid[idx]=EMPTY; wakeWater(); moveTo(d.x,d.y,now); }
-    else { S.pieces.set(idx,str); if(held===d.dir) setTimeout(()=>{ if(held===d.dir&&!S.dig) doAct(d.dir); },0); }
+    S.pieces.set(idx,str);
+    if(normalizePieceCell(idx)){ if(!isFull(idx)) moveTo(d.x,d.y,now); }
+    else { if(held===d.dir) setTimeout(()=>{ if(held===d.dir&&!S.dig) doAct(d.dir); },0); }
     save(); return;
   }
   const o=OREBY[v];
@@ -1442,6 +1499,7 @@ function update(now,dt){
   if(longPress&&now-longPress.t0>=5000){toggleDevReveal();longPress=null;}
   updateRain();
   updateWater(dt*1000);
+  pieceWaterAcc+=dt*1000; if(pieceWaterAcc>=70){ pieceWaterAcc=0; if(pieceWaterStep() && performance.now()-lastWaterSave>2000){ lastWaterSave=performance.now(); save(); } }
   if(!anim && !(walkPath&&walkPath.swim) && isFull(S.px+S.py*W)) swimOut();
   const rtxt=$('raintxt');
   if(isRaining()){ rtxt.textContent='Raining '+fmtCountdown(rainEndAt()-Date.now()); }
