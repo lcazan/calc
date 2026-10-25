@@ -1,0 +1,2645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#23170f">
+<meta name="description" content="Dig underground, follow ore veins, sell your haul and upgrade your tools.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deep Dig">
+<title>Neya's Mine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --wood:#3b2a1d; --wood-dk:#23170f; --wood-ln:#6b4a2f;
+  --ink:#fff4e0; --muted:#d2b894; --lamp:#ffc21a; --lamp-ink:#3a2400;
+  --pill:rgba(24,14,7,.74); --bg:#120b07;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --pill:rgba(18,10,5,.8); } }
+:root[data-theme="dark"]{ --pill:rgba(18,10,5,.8); }
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+.disp{font-family:'Lilita One','Arial Black',Impact,sans-serif;font-weight:400;letter-spacing:.3px}
+
+#app{position:fixed;inset:0;display:flex;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:var(--wood-dk)}
+#stage{position:relative;flex:1;min-width:0;overflow:hidden;background:var(--bg)}
+#cv{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+
+#hud{position:absolute;top:6px;left:6px;right:6px;display:flex;justify-content:space-between;gap:6px;pointer-events:none}
+.hudleft{display:flex;gap:6px;align-items:center}
+#menubtn,#mapbtn{pointer-events:auto;border:none;background:var(--pill);color:var(--ink);width:34px;height:34px;border-radius:10px;font-size:16px;flex:none}
+.pillrow{display:flex;gap:4px;background:var(--pill);border-radius:12px;padding:4px 8px;align-items:center;flex-wrap:wrap}
+.ri{display:flex;align-items:center;gap:4px;min-width:38px}
+.ri b,.coins b,#raintxt{font-family:'Lilita One','Arial Black',sans-serif;font-weight:400;font-size:15px;line-height:1}
+.ri.zero b{opacity:.45}
+.ic{display:inline-block;width:16px;height:16px;flex:none;background:radial-gradient(circle at 35% 30%,var(--h) 0 20%,var(--c) 58%);clip-path:polygon(30% 0,76% 6%,100% 46%,82% 96%,24% 100%,0 55%)}
+.ic.gem{clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%)}
+.coin{display:inline-block;width:17px;height:17px;border-radius:50%;flex:none;background:radial-gradient(circle at 38% 34%,#fff6b8 0 14%,#ffcf2e 30%,#d68f00 78%);box-shadow:inset 0 0 0 2px #b77400}
+.coin.sm{width:13px;height:13px}
+.coins{display:flex;align-items:center;gap:5px}
+.pop{animation:pop .35s ease-out}
+@keyframes pop{40%{transform:scale(1.35)}}
+
+#info{position:absolute;left:6px;bottom:6px;background:var(--pill);border-radius:10px;padding:4px 9px;font-size:12px;color:var(--muted);pointer-events:none}
+#info b{color:var(--ink)}
+#toast{position:absolute;left:50%;top:48px;transform:translateX(-50%);background:rgba(24,14,7,.9);border:2px solid var(--lamp);color:var(--ink);padding:6px 14px;border-radius:12px;font-weight:800;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:90%;text-align:center;white-space:normal}
+#toast.show{opacity:1}
+
+#panel{--k:min(50px,14vh);width:clamp(150px,23vw,210px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2.4vh,14px);padding:8px;background:linear-gradient(90deg,#2c1f15,var(--wood) 30%,#33241a);border-left:3px solid var(--wood-ln);overflow-y:auto}
+
+@media (orientation:portrait){
+  #app{flex-direction:column}
+  #panel{--k:min(46px,8vh);width:100%;max-width:none;flex-direction:row;flex-wrap:wrap;align-content:flex-start;align-items:center;justify-content:center;gap:6px;padding:6px;max-height:38vh;border-left:none;border-top:3px solid var(--wood-ln)}
+  #panel #pad{order:2;margin-left:auto;margin-right:max(6px,env(safe-area-inset-right,0px))}
+  #panel #upg{order:0;flex:1 1 30%;width:auto;max-width:none;height:38px;font-size:14px;padding:0 8px;white-space:nowrap}
+  #panel #actrow{order:0;flex:2 1 62%;width:auto;max-width:none;gap:6px}
+  #panel #supportbtn,#panel #buildbtn{width:auto;flex:1 1 0;height:38px;flex-direction:row;gap:4px;font-size:12.5px;padding:0 8px}
+  #panel #supportbtn .bi,#panel #buildbtn .bi{font-size:15px}
+  #panel #matpick{order:1;flex:1 1 0;min-width:0;width:auto;max-width:none;justify-content:flex-start;margin-left:calc(max(12px,env(safe-area-inset-left,0px)) + clamp(64px,11vmin,88px) + 8px)}
+}
+#upg{width:100%;max-width:168px;border:none;border-radius:14px;padding:9px 6px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 4px 0 #9a6400,inset 0 2px 0 rgba(255,255,255,.5);font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px}
+#upg:active{transform:translateY(3px);box-shadow:0 1px 0 #9a6400}
+#supportbtn,#buildbtn{width:100%;max-width:168px;border:none;border-radius:12px;padding:7px 6px;color:#eaf4ff;box-shadow:0 3px 0 #1a3f6b,inset 0 2px 0 rgba(255,255,255,.35);font-size:14px;display:flex;align-items:center;justify-content:center;gap:5px}
+#supportbtn{background:linear-gradient(#8a6a52,#5e4533);color:var(--ink);box-shadow:0 3px 0 #2e2016}
+#buildbtn{background:linear-gradient(#5cb85c,#3d8b40);box-shadow:0 3px 0 #205e22,inset 0 2px 0 rgba(255,255,255,.35)}
+#buildbtn.on{background:linear-gradient(#e0a838,#b8790f);box-shadow:0 3px 0 #7a4c00,inset 0 2px 0 rgba(255,255,255,.35)}
+#supportbtn:active,#buildbtn:active{transform:translateY(2px)}
+#upg{height:var(--k);padding:0 6px;font-size:17px}
+#actrow{display:flex;justify-content:space-between;align-items:center;width:100%}
+#supportbtn,#buildbtn{width:var(--k);height:var(--k);max-width:none;flex:none;flex-direction:column;gap:1px;padding:2px;font-size:9.5px;line-height:1.05;text-align:center}
+#supportbtn .bi,#buildbtn .bi{font-size:calc(var(--k)*.4);line-height:1}
+#supportbtn .bl,#buildbtn .bl{white-space:nowrap}
+#matpick{display:flex;gap:6px;width:100%;max-width:168px}
+#matpick{justify-content:center}
+#matpick[hidden]{display:flex;visibility:hidden} /* keeps its space, so switching modes never shifts the other buttons */
+#matbtn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;padding:4px 8px;background:#5aa8d6;color:#10243a;font-size:14px;box-shadow:0 3px 0 #2a6d94}
+#matbtn:active{transform:translateY(2px)}
+#matbtn .mat{width:24px;height:24px;border-width:1px;box-shadow:none}
+.mat[data-mat="grass"]{background:linear-gradient(#2a1d14 0 55%,transparent 55%),repeating-linear-gradient(100deg,#6fc044 0 2px,#4f9a33 2px 5px)}
+.mat[data-mat="door"]{background:linear-gradient(90deg,#3a2616 0 12%,transparent 12% 88%,#3a2616 88%),linear-gradient(#3a2616 0 10%,transparent 10% 30%,#555 30% 36%,transparent 36% 66%,#555 66% 72%,transparent 72%),repeating-linear-gradient(90deg,#9a6638 0 8px,#7b4f2a 8px 9px)}
+.mat[data-mat="coins"]{background:radial-gradient(circle at 30% 70%,#ffcf2e 0 16%,#d68f00 17% 21%,transparent 22%),radial-gradient(circle at 66% 70%,#ffcf2e 0 16%,#d68f00 17% 21%,transparent 22%),radial-gradient(circle at 48% 40%,#fff38a 0 16%,#d68f00 17% 21%,transparent 22%),#2a1d14}
+.mat[data-mat="wood"]{background:linear-gradient(#2a1d14 0 16%,#c98d55 16% 32%,#7a4e2a 32% 68%,#a26a3a 68% 84%,#2a1d14 84%)}
+.mat[data-mat="steel"]{background:linear-gradient(#2a1d14 0 16%,#c3cbd3 16% 32%,#5d6773 32% 68%,#aab4bf 68% 84%,#2a1d14 84%)}
+#matgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mattile{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 4px;border-radius:12px;background:#4a3322;border:2px solid #5a3e28;font-weight:900;font-size:13px}
+.mattile.sel{border-color:var(--lamp);background:#5b3f29}
+.mattile .mat{width:46px;height:46px}
+.mattile small{font-weight:700;color:var(--lamp);font-size:11px}
+.xbtn{border:none;background:rgba(255,255,255,.1);width:36px;height:36px;border-radius:50%;font-size:18px}
+#mapmodal{position:fixed;inset:0;z-index:6;background:rgba(10,5,2,.92);display:flex;padding:max(6px,env(safe-area-inset-top,0px)) max(6px,env(safe-area-inset-right,0px)) max(6px,env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+#mapmodal[hidden]{display:none}
+#mapwrap{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px}
+#maphead{display:flex;align-items:center;gap:8px}
+#maphint{flex:1;min-width:0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mapcv{flex:1;min-height:0;width:100%;display:block;touch-action:none;border-radius:12px;background:#120b07;border:2px solid var(--wood-ln)}
+#qbtn{width:34px;height:34px;flex:none;border-radius:8px;border:2px solid #2a1c12;background:#fff4e0;color:#3a2400;font-size:17px;padding:0;box-shadow:0 2px 0 #1a110a}
+#qbtn.q{background:#ffc21a}
+.mat{width:34px;height:34px;flex:none;border-radius:8px;border:2px solid #2a1c12;padding:0;box-shadow:0 2px 0 #1a110a}
+.mat.sel{outline:3px solid #fff4e0;outline-offset:1px}
+.mat:active{transform:translateY(2px)}
+.mat[data-mat="dirt"]{background:radial-gradient(circle at 30% 35%,#a97646 0 12%,transparent 13%),radial-gradient(circle at 70% 70%,#6b4a2e 0 10%,transparent 11%),#8b5e37}
+.mat[data-mat="stone"]{background:radial-gradient(ellipse 30% 20% at 28% 22%,#a9a39a 95%,transparent),radial-gradient(ellipse 22% 20% at 76% 22%,#8a857e 95%,transparent),radial-gradient(ellipse 25% 19% at 18% 55%,#b3ada3 95%,transparent),radial-gradient(ellipse 28% 19% at 66% 55%,#958e82 95%,transparent),radial-gradient(ellipse 30% 18% at 35% 86%,#9a948c 95%,transparent),radial-gradient(ellipse 18% 16% at 85% 86%,#7f7a73 95%,transparent),#4d4843}
+.mat[data-mat="water"]{background:repeating-linear-gradient(170deg,transparent 0 6px,rgba(255,255,255,.22) 6px 8px),#1c5f8a}
+.mat[data-mat="glass"]{background:linear-gradient(135deg,transparent 30%,rgba(255,255,255,.75) 32%,transparent 40%,transparent 55%,rgba(255,255,255,.5) 57%,transparent 63%),rgba(190,230,255,.35);border-color:#dff2ff}
+#pad{align-self:flex-end;margin-right:4px;display:grid;grid-template-columns:repeat(3,var(--k));grid-template-rows:repeat(3,var(--k));gap:5px}
+.db{border:none;border-radius:14px;background:linear-gradient(#8a6a52,#5e4533);box-shadow:0 4px 0 #2e2016,inset 0 2px 0 rgba(255,255,255,.2);display:grid;place-items:center;touch-action:none}
+.db svg{width:55%;height:55%;fill:var(--ink)}
+.db.on,.db:active{transform:translateY(3px);box-shadow:0 1px 0 #2e2016;background:linear-gradient(#a07a5c,#6f513b)}
+.db[data-dir="1"] svg{transform:rotate(90deg)} .db[data-dir="2"] svg{transform:rotate(180deg)} .db[data-dir="3"] svg{transform:rotate(-90deg)}
+#pad.buildmode .db{background:linear-gradient(#7fae5a,#4f7d38);box-shadow:0 4px 0 #2e4a20,inset 0 2px 0 rgba(255,255,255,.2)}
+#pad.buildmode .db.on,#pad.buildmode .db:active{background:linear-gradient(#96c473,#628f49)}
+#ring{border-radius:50%;margin:4px;display:grid;place-items:center;background:rgba(0,0,0,.25);position:relative}
+#ring::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--wood)}
+#ring span{position:relative;z-index:1;font-family:'Lilita One','Arial Black',sans-serif;font-size:13px}
+#fillbtn{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:50%;z-index:4;width:clamp(64px,11vmin,88px);height:clamp(64px,11vmin,88px);border:3px solid #9a6400;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);box-shadow:0 5px 0 #9a6400,0 6px 14px rgba(0,0,0,.35),inset 0 2px 0 rgba(255,255,255,.5);touch-action:none}
+#fillbtn span{font-size:clamp(24px,4.5vmin,34px);line-height:1}
+#fillbtn small{font-size:12px;line-height:1.1}
+#fillbtn.show{display:flex}
+#fillbtn:active{transform:translateY(4px);box-shadow:0 1px 0 #9a6400,0 2px 6px rgba(0,0,0,.35)}
+
+#modal,#menu,#splash,#pumpmodal,#supportmodal,#matmodal,#coinmodal,#pilemodal,#confirmmodal{position:fixed;inset:0;background:rgba(10,5,2,.66);display:flex;align-items:center;justify-content:center;padding:max(8px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
+#splash{z-index:8}
+#modal[hidden],#menu[hidden],#splash[hidden],#pumpmodal[hidden],#supportmodal[hidden],#matmodal[hidden],#coinmodal[hidden],#pilemodal[hidden],#confirmmodal[hidden]{display:none}
+.buy.sel{outline:3px solid #fff4e0;outline-offset:-3px}
+.sheet{width:min(780px,100%);max-height:100%;overflow:auto;background:linear-gradient(#3a2819,#2a1c12);border:3px solid var(--wood-ln);border-radius:18px;padding:10px 14px 12px;touch-action:pan-y}
+.sheet header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.sheet h2{margin:0;font-size:24px;flex:1}
+.sheet h3{margin:0 0 6px;font-size:16px;color:var(--muted);font-family:'Nunito',sans-serif;font-weight:900}
+.sheet h3 small{font-weight:700;opacity:.8}
+.bigcoins{background:rgba(0,0,0,.3);border-radius:12px;padding:5px 12px}
+.bigcoins b{font-size:20px}
+#close,#menuclose{border:none;background:rgba(255,255,255,.1);width:36px;height:36px;border-radius:50%;font-size:18px}
+.cols{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}
+#sell{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tile{border:2px solid #5a3e28;background:#4a3322;border-radius:12px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:1px}
+.tile .ic{width:26px;height:26px;margin-bottom:2px}
+.tile .nm{font-weight:900;font-size:13px}
+.tile .ct{font-family:'Lilita One','Arial Black',sans-serif;font-size:16px}
+.tile .pr{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px}
+.tile:disabled{opacity:.38;cursor:default}
+.tile:not(:disabled):active{background:#5b3f29}
+#sellall{margin-top:8px;width:100%;border:none;border-radius:12px;padding:9px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);font-weight:900;box-shadow:0 3px 0 #9a6400}
+#sellall:disabled{filter:grayscale(1);opacity:.5}
+#tools{display:flex;flex-direction:column;gap:6px}
+.tool{display:flex;align-items:center;gap:8px;background:#4a3322;border:2px solid #5a3e28;border-radius:12px;padding:5px 8px}
+.tool.cur{border-color:var(--lamp)}
+.tool canvas{width:72px;height:40px;flex:none}
+.tt{flex:1;display:flex;flex-direction:column;line-height:1.15}
+.tt b{font-size:14px}
+.tt span{font-size:11.5px;color:var(--muted)}
+.buy{border:none;border-radius:10px;padding:7px 10px;background:#6fbf4a;color:#10240a;font-weight:900;display:flex;align-items:center;gap:4px;box-shadow:0 3px 0 #3d7a24;white-space:nowrap}
+.buy.sm{padding:4px 7px;font-size:11px;background:#5aa8d6;box-shadow:0 2px 0 #2a6d94}
+.buy:disabled{background:#6b5a4b;color:#bda88f;box-shadow:0 3px 0 #3a2c20;cursor:default}
+.tag{font-size:12px;font-weight:900;color:var(--lamp);padding:0 4px}
+.toolbtns{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.sheet footer{margin-top:10px;display:flex;justify-content:flex-end}
+#newmine.arm{border-color:#e0563f;color:#ffb3a5}
+#detect:empty{display:none}
+
+@media (prefers-reduced-motion:reduce){.pop{animation:none}}
+@media (max-width:600px){
+  .sheet{padding:8px 9px 10px}
+  .sheet h2{font-size:20px}
+  .cols{grid-template-columns:1fr;gap:10px}
+  #sell{grid-template-columns:repeat(4,1fr);gap:4px}
+  .tile{padding:4px 2px}
+  .tile .ic{width:20px;height:20px}
+  .tile .nm{font-size:11.5px}
+  .tile .pr{font-size:10px}
+  .tool{gap:6px;padding:4px 6px}
+  .tool canvas{width:50px;height:28px}
+  .tt b{font-size:13px}
+  .tt span{font-size:10.5px}
+  .buy{padding:6px 8px;font-size:12.5px}
+  .buy.sm{padding:4px 6px;font-size:10.5px}
+  #scanbtn,#detect .buy{white-space:normal;text-align:center}
+  .bigcoins{padding:4px 8px}
+  .bigcoins b{font-size:17px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="hud">
+      <div class="hudleft">
+        <button id="menubtn" aria-label="Menu">☰</button>
+        <button id="mapbtn" aria-label="Mine map">🗺️</button>
+        <div class="pillrow" id="res"></div>
+      </div>
+      <div class="hudleft">
+        <div class="pillrow" id="raintimer"><span style="font-size:13px">🌧️</span><b id="raintxt">3:00</b></div>
+        <div class="pillrow coins"><span class="coin"></span><b id="coins">0</b></div>
+      </div>
+    </div>
+    <div id="info">Depth <b id="depth">0 m</b> &nbsp;<span id="toolinfo"></span></div>
+    <div id="toast"></div>
+    <button id="fillbtn" class="disp" aria-label="Place a block on the highlighted square"><span>🧱</span><small>Place</small></button>
+  </div>
+  <div id="panel">
+    <button id="upg" class="disp" aria-label="Open the trading post to sell ore and upgrade tools">⛏️ Upgrade</button>
+    <div id="pad">
+      <span></span>
+      <button class="db" data-dir="0" aria-label="Dig up"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
+      <span></span>
+      <button class="db" data-dir="3" aria-label="Dig left"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
+      <div id="ring"><span id="ringt"></span></div>
+      <button class="db" data-dir="1" aria-label="Dig right"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
+      <span></span>
+      <button class="db" data-dir="2" aria-label="Dig down"><svg viewBox="0 0 24 24"><path d="M12 4l8 11H4z"/></svg></button>
+      <span></span>
+    </div>
+    <div id="actrow">
+      <button id="supportbtn" class="disp" aria-label="Place a mine support here for 5 coins"><span class="bi">🪵</span><span class="bl">Support 5</span></button>
+      <button id="buildbtn" class="disp" aria-label="Switch to build mode"><span class="bi">🧱</span><span class="bl">Build</span></button>
+    </div>
+    <div id="matpick" hidden>
+      <button id="matbtn" class="disp" aria-label="Choose building material"><span id="matsw" class="mat" data-mat="dirt"></span>Materials</button>
+      <button id="qbtn" class="disp" aria-label="Piece size: whole block">1</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal" hidden>
+  <div class="sheet" role="dialog" aria-label="Trading post">
+    <header>
+      <h2 class="disp">Trading Post</h2>
+      <div class="coins bigcoins"><span class="coin"></span><b id="scoins" class="disp">0</b></div>
+      <button id="close" aria-label="Close">✕</button>
+    </header>
+    <div class="cols">
+      <section>
+        <h3>Sell ore <small>· tap one to sell all of it</small></h3>
+        <div id="sell"></div>
+        <button id="sellall">Sell everything</button>
+      </section>
+      <section>
+        <h3>Tools</h3>
+        <div id="tools"></div>
+        <h3 style="margin-top:10px">Surveying</h3>
+        <button id="scanbtn" class="buy" style="width:100%;justify-content:center">🗺️ 21×21 area scan, centered on you · <span class="coin sm"></span>1000</button>
+        <div id="detect" style="margin-top:6px"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="menu" hidden>
+  <div class="sheet" style="max-width:360px" role="dialog" aria-label="Menu">
+    <header>
+      <h2 class="disp">Neya's Mine</h2>
+      <button id="menuclose" aria-label="Close">✕</button>
+    </header>
+    <div style="color:var(--muted);font-size:12px;margin:-6px 0 10px">Menu</div>
+    <h3>Character</h3>
+    <input id="menuname" type="text" maxlength="16" placeholder="Your name" style="width:100%;padding:9px;border-radius:10px;border:2px solid var(--wood-ln);background:#2a1c12;color:var(--ink);font-size:15px;margin-bottom:8px;box-sizing:border-box">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button id="menuboy" class="buy sm" style="flex:1;justify-content:center">👦 Boy</button>
+      <button id="menugirl" class="buy sm" style="flex:1;justify-content:center">👧 Girl</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button id="refreshbtn" class="buy" style="justify-content:center;background:#4a90d9;box-shadow:0 3px 0 #2a63a6">🔄 Refresh app</button>
+      <button id="newmine" class="buy" style="justify-content:center;background:#e0a838;box-shadow:0 3px 0 #9a6400">⛏️ Start a new mine</button>
+      <button id="savefile" class="buy" style="justify-content:center">💾 Save to file</button>
+      <button id="loadfilebtn" class="buy" style="justify-content:center;background:#5aa8d6;box-shadow:0 3px 0 #2a6d94">📂 Load from file</button>
+      <button id="quitbtn" class="buy" style="justify-content:center;background:#c24a3a;box-shadow:0 3px 0 #7a2c20">🚪 Quit</button>
+    </div>
+    <input type="file" id="loadinput" style="display:none">
+  </div>
+</div>
+
+<div id="pumpmodal" hidden>
+  <div class="sheet" style="max-width:320px;text-align:center" role="dialog" aria-label="Pump water">
+    <h2 class="disp" style="font-size:20px;margin:0 0 8px">💧 Flooded</h2>
+    <div id="pumpinfo" style="color:var(--muted);margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px">
+      <button id="pumpcancel" class="buy sm" style="flex:1;justify-content:center;background:#6b5a4b;box-shadow:0 2px 0 #3a2c20">Cancel</button>
+      <button id="pumpconfirm" class="buy sm" style="flex:1;justify-content:center">Pump it out</button>
+    </div>
+  </div>
+</div>
+
+<div id="mapmodal" hidden>
+  <div id="mapwrap" role="dialog" aria-label="Mine map">
+    <div id="maphead">
+      <b class="disp" style="font-size:20px">Mine map</b>
+      <span id="maphint">Drag to look around · tap a tunnel to walk there</span>
+      <button class="xbtn" id="mapout" aria-label="Zoom out">−</button>
+      <button class="xbtn" id="mapin" aria-label="Zoom in">+</button>
+      <button class="xbtn" id="mapclose" aria-label="Close map">✕</button>
+    </div>
+    <canvas id="mapcv"></canvas>
+  </div>
+</div>
+
+<div id="coinmodal" hidden>
+  <div class="sheet" style="max-width:340px;text-align:center" role="dialog" aria-label="Drop coins">
+    <h2 class="disp" style="font-size:20px;margin:0 0 6px">🪙 Drop coins</h2>
+    <div style="color:var(--muted);margin-bottom:10px">How many coins go in each pile you drop?</div>
+    <input id="coinamt" type="number" min="1" inputmode="numeric" style="width:100%;padding:9px;border-radius:10px;border:2px solid var(--wood-ln);background:#2a1c12;color:var(--ink);font-size:17px;text-align:center;margin-bottom:8px">
+    <div style="display:flex;gap:6px;margin-bottom:12px" id="coinquick">
+      <button class="buy sm" data-amt="100" style="flex:1;justify-content:center">100</button>
+      <button class="buy sm" data-amt="1000" style="flex:1;justify-content:center">1000</button>
+      <button class="buy sm" data-amt="5000" style="flex:1;justify-content:center">5000</button>
+      <button class="buy sm" data-amt="all" style="flex:1;justify-content:center">All</button>
+    </div>
+    <button id="coinok" class="buy" style="width:100%;justify-content:center">Use this amount</button>
+  </div>
+</div>
+
+<div id="confirmmodal" hidden>
+  <div class="sheet" style="max-width:320px;text-align:center" role="dialog" aria-label="Confirm">
+    <div id="confirmtext" style="font-weight:800;margin:4px 0 14px"></div>
+    <div style="display:flex;gap:8px">
+      <button id="confirmno" class="buy sm" style="flex:1;justify-content:center;background:#6b5a4b;box-shadow:0 2px 0 #3a2c20">Keep it</button>
+      <button id="confirmyes" class="buy sm" style="flex:1;justify-content:center;background:#c24a3a;box-shadow:0 2px 0 #7a2c20">Remove</button>
+    </div>
+  </div>
+</div>
+
+<div id="pilemodal" hidden>
+  <div class="sheet" style="max-width:320px;text-align:center" role="dialog" aria-label="Coin pile">
+    <h2 class="disp" style="font-size:20px;margin:0 0 8px">🪙 Coin pile</h2>
+    <div id="pileinfo" style="color:var(--muted);margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px">
+      <button id="pileleave" class="buy sm" style="flex:1;justify-content:center;background:#6b5a4b;box-shadow:0 2px 0 #3a2c20">Leave it</button>
+      <button id="piletake" class="buy sm" style="flex:1;justify-content:center">Pick it up</button>
+    </div>
+  </div>
+</div>
+
+<div id="matmodal" hidden>
+  <div class="sheet" style="max-width:420px" role="dialog" aria-label="Materials">
+    <header><h2 class="disp">Materials</h2><button id="matclose" class="xbtn" aria-label="Close">✕</button></header>
+    <div id="matgrid"></div>
+  </div>
+</div>
+
+<div id="supportmodal" hidden>
+  <div class="sheet" style="max-width:320px;text-align:center" role="dialog" aria-label="Mine support">
+    <h2 class="disp" style="font-size:20px;margin:0 0 8px">🪵 Mine support</h2>
+    <div style="color:var(--muted);margin-bottom:14px">Remove this support? Without it, this stretch of tunnel can collapse again.</div>
+    <div style="display:flex;gap:8px">
+      <button id="supportcancel" class="buy sm" style="flex:1;justify-content:center;background:#6b5a4b;box-shadow:0 2px 0 #3a2c20">Keep it</button>
+      <button id="supportdel" class="buy sm" style="flex:1;justify-content:center;background:#c24a3a;box-shadow:0 2px 0 #7a2c20">🪓 Remove support</button>
+    </div>
+  </div>
+</div>
+
+<div id="splash" hidden>
+  <div class="sheet" style="max-width:380px;text-align:center">
+    <h1 class="disp" style="font-size:32px;margin:0 0 4px">Neya's Mine</h1>
+    <div style="color:var(--muted);margin-bottom:14px">Who's digging today?</div>
+    <input id="nameinput" type="text" placeholder="Your name" maxlength="16" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--wood-ln);background:#2a1c12;color:var(--ink);font-size:16px;margin-bottom:10px;box-sizing:border-box;text-align:center">
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button id="genderboy" class="buy" style="flex:1;justify-content:center">👦 Boy</button>
+      <button id="gendergirl" class="buy" style="flex:1;justify-content:center;background:#d888b0;box-shadow:0 3px 0 #a35c86">👧 Girl</button>
+    </div>
+    <button id="startbtn" class="disp" style="width:100%;border:none;border-radius:14px;padding:10px;background:linear-gradient(#ffd54a,#f0a800);color:var(--lamp-ink);font-size:18px;box-shadow:0 4px 0 #9a6400">⛏️ Start Digging</button>
+  </div>
+</div>
+
+<script>
+(()=>{
+const SCREEN_W=14, SCREENS=7, SPAWN_SCREEN=3; // 3 screens left of spawn, 3 right, spawn in the middle
+const W=SCREEN_W*SCREENS, D=160, SKY=3, GROUND=SKY+1; // map row 0 is the open air above the grass
+const SKYROWS=12; // rows -1..-12: open sky you can build into (stored separately in S.up)
+const EMPTY=0, EARTH=1, BEDROCK=2, ROCK=8, WATER=9, WALL=10, STONE=13, GLASS=14, PIECES=15, STEEL=16, DOOR=17, WOOD=18; // PIECES: a square built from ¼-size pieces (see S.pieces)
+const UP=0, RIGHT=1, DOWN=2, LEFT=3;
+const DX=[0,1,0,-1], DY=[-1,0,1,0];
+const ORES=[
+  {id:'coal',     key:3,  name:'Coal',     value:8,   c:'#2c2b31', h:'#8a8a96', gem:false, sparkle:false},
+  {id:'iron',     key:4,  name:'Iron',     value:15,  c:'#a9785c', h:'#f0d2bd', gem:false, sparkle:false},
+  {id:'copper',   key:5,  name:'Copper',   value:25,  c:'#cf6a26', h:'#ffb57a', gem:false, sparkle:false},
+  {id:'silver',   key:11, name:'Silver',   value:40,  c:'#b9c2c9', h:'#f2f6f8', gem:false, sparkle:false},
+  {id:'gold',     key:6,  name:'Gold',     value:60,  c:'#f0b30a', h:'#fff38a', gem:false, sparkle:true},
+  {id:'platinum', key:12, name:'Platinum', value:120, c:'#8fa3ad', h:'#e8f3f7', gem:false, sparkle:true},
+  {id:'diamond',  key:7,  name:'Diamond',  value:200, c:'#3fcfe8', h:'#eaffff', gem:true,  sparkle:true},
+];
+const OREBY={}; ORES.forEach(o=>OREBY[o.key]=o);
+const ORECFG={
+  coal:{w:85,d0:1, d1:95,s0:4,s1:9}, iron:{w:60,d0:6, d1:D,s0:3,s1:7}, copper:{w:45,d0:14,d1:D,s0:3,s1:6},
+  silver:{w:35,d0:10,d1:D,s0:2,s1:5}, gold:{w:30,d0:28,d1:D,s0:2,s1:5},
+  platinum:{w:16,d0:45,d1:D,s0:1,s1:4}, diamond:{w:18,d0:55,d1:D,s0:1,s1:3},
+};
+const OREDEF=ORES.map(o=>({k:o.key,...ORECFG[o.id]}));
+const TOOLS=[
+  {name:'Shovel',           levels:[{time:10, price:0}]},
+  {name:'Pickaxe',          levels:[{time:7,  price:200},{time:6.5,price:66}, {time:5.5,price:66}]},
+  {name:'Jackhammer',       levels:[{time:5,  price:1000},{time:4.5,price:330},{time:3.5,price:330}]},
+  {name:'Drilling Machine', levels:[{time:3,  price:5000},{time:2.5,price:1650},{time:1.5,price:1650}]},
+];
+const curTime=i=>S.dur[i]>0?TOOLS[i].levels[S.dur[i]-1].time:Infinity;
+const RAIN_INTERVAL_MS=3*60*1000, RAIN_MIN_MS=5000, RAIN_MAX_MS=60000, RAIN_DROP_EVERY_MS=5000, PUMP_COST_PER_SQUARE=50;
+const KEY='deepdig-save-v1';
+const IDB_NAME='deepdig-db', IDB_STORE='saves';
+// One shared connection: IndexedDB runs transactions on the same connection in the order
+// they're created, so an older save can never land after (and overwrite) a newer one.
+let idbConn=null;
+function idbOpen(){
+  if(idbConn) return idbConn;
+  idbConn=new Promise((resolve,reject)=>{
+    if(!('indexedDB' in window)){ reject(new Error('no indexeddb')); return; }
+    const req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+  idbConn.catch(()=>{idbConn=null;});
+  return idbConn;
+}
+async function idbGet(key){
+  const db=await idbOpen();
+  return new Promise((resolve,reject)=>{
+    const rq=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).get(key);
+    rq.onsuccess=()=>resolve(rq.result); rq.onerror=()=>reject(rq.error);
+  });
+}
+async function idbSet(key,value){
+  const db=await idbOpen();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).put(value,key);
+    tx.oncomplete=()=>resolve(true); tx.onerror=()=>reject(tx.error);
+  });
+}
+const $=id=>document.getElementById(id);
+
+let S=null;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hsh(x,y,k){let n=(Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(k,1442695041))|0;n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967296}
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+/* ---------- world generation ---------- */
+function genMine(){
+  const rnd=mulberry32((Math.random()*2147483647)|0);
+  const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
+  const g=new Uint8Array(W*D).fill(EARTH);
+  for(let x=0;x<W;x++) g[x+(D-1)*W]=BEDROCK;
+  const spawnCol=SPAWN_SCREEN*SCREEN_W+(SCREEN_W>>1);
+  function carve(k,x,y,size){
+    const cells=[[x,y]]; g[x+y*W]=k; let dir=ri(0,3);
+    for(let n=0;n<size*4&&cells.length<size;n++){
+      const b=rnd()<0.6?cells[cells.length-1]:cells[ri(0,cells.length-1)];
+      if(rnd()<0.35) dir=ri(0,3);
+      const nx=b[0]+DX[dir], ny=b[1]+DY[dir];
+      if(nx<0||nx>=W||ny<0||ny>=D-1||g[nx+ny*W]!==EARTH) continue;
+      g[nx+ny*W]=k; cells.push([nx,ny]);
+    }
+    return cells;
+  }
+  const WR=W/40; // scale ore density to the wider map
+  const fossils=[];
+  const totalVeins=Math.round(OREDEF.reduce((a,o)=>a+o.w,0)*WR);
+  for(let n=0;n<totalVeins;n++){
+    const y=ri(1,D-2), elig=OREDEF.filter(o=>y>=o.d0&&y<=Math.min(o.d1,D-2));
+    if(!elig.length) continue;
+    const weights=elig.map(o=>o.w), sum0=weights.reduce((a,b)=>a+b,0);
+    // every 10m of depth shifts 5% more of the odds from coal onto everything pricier than it
+    const bonus=Math.min(0.85,Math.floor(y/10)*0.05), ci=elig.findIndex(o=>o.k===3);
+    if(ci>=0&&elig.length>1){
+      const othersW=sum0-weights[ci], shiftAmt=Math.min(weights[ci],bonus*sum0);
+      if(othersW>0&&shiftAmt>0){
+        weights[ci]-=shiftAmt;
+        for(let j=0;j<weights.length;j++) if(j!==ci) weights[j]+=shiftAmt*(elig[j].w/othersW);
+      }
+    }
+    let r=rnd()*weights.reduce((a,b)=>a+b,0), pick=elig[elig.length-1];
+    for(let j=0;j<elig.length;j++){ if(r<weights[j]){pick=elig[j];break;} r-=weights[j]; }
+    // density & vein length both grow ~2% per meter of depth
+    const depthFactor=1+0.02*y;
+    const size=Math.max(1,Math.round(ri(pick.s0,pick.s1)*depthFactor));
+    const vx=ri(0,W-1);
+    const cells=carve(pick.k, vx, y, size);
+    if(pick.k===3 && cells.length && rnd()<0.13){ // occasional fossil near a coal seam
+      const [cx0,cy0]=cells[ri(0,cells.length-1)];
+      const nb=[[cx0-1,cy0],[cx0+1,cy0],[cx0,cy0-1],[cx0,cy0+1]].filter(([nx,ny])=>nx>=0&&nx<W&&ny>=0&&ny<D-1&&g[nx+ny*W]===EARTH);
+      if(nb.length){ const [fx,fy]=nb[ri(0,nb.length-1)]; fossils.push({idx:fx+fy*W}); }
+    }
+    if(rnd()<Math.min(0.6,0.02*y)){ // deeper ground is also more likely to grow a second vein right alongside
+      const y2=clamp(y+ri(-2,2),1,D-2);
+      carve(pick.k, clamp(vx+ri(-3,3),0,W-1), y2, Math.max(1,Math.round(ri(pick.s0,pick.s1)*depthFactor*.6)));
+    }
+  }
+  // groundwater pockets, sealed behind an impenetrable rock shell
+  const pockets=[];
+  const POCKET_TRIES=Math.round(W*D/60); // dense enough that a shell wall shows up roughly every ~15-20 blocks you dig
+  for(let p=0;p<POCKET_TRIES;p++){
+    const py0=ri(15,D-8), px0=ri(2,W-3);
+    if(Math.abs(px0-spawnCol)<5) continue;
+    const size=ri(1,10);
+    const cells=[[px0,py0]]; let dir=ri(0,3);
+    for(let n=0;n<size*5&&cells.length<size;n++){
+      const b=rnd()<0.6?cells[cells.length-1]:cells[ri(0,cells.length-1)];
+      if(rnd()<0.35) dir=ri(0,3);
+      const nx=b[0]+DX[dir], ny=b[1]+DY[dir];
+      if(nx<1||nx>=W-1||ny<1||ny>=D-2||g[nx+ny*W]!==EARTH) continue;
+      if(cells.some(c=>c[0]===nx&&c[1]===ny)) continue;
+      cells.push([nx,ny]);
+    }
+    if(!cells.length) continue;
+    const cellIdx=cells.map(([x,y])=>x+y*W), cellSet=new Set(cellIdx), shellSet=new Set();
+    cells.forEach(([x,y])=>{
+      [[x-1,y],[x+1,y],[x,y-1],[x,y+1]].forEach(([nx,ny])=>{
+        if(nx<0||nx>=W||ny<0||ny>=D-1) return;
+        const i2=nx+ny*W; if(!cellSet.has(i2)&&g[i2]===EARTH) shellSet.add(i2);
+      });
+    });
+    if(!shellSet.size) continue;
+    // every pocket has at least one diamond; bigger pockets (up to size 10) hold up to four
+    const shuffled=[...cellIdx];
+    for(let i=shuffled.length-1;i>0;i--){ const j=ri(0,i); [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]; }
+    const diamondCount=Math.min(shuffled.length, clamp(Math.ceil(size/3),1,4));
+    const ore=shuffled.slice(0,diamondCount).map(i=>({x:i%W,y:(i/W)|0,k:7}));
+    const id=pockets.length;
+    cellIdx.forEach(i=>g[i]=WATER);
+    shellSet.forEach(i=>g[i]=WALL);
+    ore.forEach(o=>g[o.x+o.y*W]=o.k);
+    pockets.push({id,cells:cellIdx,shell:[...shellSet],ore,y:py0,breached:false,drained:false,floodedCells:[],pumpCost:0});
+  }
+  // random impenetrable boulders scattered through the dirt
+  const rockTries=Math.round(W*D*0.0045);
+  for(let i=0;i<rockTries;i++){
+    const x=ri(0,W-1), y=ri(4,D-2);
+    if(g[x+y*W]!==EARTH) continue;
+    carve(ROCK,x,y,ri(1,3));
+  }
+  const sx=spawnCol;
+  for(let x=0;x<W;x++) g[x]=EMPTY; // surface row: a clear walkway, no digging needed to move along it
+  [[sx-2,1],[sx-2,2],[sx-3,2],[sx-2,3]].forEach(([x,y])=>g[x+y*W]=3);
+  [[sx+2,3],[sx+3,3],[sx+3,4]].forEach(([x,y])=>g[x+y*W]=4);
+  return {g,sx,pockets,fossils};
+}
+// Which water pocket (if any) a square belongs to: its water, the minerals in it, or its rock shell.
+let pocketMap=null, pocketMapFor=null;
+function pocketOf(idx){
+  if(pocketMapFor!==S||!pocketMap){
+    pocketMap=new Map(); pocketMapFor=S;
+    (S.pockets||[]).forEach(pk=>{ pk.cells.forEach(i=>pocketMap.set(i,pk.id)); pk.shell.forEach(i=>pocketMap.set(i,pk.id)); });
+  }
+  const p=pocketMap.get(idx); return p===undefined?-1:p;
+}
+function revealArea(cx,cy,radius){
+  const seen=new Set();
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+    const nx=cx+dx,ny=cy+dy; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+    const i=nx+ny*W; S.rev[i]=1;
+    // Spot any part of a water pocket and you can see the whole thing: its shell and the water inside.
+    const p=pocketOf(i);
+    if(p>=0 && !seen.has(p)){ seen.add(p); const pk=S.pockets[p]; pk.cells.forEach(c=>S.rev[c]=1); pk.shell.forEach(c=>S.rev[c]=1); }
+  }
+}
+function reveal(x,y){revealArea(x,y,1+(S.detectLvl||0));}
+let devReveal=false;
+function toggleDevReveal(){devReveal=!devReveal; toast(devReveal?'Whole map revealed':'Map hidden again');}
+function normInv(inv){const o=inv||{}; ORES.forEach(x=>{if(o[x.id]===undefined)o[x.id]=0;}); return o;}
+function newGame(keep,sameMine){
+  const {g,sx,pockets,fossils}=genMine();
+  S={grid:g,rev:new Uint8Array(W*D),px:sx,py:0,
+     inv:normInv(keep?keep.inv:null),
+     coins:keep?keep.coins:0,tool:keep?keep.tool:0,owned:keep?keep.owned:[1,0,0,0],
+     dur:keep?keep.dur:[1,0,0,0], wear:keep?keep.wear:[0,0,0,0], detectLvl:keep?keep.detectLvl:0,
+     name:keep?keep.name:'', gender:keep?keep.gender:'boy',
+     mine:keep?(sameMine?(keep.mine||1):(keep.mine||1)+1):1,
+     pockets, up:new Uint8Array(W*SKYROWS), mass:new Float32Array(W*D), pieces:new Map(), grass:new Set(), doors:new Set(), piles:new Map(), supports:new Map(), fossils:new Set(fossils.map(f=>f.idx)),
+     nextRainAt:keep&&keep.nextRainAt?keep.nextRainAt:Date.now()+RAIN_INTERVAL_MS, rain:null,
+     dig:null};
+  reveal(sx,0); anim=null; walkPath=null; wakeWater(); followCam=true; camInit=false; save();
+}
+let lastSavePayload=null;
+// One character per cell (value + 48). Joining the raw numbers — what older versions did —
+// turned two-digit blocks (walls, silver, platinum, stone) into two characters, so the map
+// could never be read back and got regenerated on every load.
+function encodeMass(){ const out=[]; for(let i=0;i<W*D;i++){ const v=S.mass[i]; if(v>0.001) out.push([i,Math.round(v*1000)/1000]); } return out; }
+function decodeMass(d){
+  const m=new Float32Array(W*D), put=(i,v)=>{ if(Number.isInteger(i)&&i>=0&&i<W*D&&v>0) m[i]=Math.min(2,v); };
+  if(Array.isArray(d.mass)) d.mass.forEach(e=>Array.isArray(e)&&put(e[0],+e[1]));
+  else { // older saves: a list of full squares, plus (briefly) a list of partly filled ones
+    (d.flooded||[]).forEach(i=>put(i,1));
+    if(Array.isArray(d.water)) d.water.forEach(e=>Array.isArray(e)&&put(e[0],+e[1]));
+  }
+  return m;
+}
+function encodeCells(a){ let out=''; for(let i=0;i<a.length;i+=4096) out+=String.fromCharCode.apply(null,Array.from(a.subarray(i,i+4096),v=>48+v)); return out; }
+async function save(){
+  const payload={
+    v:1,g:encodeCells(S.grid),r:encodeCells(S.rev),up:encodeCells(S.up),
+    px:S.px,py:S.py,inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,
+    dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine,
+    pockets:S.pockets,mass:encodeMass(),pieces:[...S.pieces.entries()],grass:[...S.grass],doors:[...S.doors],piles:[...S.piles],supports:[...S.supports.entries()],fossils:[...S.fossils],
+    nextRainAt:S.nextRainAt,rain:S.rain
+  };
+  lastSavePayload=payload;
+  try{ await idbSet(KEY,payload); }catch(e){}
+  try{ localStorage.setItem(KEY,JSON.stringify(payload)); }catch(e){} // backup copy only
+}
+function migrateOwned(o){
+  if(!Array.isArray(o)) return [1,0,0,0];
+  if(o.length>=4) return o; // already the current 4-tool format
+  return [1, o[1]?1:0, o[2]?1:0, 0]; // old 3-tool save: same price slots, no speed sub-levels yet, drill is new
+}
+async function load(){
+  let d=null;
+  try{ d=await idbGet(KEY); }catch(e){}
+  if(!d){
+    // First run after switching to IndexedDB: pull in the older localStorage save.
+    const raw=localStorage.getItem(KEY);
+    if(raw){ try{ d=JSON.parse(raw); }catch(e){ d=null; } if(d) try{ await idbSet(KEY,d); }catch(e){} }
+  }
+  return applySave(d);
+}
+// Turns a save object (from IndexedDB or a save file, any version so far) into the live
+// game state. Anything a newer version added gets a sensible default when missing.
+// Returns true when the map was restored, a "keep" object (coins/tools/etc.) when only the
+// map size changed, or false when the data isn't a Deep Dig save at all.
+function applySave(d){try{
+  if(typeof d==='string') d=JSON.parse(d);
+  if(!d||typeof d.g!=='string') return false;
+  if(d.v!==undefined && d.v!==1) return false;
+  lastSavePayload=d;
+  const ownedMig=migrateOwned(d.owned);
+  const keep={inv:normInv(d.inv),coins:d.coins||0,tool:d.tool||0,owned:ownedMig,
+    dur:d.dur||ownedMig.map(x=>x>0?x:0), wear:d.wear||[0,0,0,0], detectLvl:d.detectLvl||0,
+    name:d.name||'', gender:d.gender||'boy', mine:d.mine||1, nextRainAt:d.nextRainAt};
+  if(d.g.length!==W*D) return keep;
+  const g=new Uint8Array(W*D), r=new Uint8Array(W*D), rs=typeof d.r==='string'&&d.r.length===W*D?d.r:null;
+  for(let i=0;i<W*D;i++){ const v=d.g.charCodeAt(i)-48; g[i]=v>=0&&v<=40?v:EARTH; r[i]=rs?(rs.charCodeAt(i)-48?1:0):0; }
+  let rain=d.rain||null;
+  if(rain) rain={startAt:+rain.startAt||Date.now(),duration:+rain.duration||0};
+  const up=new Uint8Array(W*SKYROWS);
+  if(typeof d.up==='string'&&d.up.length===W*SKYROWS) for(let i=0;i<W*SKYROWS;i++){ const v=d.up.charCodeAt(i)-48; up[i]=v>=0&&v<=40?v:0; }
+  S={grid:g,rev:r,up,px:clamp(d.px|0,0,W-1),py:clamp(d.py|0,-SKYROWS,D-1),
+     inv:keep.inv,coins:keep.coins,tool:keep.tool,owned:keep.owned,dur:keep.dur,wear:keep.wear,detectLvl:keep.detectLvl,
+     name:keep.name,gender:keep.gender,mine:keep.mine,
+     pockets:d.pockets||[], mass:decodeMass(d), supports:new Map((d.supports||[]).map(e=>Array.isArray(e)?e:[e,1])),
+     fossils:new Set(d.fossils||[]), grass:new Set(Array.isArray(d.grass)?d.grass:[]), doors:new Set(Array.isArray(d.doors)?d.doors:[]), piles:new Map((Array.isArray(d.piles)?d.piles:[]).filter(e=>Array.isArray(e)&&e[1]>0)), pieces:new Map((Array.isArray(d.pieces)?d.pieces:[]).filter(e=>Array.isArray(e)&&typeof e[1]==='string'&&e[1].length===16)),
+     nextRainAt:d.nextRainAt||(Date.now()+RAIN_INTERVAL_MS), rain,
+     dig:null};
+  if(S.py>0 && S.grid[S.px+S.py*W]!==EMPTY) S.grid[S.px+S.py*W]=EMPTY; // never load the miner inside solid ground
+  sanitizeWater();
+  for(const i of [...S.doors]) if(i<W && S.grid[i+W]===EMPTY){ const closed=S.grid[i]===DOOR; S.grid[i]=EMPTY; S.doors.delete(i); S.doors.add(i+W); if(closed) S.grid[i+W]=DOOR; }
+  settleSky();
+  for(const [i] of [...S.pieces]) if(S.grid[i]!==PIECES) S.pieces.delete(i);
+  for(const i of [...S.grass]) if(S.grid[i]!==EMPTY||S.grid[i+W]===EMPTY) S.grass.delete(i);
+  for(const i of [...S.doors]) if(S.grid[i]!==EMPTY&&S.grid[i]!==DOOR) S.doors.delete(i);
+  for(const [i,a] of [...S.piles]) if(S.grid[i]!==EMPTY){ S.piles.delete(i); S.coins+=a; } // never lose coins to a bad pile spot
+  for(let i=0;i<W*D;i++) if(S.grid[i]===DOOR) S.doors.add(i);
+  for(let i=0;i<W*D;i++) if(S.grid[i]===PIECES && !S.pieces.has(i)) S.grid[i]=EMPTY;
+  anim=null; walkPath=null; queued=null; held=null; wakeWater();
+  return true;
+}catch(e){ console.warn('Could not read save:',e); return false; }}
+
+/* ---------- colours per depth ---------- */
+const STOPS=[[0,[139,94,55]],[20,[116,76,45]],[45,[104,88,74]],[85,[88,85,88]],[160,[56,52,66]]];
+const ROWC=[],ROWD=[],ROWL=[],ROWT=[];
+const rgb=(c,m)=>`rgb(${clamp(c[0]*m|0,0,255)},${clamp(c[1]*m|0,0,255)},${clamp(c[2]*m|0,0,255)})`;
+for(let y=0;y<D;y++){
+  let i=0; while(i<STOPS.length-2&&y>STOPS[i+1][0]) i++;
+  const [a,ca]=STOPS[i],[b,cb]=STOPS[i+1],t=clamp((y-a)/(b-a),0,1);
+  const c=ca.map((v,j)=>v+(cb[j]-v)*t);
+  ROWC[y]=rgb(c,1);ROWD[y]=rgb(c,.78);ROWL[y]=rgb(c,1.16);ROWT[y]=rgb(c,.27);
+}
+
+/* ---------- canvas ---------- */
+const cv=$('cv'), ctx=cv.getContext('2d');
+let dpr=1,vw=0,vh=0,cs=36,cam={x:0,y:0},camInit=false;
+// Keep the Place button on the same horizontal line as the centre of the D-pad.
+function placeFillBtn(){
+  const b=$('fillbtn'); if(!b.classList.contains('show')) return;
+  const r=$('pad').getBoundingClientRect(), h=b.getBoundingClientRect().height;
+  b.style.top=Math.round(r.top+r.height/2-h/2)+'px';
+}
+function resize(){
+  const st=$('stage'); vw=st.clientWidth; vh=st.clientHeight;
+  dpr=Math.min(3,window.devicePixelRatio||1);
+  cv.width=Math.round(vw*dpr); cv.height=Math.round(vh*dpr); cv.style.width=vw+'px'; cv.style.height=vh+'px';
+  // Block size comes from the screen's short side, so turning the phone doesn't zoom in or out.
+  cs=Math.max(16,Math.floor(Math.min(window.innerWidth,window.innerHeight)/8.5)); camInit=false;
+  const pad=$('pad'); const k=parseFloat(getComputedStyle(pad).gridTemplateColumns)||54;
+  $('ring').style.width=$('ring').style.height=(k-8)+'px';
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',()=>{resize();setTimeout(resize,150);setTimeout(resize,400);});
+if(window.visualViewport) visualViewport.addEventListener('resize',resize);
+new ResizeObserver(resize).observe($('stage'));
+new ResizeObserver(()=>placeFillBtn()).observe($('panel'));
+window.addEventListener('resize',()=>requestAnimationFrame(placeFillBtn));
+$('panel').addEventListener('scroll',placeFillBtn); // catches layout settling that a load-time measurement can miss
+
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();c.fill();}
+function circ(c,x,y,r){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();}
+function ell(c,x,y,a,b){c.beginPath();c.ellipse(x,y,a,b,0,0,Math.PI*2);c.fill();}
+
+/* ---------- surface: 7 screens (3 left of spawn, spawn, 3 right), each a different biome ---------- */
+const BIOME=['quarry','forest','farm','town','meadow','forest','quarry'];
+const HOUSES=[], TREES=[], ROCKS=[], FENCES=[], STACKS=[];
+for(let s=0;s<SCREENS;s++){
+  const biome=BIOME[s], base=s*SCREEN_W;
+  for(let i=0;i<SCREEN_W;i++){
+    const col=base+i, h=hsh(col,0,501);
+    if(biome==='town'){
+      if(i%4===1&&h<0.85) HOUSES.push([col,Math.floor(hsh(col,1,502)*3)]);
+      else if(h<0.55) TREES.push([col+hsh(col,2,503)*.4-.2,h<0.28?0:1]);
+    } else if(biome==='forest'){
+      if(h<0.78) TREES.push([col+hsh(col,2,503)*.3-.15,hsh(col,3,504)<0.5?0:1]);
+    } else if(biome==='farm'){
+      if(i%5===0) FENCES.push(col);
+      else if(h<0.22) STACKS.push(col);
+      else if(h<0.4) TREES.push([col,1]);
+    } else if(biome==='meadow'){
+      if(h<0.3) TREES.push([col,1]);
+      else if(h<0.42) STACKS.push(col);
+    } else if(biome==='quarry'){
+      if(h<0.55) ROCKS.push([col,.45+hsh(col,4,505)*.5]);
+      else if(h<0.65) TREES.push([col,0]);
+    }
+  }
+}
+function drawSky(now){
+  const gy=GROUND*cs, ww=W*cs;
+  ctx.fillStyle='rgba(255,243,176,.35)'; circ(ctx,ww*.62,gy*.32,cs*.9);
+  ctx.fillStyle='#fff3b0'; circ(ctx,ww*.62,gy*.32,cs*.55);
+  for(let i=0;i<7;i++){
+    const sp=cs*(0.15+(i%3)*0.07), span=ww+6*cs;
+    const x=((i*span/7+now*0.001*sp)%span)-3*cs, y=gy*(0.14+(i%3)*0.12), r=cs*(0.32+(i%2)*0.12);
+    ctx.fillStyle='rgba(255,255,255,.92)'; circ(ctx,x,y,r); circ(ctx,x+r*.9,y+r*.2,r*.8); circ(ctx,x-r*.9,y+r*.25,r*.7); rr(ctx,x-r*1.5,y+r*.2,r*3.2,r*.75,r*.35);
+  }
+  ctx.fillStyle='#9fd68f'; ctx.beginPath(); ctx.moveTo(0,gy);
+  for(let x=0;x<=ww;x+=cs/2) ctx.lineTo(x,gy-cs*.5-Math.sin(x/(cs*3.1))*cs*.28-Math.sin(x/(cs*1.3))*cs*.08);
+  ctx.lineTo(ww,gy); ctx.fill();
+  TREES.forEach(([c,v])=>tree((c+.5)*cs,gy,v));
+  ROCKS.forEach(([c,sc])=>rock((c+.5)*cs,gy,sc));
+  FENCES.forEach(c=>fence((c+.5)*cs,gy));
+  STACKS.forEach(c=>stack((c+.5)*cs,gy));
+  HOUSES.forEach(([c,v])=>house((c+.5)*cs,gy,v));
+  sign((SPAWN_SCREEN*SCREEN_W+(SCREEN_W>>1)+.5)*cs+cs*.55,gy);
+}
+function tree(cx,gy,v){
+  ctx.fillStyle='#7a4a26'; ctx.fillRect(cx-cs*.07,gy-cs*.75,cs*.14,cs*.78);
+  if(v){ctx.fillStyle='#2f7d3b';[[0,1.7,.42],[0,1.35,.52],[0,1.0,.6]].forEach(([dx,h,w])=>{ctx.beginPath();ctx.moveTo(cx-cs*w,gy-cs*(h-.45));ctx.lineTo(cx,gy-cs*h-cs*.25);ctx.lineTo(cx+cs*w,gy-cs*(h-.45));ctx.fill();});}
+  else{ctx.fillStyle='#3f9a3a';circ(ctx,cx,gy-cs*1.18,cs*.44);circ(ctx,cx-cs*.32,gy-cs*.9,cs*.32);circ(ctx,cx+cs*.32,gy-cs*.92,cs*.34);ctx.fillStyle='rgba(255,255,255,.14)';circ(ctx,cx-cs*.12,gy-cs*1.32,cs*.16);}
+}
+function house(cx,gy,v){
+  const w=cs*1.5,h=cs*1.0,x=cx-w/2,y=gy-h;
+  ctx.fillStyle=['#f4e3c1','#e9b8a2','#cfe0f0'][v]; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle='#6b3f25'; ctx.fillRect(x+w*.68,y-cs*.62,cs*.16,cs*.4);
+  ctx.fillStyle=['#c2412d','#51607f','#7a4b2a'][v]; ctx.beginPath(); ctx.moveTo(x-cs*.14,y+cs*.04); ctx.lineTo(cx,y-cs*.66); ctx.lineTo(x+w+cs*.14,y+cs*.04); ctx.fill();
+  ctx.fillStyle='#7a4a26'; rr(ctx,x+w*.58,y+h*.42,w*.22,h*.58,cs*.05);
+  ctx.fillStyle='#fff1a8'; ctx.fillRect(x+w*.13,y+h*.25,w*.28,h*.3);
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x+w*.13+w*.135,y+h*.25,w*.012+1,h*.3);
+}
+function rock(cx,gy,sc){
+  const s=cs*sc;
+  ctx.fillStyle='#8a8478';
+  ctx.beginPath(); ctx.moveTo(cx-s,gy); ctx.lineTo(cx-s*.8,gy-s*.55); ctx.lineTo(cx-s*.2,gy-s*.85);
+  ctx.lineTo(cx+s*.5,gy-s*.6); ctx.lineTo(cx+s,gy-s*.1); ctx.lineTo(cx+s*.7,gy); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#a9a294'; ctx.beginPath(); ctx.moveTo(cx-s*.2,gy-s*.85); ctx.lineTo(cx+s*.5,gy-s*.6); ctx.lineTo(cx,gy-s*.35); ctx.closePath(); ctx.fill();
+}
+function fence(cx,gy){
+  ctx.strokeStyle='#8a6a45'; ctx.lineWidth=cs*.06; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(cx-cs*.32,gy); ctx.lineTo(cx-cs*.32,gy-cs*.42); ctx.moveTo(cx+cs*.32,gy); ctx.lineTo(cx+cs*.32,gy-cs*.42); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-cs*.4,gy-cs*.34); ctx.lineTo(cx+cs*.4,gy-cs*.3); ctx.moveTo(cx-cs*.4,gy-cs*.14); ctx.lineTo(cx+cs*.4,gy-cs*.1); ctx.stroke();
+}
+function stack(cx,gy){
+  ctx.fillStyle='#d9a83b'; ctx.beginPath(); ctx.ellipse(cx,gy-cs*.28,cs*.34,cs*.3,0,Math.PI,0); ctx.fill();
+  ctx.fillRect(cx-cs*.34,gy-cs*.28,cs*.68,cs*.28);
+  ctx.strokeStyle='#b3822a'; ctx.lineWidth=cs*.02;
+  for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(cx+i*cs*.1,gy-cs*.05);ctx.lineTo(cx+i*cs*.1+cs*.04,gy-cs*.5);ctx.stroke();}
+}
+function sign(cx,gy){
+  ctx.fillStyle='#6b3f25'; ctx.fillRect(cx-cs*.04,gy-cs*.7,cs*.08,cs*.72);
+  ctx.fillStyle='#a8764a'; rr(ctx,cx-cs*.42,gy-cs*.78,cs*.84,cs*.34,cs*.06);
+  ctx.fillStyle='#fff4e0'; ctx.font=`${Math.round(cs*.22)}px "Lilita One","Arial Black",sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('MINE',cx,gy-cs*.6);
+}
+function drawGrass(){
+  const gy=GROUND*cs;
+  const hole=x=>{ const v=S.grid[x+W]; return v===EMPTY||v===DOOR; };
+  for(let x=0;x<W;x++){
+    const X=x*cs;
+    if(hole(x)){ // a hole into the mine: dirt lips at its edges instead of grass
+      ctx.fillStyle=ROWD[1];
+      if(x>0&&!hole(x-1)){ ctx.beginPath(); ctx.ellipse(X,gy+cs*.02,cs*.1,cs*.06,0,0,Math.PI*2); ctx.fill(); }
+      if(x<W-1&&!hole(x+1)){ ctx.beginPath(); ctx.ellipse(X+cs,gy+cs*.02,cs*.1,cs*.06,0,0,Math.PI*2); ctx.fill(); }
+      continue;
+    }
+    ctx.fillStyle='#4f9a33'; ctx.fillRect(X,gy-cs*.06,cs+.5,cs*.17);
+    ctx.fillStyle='#6fc044'; ctx.fillRect(X,gy-cs*.06,cs+.5,cs*.06);
+    ctx.fillStyle='#4f9a33';
+    for(let k=0;k<4;k++){ const bx=X+k*cs*.25, h=cs*(.05+hsh(x*4+k,1,2)*.09); ctx.beginPath(); ctx.moveTo(bx,gy-cs*.05); ctx.lineTo(bx+cs*.06,gy-cs*.05-h); ctx.lineTo(bx+cs*.12,gy-cs*.05); ctx.fill(); }
+  }
+}
+
+/* ---------- cells ---------- */
+function solidAt(x,y){if(x<0||x>=W||y<0||y>=D)return true;return S.grid[x+y*W]!==EMPTY;}
+function drawRockTexture(X,Y,x,y,base,chunk){
+  ctx.fillStyle=base; ctx.fillRect(X,Y,cs+.5,cs+.5); ctx.fillStyle=chunk;
+  for(let k=0;k<3;k++) rr(ctx,X+hsh(x,y,k)*cs*.6,Y+hsh(x,y,k+3)*cs*.6,cs*.35,cs*.25,cs*.08);
+}
+function drawBoulder(X,Y,x,y){
+  const cx=X+cs/2, cy=Y+cs/2, r=cs*.42;
+  ctx.fillStyle='#787169';
+  ctx.beginPath();
+  for(let i=0;i<8;i++){const a=i/8*Math.PI*2, q=r*(.8+hsh(x,y,i+90)*.3); i?ctx.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q):ctx.moveTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q);}
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#94897c'; circ(ctx,cx-r*.3,cy-r*.35,r*.32);
+  ctx.strokeStyle='#5b5349'; ctx.lineWidth=cs*.025;
+  ctx.beginPath(); ctx.moveTo(cx-r*.4,cy-r*.1); ctx.lineTo(cx+r*.2,cy+r*.3); ctx.stroke();
+}
+function drawWaterCell(X,Y,x,y,now){
+  ctx.fillStyle='#1c5f8a'; ctx.fillRect(X,Y,cs+.5,cs+.5);
+  ctx.fillStyle='rgba(255,255,255,.18)';
+  const off=(now*.002+hsh(x,y,5)*6)%1;
+  for(let i=0;i<2;i++){
+    const wy=Y+cs*(.3+i*.4+Math.sin(now*.003+x+i)*.05);
+    ctx.beginPath(); ctx.moveTo(X,wy);
+    for(let t=0;t<=1;t+=.25) ctx.lineTo(X+t*cs, wy+Math.sin((t+off)*Math.PI*2)*cs*.06);
+    ctx.lineTo(X+cs,wy+cs*.15); ctx.lineTo(X,wy+cs*.15); ctx.fill();
+  }
+}
+// Partly filled square: a layer on the floor if it's resting on something, otherwise a
+// falling stream (its width shows how much water is pouring through).
+function drawShallowWater(X,Y,x,y,m,now){
+  const below=x+(y+1)*W, falling=y<D-1 && S.grid[below]===EMPTY && S.mass[below]<W_FULL;
+  if(falling) return; // drawn as part of a continuous stream in drawWaterFlows()
+  // Resting water: the very same animated water as a full block, cropped to the level,
+  // so a rising pool simply reveals more of it.
+  const h=Math.max(cs*.05,Math.min(1,m)*cs), top=Y+cs-h;
+  ctx.save(); ctx.beginPath(); ctx.rect(X,top,cs+.5,Y+cs-top+.5); ctx.clip();
+  drawWaterCell(X,Y,x,y,now);
+  ctx.restore();
+}
+// Posts stand in front of the water; the part below the water line gets a blue tint so
+// it reads as submerged.
+// Where falling water lands: the top of the solid block or full water below it, or the
+// surface of the resting water it's pouring into. Returns a y in world pixels.
+function landingY(x,y){
+  for(let yy=y;;yy++){
+    const nb=x+(yy+1)*W;
+    if(yy+1>=D || S.grid[nb]!==EMPTY || S.mass[nb]>=W_FULL) return (SKY+yy+1)*cs;
+    if(restingCell(nb)) return (SKY+yy+2)*cs-Math.min(1,S.mass[nb])*cs;
+  }
+}
+const isFalling=i=>S.grid[i]===EMPTY && S.mass[i]>0.0003 && i+W<W*D && S.grid[i+W]===EMPTY && S.mass[i+W]<W_FULL;
+function drawStream(cx,y0,y1,w,now,seed){
+  const len=y1-y0; if(len<=0) return;
+  ctx.fillStyle='rgba(90,160,225,.82)'; rr(ctx,cx-w/2,y0,w,len,Math.min(w/2,cs*.05));
+  ctx.fillStyle='rgba(215,238,255,.85)';
+  const n=Math.max(1,Math.round(len/(cs*.5)));
+  for(let k=0;k<n;k++){ const dy=(now*.4+k*len/n+seed*97)%len; ctx.beginPath(); ctx.ellipse(cx+(k%2?-1:1)*w*.15,y0+dy,Math.max(1.1,cs*.03),cs*.09,0,0,Math.PI*2); ctx.fill(); }
+}
+function openToSky(x,y){ for(let yy=1;yy<=y;yy++) if(S.grid[x+yy*W]!==EMPTY) return false; return true; }
+function drawWaterFlows(c0,c1,r0,r1,now){
+  ctx.save();
+  // Rain keeps falling down any shaft that's open to the sky, all the way to its bottom or waterline.
+  if(isRaining()){
+    ctx.strokeStyle='rgba(205,228,255,.6)'; ctx.lineWidth=Math.max(1,cs*.028); ctx.lineCap='round';
+    for(let x=c0;x<=c1;x++){
+      if(S.grid[x+W]!==EMPTY || S.mass[x+W]>=W_FULL || !skyOpen(x)) continue;
+      const top=GROUND*cs, bot=landingY(x,0), len=bot-top; if(len<=0) continue;
+      const n=Math.max(3,Math.round(len/cs*3.2)), X=x*cs;
+      ctx.beginPath();
+      for(let k=0;k<n;k++){
+        const px=X+cs*(.12+hsh(x,k,710)*.76), py=top+((hsh(x,k,711)*len+now*cs*.016*(.8+hsh(x,k,712)*.5))%len);
+        ctx.moveTo(px,py); ctx.lineTo(px-cs*.06,Math.min(bot,py+cs*.4));
+      }
+      ctx.stroke();
+    }
+  }
+  // Falling water: one unbroken stream from where it starts to where it lands. Water that
+  // spills over a ledge hugs the wall on the side it came from.
+  for(let y=Math.max(1,r0-2);y<=r1;y++) for(let x=c0;x<=c1;x++){
+    const i=x+y*W;
+    if(!isFalling(i) || isFalling(i-W)) continue; // only start at the top of each fall
+    const fromL=x>0 && S.grid[i-1]===EMPTY && S.mass[i-1]>0.0003;
+    const fromR=x<W-1 && S.grid[i+1]===EMPTY && S.mass[i+1]>0.0003;
+    if(!fromL && !fromR && openToSky(x,y) && skyOpen(x) && isRaining()) continue; // rain coming straight down an open shaft is drawn as rain
+    let flow=0; for(let k=0;k<3 && y+k<D;k++) flow=Math.max(flow,S.mass[i+k*W]);
+    const w=cs*clamp(.06+flow*1.4,.06,.42), X=x*cs;
+    let cx=X+cs/2, y0=(SKY+y)*cs;
+    if(!fromL && !fromR && openToSky(x,y) && (flashFlood()&&S.grid[x]===EMPTY || isRaining()&&skyOpen(x))) y0=GROUND*cs; // pouring in from the surface: no gap
+    if(fromL||fromR){
+      const side=fromL?i-1:i+1;
+      cx=fromL? X+w/2 : X+cs-w/2;
+      y0=(SKY+y+1)*cs-Math.max(.05,Math.min(1,S.mass[side]))*cs; // starts at the level of the water spilling in
+    }
+    drawStream(cx,y0,landingY(x,y),w,now,x+y);
+  }
+  ctx.restore();
+}
+// Is there steel at this ¼-position? (a whole steel block counts as steel all over)
+function beamQ(qx,qy,full,code){
+  const cx=Math.floor(qx/4), cy=Math.floor(qy/4); if(cx<0||cx>=W||cy<-SKYROWS||cy>=D) return false;
+  const v=cellAt(cx,cy); if(v===full) return true;
+  return v===PIECES && (S.pieces.get(cx+cy*W)||'')[(qx-cx*4)+(qy-cy*4)*4]===code;
+}
+const steelQ=(qx,qy)=>beamQ(qx,qy,STEEL,'5'), woodQ=(qx,qy)=>beamQ(qx,qy,WOOD,'6');
+// One square of I-beam, seen from the side. It runs sideways if it has steel to its left or
+// right (or nothing around it), otherwise up and down. Sides that join more steel get no end
+// cap, so a row or column of steel reads as one continuous beam.
+const BEAM_STEEL={web:'#5d6773',fl:'#aab4bf',hi:'#d3dae1',cap:'#3e4650',bolt:'#8993a0'};
+const BEAM_WOOD={web:'#7a4e2a',fl:'#a26a3a',hi:'#c98d55',cap:'#4a2f18',bolt:'#5a3a1e'};
+function drawBeam(X,Y,sz,L,R,U,Dn,pal){
+  pal=pal||BEAM_STEEL;
+  const horiz=L||R||!(U||Dn);
+  ctx.save(); ctx.translate(X+sz/2,Y+sz/2); if(!horiz) ctx.rotate(Math.PI/2);
+  const a=horiz?L:U, b=horiz?R:Dn, h=sz*.78, f=h*.2, x0=-sz/2-.3, w=sz+.6;
+  ctx.fillStyle=pal.web; ctx.fillRect(x0,-h/2+f,w,h-2*f);
+  ctx.fillStyle='rgba(255,255,255,.08)'; ctx.fillRect(x0,-h/2+f,w,(h-2*f)*.35);
+  if(pal===BEAM_WOOD){ ctx.fillStyle='rgba(0,0,0,.14)'; for(const gy of [-.12,.05,.16]) ctx.fillRect(x0,gy*h,w,Math.max(.7,sz*.018)); } // wood grain
+  ctx.fillStyle=pal.fl; ctx.fillRect(x0,-h/2,w,f); ctx.fillRect(x0,h/2-f,w,f);
+  ctx.fillStyle=pal.hi; ctx.fillRect(x0,-h/2,w,Math.max(1,f*.3)); ctx.fillRect(x0,h/2-f,w,Math.max(1,f*.3));
+  ctx.fillStyle=pal.cap;
+  if(!a) ctx.fillRect(-sz/2,-h/2,Math.max(1.5,sz*.06),h);
+  if(!b) ctx.fillRect(sz/2-Math.max(1.5,sz*.06),-h/2,Math.max(1.5,sz*.06),h);
+  if(sz>14){ ctx.fillStyle=pal.bolt; for(const rx of [-.25,.25]){ circ(ctx,rx*sz,-h/2+f*.55,Math.max(.8,sz*.025)); circ(ctx,rx*sz,h/2-f*.55,Math.max(.8,sz*.025)); } }
+  ctx.restore();
+}
+// Built stone: rows of individual river rocks of different sizes and shades, with dark
+// gaps between them, staggered so it reads as a dry-stone wall.
+const STONE_COLS=['#9a948c','#8a857e','#a9a39a','#7f7a73','#b3ada3','#958e82','#a39c90','#8c8a86'];
+function drawStone1(cx,cy,rx,ry,rot,col){
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(rot);
+  ctx.fillStyle='rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(rx*.07,ry*.12,rx,ry,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.22)'; ctx.beginPath(); ctx.ellipse(-rx*.3,-ry*.35,rx*.45,ry*.3,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawStoneWall(X,Y,x,y){
+  ctx.save(); ctx.beginPath(); ctx.rect(X,Y,cs+.5,cs+.5); ctx.clip();
+  ctx.fillStyle='#4d4843'; ctx.fillRect(X,Y,cs+.5,cs+.5);
+  const rows=3, rh=cs/rows;
+  for(let r=0;r<rows;r++){
+    const n=2+((hsh(x,y,500+r)*1.99)|0), ws=[]; let tot=0;
+    for(let k=0;k<n;k++){ const w=.65+hsh(x,y,520+r*5+k)*.7; ws.push(w); tot+=w; }
+    let px=X-(r%2?cs*(.08+hsh(x,y,530+r)*.12):0);
+    const span=cs+(X-px);
+    for(let k=0;k<n;k++){
+      const w=ws[k]/tot*span, cy=Y+rh*(r+.5)+(hsh(x,y,540+r*5+k)-.5)*rh*.14;
+      drawStone1(px+w/2,cy,w/2*.9,rh/2*.86,(hsh(x,y,550+r*5+k)-.5)*.3,STONE_COLS[(hsh(x,y,560+r*5+k)*STONE_COLS.length)|0]);
+      px+=w;
+    }
+  }
+  ctx.restore();
+}
+// In a vertical shaft (open above and below) the entrance is a trapdoor lying across it;
+// anywhere else it's an upright door.
+// Any square, including the sky above the surface (y<0). Outside the world counts as bedrock.
+function cellAt(x,y){
+  if(x<0||x>=W||y>=D||y<-SKYROWS) return BEDROCK;
+  return y<0 ? S.up[x+(-y-1)*W] : S.grid[x+y*W];
+}
+function setSky(x,y,v){ S.up[x+(-y-1)*W]=v; }
+// Above ground the miner can climb the face of any built block, walk along the top of
+// blocks, and stand on the grass — but can't step out into thin air.
+const CLIMB=new Set([EARTH,STONE,GLASS,STEEL,WOOD]);
+const climbable=(x,y)=>y<=0 && CLIMB.has(cellAt(x,y));
+function standable(x,y){
+  if(y>=1) return true;                       // underground works as always
+  if(climbable(x,y)) return true;             // hanging on a block's face
+  if(cellAt(x,y)!==EMPTY && !(y===0&&S.doors.has(x))) return false;
+  if(y===0) return true;                      // the grass
+  const b=cellAt(x,y+1); return b!==EMPTY;    // on top of something
+}
+function canEnter(x,y){
+  if(x<0||x>=W||y<-SKYROWS||y>=D) return false;
+  if(y>=1) return S.grid[x+y*W]===EMPTY && !isFull(x+y*W);
+  return standable(x,y);
+}
+// Blocks above ground (the grass row and the sky) have to be held up. A horizontal run of
+// blocks side by side stays up as long as at least one of them is held from below: by the
+// ground, by a held-up block underneath, or by a support post standing under it. Anything
+// that isn't held falls straight down until it lands on something.
+const MOVABLE=new Set([EARTH,STONE,GLASS,STEEL,WOOD]);
+const isBlockAt=(x,y)=>y<=0 && y>=-SKYROWS && cellAt(x,y)!==EMPTY;
+function setCell(x,y,v){ if(y<0) setSky(x,y,v); else S.grid[x+y*W]=v; }
+function settleSky(){
+  let fell=0;
+  for(let pass=0;pass<200;pass++){
+    const held=new Set(); for(const [k,h0] of S.supports) held.add(k-(h0||1)*W);
+    const sup=new Set();
+    for(let y=0;y>=-SKYROWS;y--){
+      const direct=x=>{
+        const k=x+y*W;
+        if(held.has(k) || !MOVABLE.has(cellAt(x,y))) return true; // posts, and entrances/pieces stay put
+        if(y===0) return S.grid[x+W]!==EMPTY || (x>0&&S.grid[x-1+W]!==EMPTY) || (x<W-1&&S.grid[x+1+W]!==EMPTY); // on the ground (or bridging a narrow hole)
+        return sup.has(k+W);
+      };
+      let x=0;
+      while(x<W){
+        if(!isBlockAt(x,y)){ x++; continue; }
+        let x2=x, any=false; while(x2<W && isBlockAt(x2,y)){ if(direct(x2)) any=true; x2++; }
+        if(any) for(let k=x;k<x2;k++) sup.add(k+y*W);
+        x=x2;
+      }
+    }
+    let moved=false;
+    for(let y=0;y>=-SKYROWS;y--) for(let x=0;x<W;x++){   // lowest first, so a whole column drops together
+      if(!isBlockAt(x,y) || sup.has(x+y*W)) continue;
+      const v=cellAt(x,y); if(!MOVABLE.has(v)) continue;
+      if(cellAt(x,y+1)!==EMPTY) continue;
+      setCell(x,y,EMPTY); setCell(x,y+1,v);
+      if(y+1>=1){ displaceWater(x+(y+1)*W); S.grass.delete(x+(y+1)*W); S.rev[x+(y+1)*W]=1; }
+      moved=true; fell++;
+    }
+    if(!moved) break;
+  }
+  if(fell){
+    // a post whose load fell away, or that a block landed on, comes down too
+    for(const [k,h0] of [...S.supports]){ const h=h0||1, x=keyX(k), y=keyY(k); if(y>0) continue;
+      let bad=cellAt(x,y-h)===EMPTY; for(let j=0;j<h;j++) if(cellAt(x,y-j)!==EMPTY) bad=true;
+      if(bad) S.supports.delete(k); }
+    for(let i=0;i<14;i++) dust((S.px+.5+(Math.random()-.5)*6)*cs,(SKY+S.py+(Math.random()-.5)*4)*cs,'#8a857e',2,true);
+    toast('⚠️ Blocks with nothing holding them up came crashing down!',2600);
+  }
+  return fell;
+}
+function drawDoors(c0,c1,r0,r1){
+  for(const idx of S.doors){ const x=idx%W, y=(idx/W)|0; if(x<c0||x>c1||y<r0-1||y>r1) continue; drawDoor(x*cs,(SKY+y)*cs,x,y,S.grid[idx]===DOOR); }
+}
+function drawDoor(X,Y,x,y,closed){
+  const openC=(xx,yy)=>{ const v=cellAt(xx,yy); return v===EMPTY||v===DOOR; };
+  const trap=(y===0&&openC(x,1)) || ((y===1||openC(x,y-1)) && openC(x,y+1) && !openC(x-1,y) && !openC(x+1,y));
+  const f=cs*.16, frame='#8a5a32', edge='#2a1a0e';
+  const low=trap&&y===0, FY=low?Y+cs*.6:Y, FH=low?cs*.4:cs; // at grass level the hatch sits flush with the ground
+  const planks=(x0,y0,w,h,vertical)=>{
+    for(let k=0;k<4;k++){ ctx.fillStyle=k%2?'#8f5d33':'#a26a3a'; vertical?ctx.fillRect(x0+k*w/4,y0,w/4+.5,h):ctx.fillRect(x0,y0+k*h/4,w,h/4+.5); }
+    ctx.fillStyle='rgba(0,0,0,.25)'; for(let k=1;k<4;k++) vertical?ctx.fillRect(x0+k*w/4-.5,y0,1,h):ctx.fillRect(x0,y0+k*h/4-.5,w,1);
+  };
+  // the frame never moves: two posts, plus a lintel over an upright door
+  ctx.fillStyle=edge; ctx.fillRect(X-1,FY,f+2,FH); ctx.fillRect(X+cs-f-1,FY,f+2,FH); if(!trap) ctx.fillRect(X-1,Y-1,cs+2,f+2); else { ctx.fillRect(X-1,FY-1,f*1.8+2,f*.7+2); ctx.fillRect(X+cs-f*1.8-1,FY-1,f*1.8+2,f*.7+2); }
+  ctx.fillStyle=frame; ctx.fillRect(X,FY,f,FH); ctx.fillRect(X+cs-f,FY,f,FH); if(!trap) ctx.fillRect(X,Y,cs,f); else { ctx.fillRect(X,FY,f*1.8,f*.7); ctx.fillRect(X+cs-f*1.8,FY,f*1.8,f*.7); }
+  ctx.fillStyle='rgba(255,255,255,.18)'; ctx.fillRect(X,FY,f*.35,FH); ctx.fillRect(X+cs-f,FY,f*.35,FH);
+  ctx.fillStyle=edge; ctx.fillRect(X+f-1,FY+(trap?0:f),1.2,FH-(trap?0:f)); ctx.fillRect(X+cs-f,FY+(trap?0:f),1.2,FH-(trap?0:f));
+  if(trap){
+    if(closed){ // lid lying across the top of the shaft
+      const ly=low?Y+cs*.7:Y;
+      planks(X+f,ly,cs-2*f,cs*.3,true);
+      ctx.fillStyle='#555a60'; ctx.fillRect(X+f+cs*.1,ly,cs*.06,cs*.3); ctx.fillRect(X+cs-f-cs*.16,ly,cs*.06,cs*.3);
+      ctx.fillStyle='#c9a64a'; circ(ctx,X+cs/2,ly+cs*.15,cs*.045);
+    } else if(y<=1){ // flipped up, standing on the grass beside the hole
+      ctx.save(); ctx.translate(X+f*.5,y===0?Y+cs:Y); ctx.rotate(-.12);
+      planks(-cs*.15,-cs*.72,cs*.15,cs*.72,false);
+      ctx.fillStyle='#555a60'; ctx.fillRect(-cs*.15,-cs*.6,cs*.15,cs*.05); ctx.fillRect(-cs*.15,-cs*.2,cs*.15,cs*.05);
+      ctx.restore();
+    } else { // hanging down along the shaft wall
+      planks(X+f,Y+cs*.04,cs*.14,cs*.8,false);
+    }
+  } else {
+    if(closed){
+      const x0=X+f, y0=Y+f, w=cs-2*f, h=cs-f;
+      planks(x0,y0,w,h,true);
+      ctx.fillStyle='#555a60'; ctx.fillRect(x0,y0+h*.22,w,cs*.07); ctx.fillRect(x0,y0+h*.7,w,cs*.07);
+      ctx.fillStyle='#c9a64a'; circ(ctx,x0+w*.8,y0+h*.48,cs*.045);
+    } else { // swung open on its hinges, seen at an angle
+      const hx=X+f, top=Y+f, w=cs*.3;
+      ctx.fillStyle='#8f5d33'; ctx.beginPath(); ctx.moveTo(hx,top); ctx.lineTo(hx+w,top+cs*.1); ctx.lineTo(hx+w,Y+cs-cs*.03); ctx.lineTo(hx,Y+cs); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,.2)'; ctx.beginPath(); ctx.moveTo(hx+w*.5,top+cs*.05); ctx.lineTo(hx+w*.5+1,top+cs*.05); ctx.lineTo(hx+w*.5+1,Y+cs-cs*.015); ctx.lineTo(hx+w*.5,Y+cs-cs*.015); ctx.fill();
+      ctx.fillStyle='#555a60'; ctx.beginPath(); ctx.moveTo(hx,top+cs*.2); ctx.lineTo(hx+w,top+cs*.26); ctx.lineTo(hx+w,top+cs*.32); ctx.lineTo(hx,top+cs*.27); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(hx,top+cs*.62); ctx.lineTo(hx+w,top+cs*.63); ctx.lineTo(hx+w,top+cs*.69); ctx.lineTo(hx,top+cs*.69); ctx.fill();
+    }
+  }
+}
+// One straight run of beam in local coordinates, from x0 to x1 along the x axis, centred on y=0.
+function beamRun(x0,x1,th,capA,capB,pal){
+  const h=th, f=h*.2, w=x1-x0;
+  ctx.fillStyle=pal.web; ctx.fillRect(x0,-h/2+f,w,h-2*f);
+  ctx.fillStyle=pal.fl; ctx.fillRect(x0,-h/2,w,f); ctx.fillRect(x0,h/2-f,w,f);
+  ctx.fillStyle=pal.hi; ctx.fillRect(x0,-h/2,w,Math.max(.8,f*.3)); ctx.fillRect(x0,h/2-f,w,Math.max(.8,f*.3));
+  ctx.fillStyle=pal.cap; const c=Math.max(1.2,h*.08);
+  if(capA) ctx.fillRect(x0,-h/2,c,h); if(capB) ctx.fillRect(x1-c,-h/2,c,h);
+}
+// Beams made of ¼ pieces, joined into one continuous beam when side by side or stacked.
+function drawBeamPieces(c0,c1,rTop,r1){
+  const q=cs/4, th=q*.78, half=q*Math.SQRT2/2;
+  for(const [idx,str] of S.pieces){
+    if(str.indexOf('5')<0 && str.indexOf('6')<0) continue;
+    const x=keyX(idx), y=keyY(idx); if(x<c0-1||x>c1+1||y<rTop-1||y>r1+1) continue;
+    for(let k=0;k<16;k++){
+      const c=str[k]; if(c!=='5'&&c!=='6') continue;
+      const fq=c==='5'?steelQ:woodQ, pal=c==='6'?BEAM_WOOD:BEAM_STEEL;
+      const qx=x*4+k%4, qy=y*4+((k/4)|0), X=qx*q, Y=SKY*cs+qy*q, cx=X+q/2, cy=Y+q/2;
+      const L=fq(qx-1,qy), R=fq(qx+1,qy), U=fq(qx,qy-1), Dn=fq(qx,qy+1);
+      drawBeam(X,Y,q,L,R,U,Dn,pal);
+    }
+  }
+}
+function drawSkyBlock(x,y){
+  const v=cellAt(x,y); if(v===EMPTY) return;
+  const X=x*cs, Y=(SKY+y)*cs;
+  if(v===STONE){ drawStoneWall(X,Y,x,y); return; }
+  if(v===PIECES){ drawPieces(X,Y,x,y,x+y*W,performance.now()); return; }
+  if(v===STEEL||v===WOOD){ const st=(xx,yy)=>cellAt(xx,yy)===v; drawBeam(X,Y,cs,st(x-1,y),st(x+1,y),st(x,y-1),st(x,y+1),v===WOOD?BEAM_WOOD:BEAM_STEEL); return; }
+  if(v===GLASS){
+    ctx.fillStyle='rgba(190,230,255,.22)'; ctx.fillRect(X,Y,cs+.5,cs+.5);
+    ctx.strokeStyle='rgba(225,243,255,.75)'; ctx.lineWidth=Math.max(1,cs*.05); ctx.strokeRect(X+cs*.04,Y+cs*.04,cs*.92,cs*.92);
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=Math.max(1,cs*.04);
+    ctx.beginPath(); ctx.moveTo(X+cs*.22,Y+cs*.55); ctx.lineTo(X+cs*.55,Y+cs*.22); ctx.moveTo(X+cs*.4,Y+cs*.78); ctx.lineTo(X+cs*.78,Y+cs*.4); ctx.stroke();
+    return;
+  }
+  ctx.fillStyle=ROWC[0]; ctx.fillRect(X,Y,cs+.5,cs+.5);          // dirt
+  for(let k=0;k<5;k++){ ctx.fillStyle=k%2?ROWD[0]:ROWL[0]; const sz=cs*(.05+hsh(x,y,k+9)*.07); rr(ctx,X+hsh(x,y,k)*cs*.86,Y+hsh(x,y,k+5)*cs*.86,sz,sz*.8,sz*.3); }
+}
+// Everything built from ¼ pieces in one square, except beams (drawn later so they can join
+// up across squares, including on the diagonal).
+function drawPieces(X,Y,x,y,idx,now){
+  const str=S.pieces.get(idx)||'', q=cs/4;
+  for(let k=0;k<16;k++){
+    const c=str[k]; if(!c||c==='0'||c==='5'||c==='6') continue;
+    const sx=X+(k%4)*q, sy=Y+((k/4)|0)*q;
+      if(c==='3'){ ctx.fillStyle='#1c5f8a'; ctx.fillRect(sx,sy,q+.5,q+.5); ctx.fillStyle='rgba(255,255,255,.22)'; ctx.fillRect(sx,sy+q*(.3+Math.sin(now*.004+k)*.08),q+.5,Math.max(1,q*.12)); continue; }
+      if(c==='2'){ ctx.fillStyle='#4d4843'; ctx.fillRect(sx,sy,q+.5,q+.5); drawStone1(sx+q/2,sy+q/2,q*.46,q*.4,(hsh(x,y,570+k)-.5)*.5,STONE_COLS[(hsh(x,y,580+k)*STONE_COLS.length)|0]); continue; }
+      ctx.fillStyle=c==='1'?ROWC[Math.max(0,y)]:PIECE_COL[c]; ctx.fillRect(sx,sy,q+.5,q+.5);
+      if(c==='4'){ ctx.strokeStyle='rgba(235,248,255,.8)'; ctx.lineWidth=1; ctx.strokeRect(sx+.5,sy+.5,q-1,q-1); }
+      else { ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(sx,sy+q*.8,q+.5,q*.2); }
+  }
+}
+function drawGrassFloor(X,Y,x,y){
+  const g=Y+cs;
+  ctx.fillStyle='#4f9a33'; ctx.fillRect(X,g-cs*.12,cs+.5,cs*.12);
+  ctx.fillStyle='#6fc044'; ctx.fillRect(X,g-cs*.12,cs+.5,cs*.04);
+  ctx.fillStyle='#4f9a33';
+  for(let k=0;k<7;k++){ const bx=X+(k+.2+hsh(x,y,400+k)*.6)*cs/7, bh=cs*(.08+hsh(x,y,410+k)*.12);
+    ctx.beginPath(); ctx.moveTo(bx-cs*.03,g-cs*.1); ctx.lineTo(bx+cs*.01,g-cs*.1-bh); ctx.lineTo(bx+cs*.04,g-cs*.1); ctx.fill(); }
+  if(hsh(x,y,420)<.35){ ctx.fillStyle=hsh(x,y,421)<.5?'#ffd54a':'#ff8fb0'; circ(ctx,X+cs*(.2+hsh(x,y,422)*.6),g-cs*.2,cs*.035); }
+}
+function drawSupports(c0,c1,r0,r1,now){
+  for(const [idx,h0] of S.supports){
+    const x=keyX(idx), y=keyY(idx), h=h0||1;
+    if(x<c0-1||x>c1+1||y<Math.min(r0,-SKYROWS)||y-h+1>r1) continue;
+    const X=x*cs, Y=(SKY+y)*cs;
+    drawSupport(X,Y,h);
+    for(let k=0;k<h;k++){
+      const cy=y-k; if(cy<1) continue; const m=S.mass[x+cy*W]; if(!(m>0.0003)) continue;
+      const lvl=Math.min(1,m), top=(SKY+cy+1)*cs-lvl*cs;
+      ctx.fillStyle='rgba(28,95,138,.5)'; ctx.fillRect(X+cs*.28,top,cs*.44,lvl*cs+.5);
+    }
+  }
+}
+function drawSupport(X,Y,h){
+  h=h||1;
+  const cx=X+cs/2, topY=Y-(h-1)*cs;
+  ctx.fillStyle='#6b4a2e'; ctx.fillRect(cx-cs*.07,topY,cs*.14,cs*h);
+  ctx.fillStyle='#4a3320'; ctx.fillRect(cx-cs*.4,topY,cs*.8,cs*.1);
+  ctx.fillStyle='#8a6640'; for(let i=0;i<3;i++) ctx.fillRect(cx-cs*.35+i*cs*.28,topY+cs*.02,cs*.06,cs*.06);
+  ctx.fillStyle='rgba(255,220,140,.9)'; circ(ctx,cx,topY+cs*.16,cs*.055);
+  ctx.fillStyle='rgba(255,220,140,.25)'; circ(ctx,cx,topY+cs*.16,cs*.22);
+}
+function drawFossil(X,Y,x,y){
+  const skel=hsh(x,y,200)<0.5, cx=X+cs*.5, cy=Y+cs*.62;
+  ctx.fillStyle='#e8ddc8';
+  if(skel){
+    circ(ctx,cx,cy-cs*.1,cs*.13);
+    ctx.fillRect(cx-cs*.03,cy-cs*.02,cs*.06,cs*.12);
+    for(let i=0;i<3;i++) ctx.fillRect(cx-cs*.18,cy+cs*.05+i*cs*.06,cs*.36,cs*.03);
+  } else {
+    ctx.strokeStyle='#e8ddc8'; ctx.lineWidth=cs*.08; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(cx-cs*.15,cy+cs*.15); ctx.quadraticCurveTo(cx-cs*.25,cy-cs*.15,cx-cs*.05,cy-cs*.25); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+cs*.15,cy+cs*.15); ctx.quadraticCurveTo(cx+cs*.25,cy-cs*.15,cx+cs*.05,cy-cs*.25); ctx.stroke();
+  }
+}
+function drawCell(x,y,now){
+  const idx=x+y*W, v=S.grid[idx], X=x*cs, Y=(SKY+y)*cs;
+  if(v===EMPTY){
+    if(y===0){ if(S.piles.has(idx)) drawCoinPile(X,Y,x,y,S.piles.get(idx),now); return; } // open air above the grass: the sky is already drawn there
+    const wm=S.mass[idx];
+    if(wm>=W_FULL){ drawWaterCell(X,Y,x,y,now); return; }
+    ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
+    ctx.fillStyle='rgba(255,255,255,.05)';
+    for(let k=0;k<3;k++) ctx.fillRect(X+hsh(x,y,k+10)*cs*.85,Y+hsh(x,y,k+20)*cs*.85,cs*.12,cs*.07);
+    const e=cs*.12; ctx.fillStyle='rgba(0,0,0,.35)';
+    const wallAt=(xx,yy)=>solidAt(xx,yy)&&cellAt(xx,yy)!==PIECES; // pieces only part-fill their square, so no wall shadow
+    if(wallAt(x,y-1))ctx.fillRect(X,Y,cs,e); if(wallAt(x-1,y))ctx.fillRect(X,Y,e,cs); if(wallAt(x+1,y))ctx.fillRect(X+cs-e,Y,e,cs);
+    if(wallAt(x,y+1)){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(X,Y+cs-e*.6,cs,e*.6);}
+    if(S.grass.has(idx)) drawGrassFloor(X,Y,x,y);
+    if(S.piles.has(idx)) drawCoinPile(X,Y,x,y,S.piles.get(idx),now);
+    if(wm>0.004) drawShallowWater(X,Y,x,y,wm,now);
+    return;
+  }
+  if(v===BEDROCK){ drawRockTexture(X,Y,x,y,'#231f29','#39343f'); return; }
+  if(v===STONE){ drawStoneWall(X,Y,x,y); return; }
+  if(v===DOOR){ if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);} return; } // the entrance itself is drawn in drawDoors(), after the water
+  if(v===STEEL||v===WOOD){
+    if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);}
+    const st=(xx,yy)=>cellAt(xx,yy)===v;
+    drawBeam(X,Y,cs,st(x-1,y),st(x+1,y),st(x,y-1),st(x,y+1),v===WOOD?BEAM_WOOD:BEAM_STEEL);
+    return;
+  }
+  if(v===PIECES){ if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);} drawPieces(X,Y,x,y,idx,now); return; }
+  if(v===GLASS){ // see-through: the tunnel (or sky) shows behind a pale pane with a frame and a glint
+    if(y>0){ctx.fillStyle=ROWT[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);}
+    ctx.fillStyle='rgba(190,230,255,.22)'; ctx.fillRect(X,Y,cs+.5,cs+.5);
+    ctx.strokeStyle='rgba(225,243,255,.75)'; ctx.lineWidth=Math.max(1,cs*.05); ctx.strokeRect(X+cs*.04,Y+cs*.04,cs*.92,cs*.92);
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=Math.max(1,cs*.04);
+    ctx.beginPath(); ctx.moveTo(X+cs*.22,Y+cs*.55); ctx.lineTo(X+cs*.55,Y+cs*.22); ctx.moveTo(X+cs*.4,Y+cs*.78); ctx.lineTo(X+cs*.78,Y+cs*.4); ctx.stroke();
+    return;
+  }
+  const revealed=!!(S.rev[idx]||devReveal);
+  if(revealed && (v===WATER || (OREBY[v] && inSealedPocket(idx)))){
+    drawWaterCell(X,Y,x,y,now);
+    if(OREBY[v]) drawOre(OREBY[v],X,Y,x,y,now);
+    return;
+  }
+  ctx.fillStyle=ROWC[y]; ctx.fillRect(X,Y,cs+.5,cs+.5);
+  for(let k=0;k<5;k++){
+    ctx.fillStyle=k%2?ROWD[y]:ROWL[y];
+    const sz=cs*(.05+hsh(x,y,k+9)*.07);
+    rr(ctx,X+hsh(x,y,k)*cs*.86,Y+hsh(x,y,k+5)*cs*.86,sz,sz*.8,sz*.3);
+  }
+  if(v===WALL){ if(revealed) drawRockTexture(X,Y,x,y,'#2b2731','#423d4a'); return; }
+  if(v===ROCK){ if(revealed) drawBoulder(X,Y,x,y); return; }
+  if(v===WATER) return; // hidden until breached, at which point it stops being WATER
+  if(v===EARTH){ if(S.fossils.has(idx)&&revealed) drawFossil(X,Y,x,y); return; }
+  const o=OREBY[v];
+  if(o&&revealed) drawOre(o,X,Y,x,y,now);
+}
+function inSealedPocket(idx){ const p=pocketOf(idx); return p>=0 && !S.pockets[p].breached && S.pockets[p].cells.includes(idx); }
+function drawOre(o,X,Y,x,y,now){
+  const n=3+(hsh(x,y,30)*2|0);
+  let sx=0,sy=0;
+  for(let k=0;k<n;k++){
+    const cx=X+cs*(.2+hsh(x,y,40+k)*.6), cy=Y+cs*(.2+hsh(x,y,50+k)*.6), r=cs*(.1+hsh(x,y,60+k)*.08);
+    if(k===0){sx=cx;sy=cy;}
+    ctx.fillStyle=o.c; ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=cs*.025;
+    ctx.beginPath();
+    if(o.gem){ctx.moveTo(cx,cy-r*1.2);ctx.lineTo(cx+r,cy);ctx.lineTo(cx,cy+r*1.2);ctx.lineTo(cx-r,cy);}
+    else for(let i=0;i<6;i++){const a=i/6*Math.PI*2+hsh(x,y,k)*2, q=r*(.75+hsh(x+i,y,k+80)*.35);i?ctx.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q):ctx.moveTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q);}
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=o.h; circ(ctx,cx-r*.3,cy-r*.3,r*.3);
+  }
+  if(o.sparkle){
+    const ph=(now*.0015+hsh(x,y,70)*6)%5;
+    if(ph<1){const a=Math.sin(ph*Math.PI), s=cs*.14*a;ctx.fillStyle=`rgba(255,255,255,${a})`;ctx.beginPath();ctx.moveTo(sx,sy-s*2);ctx.lineTo(sx+s*.4,sy);ctx.lineTo(sx,sy+s*2);ctx.lineTo(sx-s*.4,sy);ctx.fill();ctx.beginPath();ctx.moveTo(sx-s*2,sy);ctx.lineTo(sx,sy+s*.4);ctx.lineTo(sx+s*2,sy);ctx.lineTo(sx,sy-s*.4);ctx.fill();}
+  }
+}
+const CRACKS=[
+  [[.5,.5,.2,.3],[.5,.5,.75,.25]],
+  [[.5,.5,.3,.8],[.2,.3,.08,.45],[.75,.25,.9,.1]],
+  [[.5,.5,.85,.65],[.3,.8,.15,.95],[.85,.65,.95,.9],[.2,.3,.35,.06]],
+  [[.5,.5,.55,.95],[.75,.25,.62,.05],[.08,.45,.1,.7],[.85,.65,.7,.8]],
+];
+
+/* ---------- tools & miner ---------- */
+function drawTool(c,t,now,active){
+  if(t===0){
+    c.fillStyle='#8b5a2b'; c.fillRect(-3,-1,16,2);
+    c.fillStyle='#5e3a1b'; rr(c,-5,-2.8,3,5.6,1);
+    c.fillStyle='#aab4bd'; c.beginPath(); c.moveTo(12,-4.2); c.lineTo(18,-3.6); c.quadraticCurveTo(23,0,18,3.6); c.lineTo(12,4.2); c.closePath(); c.fill();
+    c.fillStyle='#e3eaf0'; c.fillRect(13,-3,1.6,6);
+  } else if(t===1){
+    // handle runs from the hand outwards; the curved steel head sits across the far end
+    c.fillStyle='#8b5a2b'; c.fillRect(-3,-1.1,17.5,2.2);
+    c.fillStyle='#5e3a1b'; rr(c,-5,-2.6,3,5.2,1);
+    c.fillStyle='#9aa3ab';
+    c.beginPath(); c.moveTo(13,-1.6); c.quadraticCurveTo(16.5,-7.5,11,-12.5); c.lineTo(12.3,-13); c.quadraticCurveTo(19.5,-7,16,-1.6); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(13,1.6); c.quadraticCurveTo(16.5,7.5,11,12.5); c.lineTo(12.3,13); c.quadraticCurveTo(19.5,7,16,1.6); c.closePath(); c.fill();
+    c.fillStyle='#d6dde3'; c.beginPath(); c.moveTo(15.2,-2); c.quadraticCurveTo(17.6,-7,12.6,-12.2); c.lineTo(13.2,-12.4); c.quadraticCurveTo(18.6,-7,16,-2); c.closePath(); c.fill();
+    c.fillStyle='#6d757d'; rr(c,12.2,-2.8,4.4,5.6,1);
+  } else if(t===2){
+    c.fillStyle='#2e2e33'; rr(c,-4.5,-6.5,2.6,13,1.2);
+    c.fillStyle='#d9432a'; rr(c,-2.5,-4,12,8,2);
+    c.fillStyle='#ff7a5c'; c.fillRect(-1,-3,9,1.4);
+    c.fillStyle='#4a4a52'; c.fillRect(9.5,-2.2,3,4.4);
+    c.fillStyle='#c9ced3'; c.beginPath(); c.moveTo(12.5,-1.3); c.lineTo(19.5,-.7); c.lineTo(21.5,0); c.lineTo(19.5,.7); c.lineTo(12.5,1.3); c.closePath(); c.fill();
+  } else {
+    c.fillStyle='#f5a300'; rr(c,-4,-5.5,13,11,2.5);
+    c.fillStyle='#ffd35c'; c.fillRect(-2.5,-4.3,10,1.6);
+    c.fillStyle='#3a3a40'; for(let i=0;i<3;i++) c.fillRect(-2+i*3,-1,1.6,4);
+    c.save(); c.beginPath(); c.moveTo(9,-5); c.lineTo(23,0); c.lineTo(9,5); c.closePath();
+    c.fillStyle='#9aa3ab'; c.fill(); c.clip();
+    c.strokeStyle='#5d656d'; c.lineWidth=1.3;
+    const off=active?(now*.06)%4:0;
+    for(let x=4;x<26;x+=4){c.beginPath();c.moveTo(x+off,-6);c.lineTo(x+off+3,6);c.stroke();}
+    c.restore();
+  }
+}
+let facing=1, aim=RIGHT;
+function drawMiner(cx,cy,now){
+  const s=cs/32, dig=!!S.dig, dir=dig?S.dig.dir:aim, walking=!!anim&&!dig;
+  ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s);
+  ctx.fillStyle='rgba(0,0,0,.3)'; ell(ctx,0,15.2,9,2);
+  const bob=dig?Math.abs(Math.sin(now*.016))*1.5:walking?Math.abs(Math.sin(now*.022))*1.4:Math.sin(now*.004)*.5;
+  ctx.translate(0,bob);
+  ctx.save(); if(facing<0) ctx.scale(-1,1);
+  const legSwing=walking?Math.sin(now*.022)*2.6:0;
+  if(S.gender==='girl'){
+    ctx.fillStyle='#f3c69c'; ctx.fillRect(-5.2,9,2.2,4.5); ctx.fillRect(2.9,9,2.2,4.5);                  // legs
+    ctx.fillStyle='#b8467a'; rr(ctx,-7.2,12.3+legSwing,5.6,3,1.4); rr(ctx,1.8,12.3-legSwing,5.6,3,1.4); // little boots
+    ctx.fillStyle='#e0579a'; ctx.beginPath(); ctx.moveTo(-6.2,2); ctx.lineTo(6.2,2); ctx.lineTo(9.8,11.2); ctx.quadraticCurveTo(0,13.4,-9.8,11.2); ctx.closePath(); ctx.fill(); // skirt
+    ctx.fillStyle='rgba(255,255,255,.3)'; for(const k of [-3.4,0,3.4]) ctx.fillRect(k-.35,4.5,.7,7.5);  // pleats
+    ctx.fillStyle='#ff9ccb'; rr(ctx,-8.5,-3.5,17,8,3.5);                                                  // pink top
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(0,1.6); ctx.bezierCurveTo(-2.6,-.4,-1.2,-2.2,0,-.9); ctx.bezierCurveTo(1.2,-2.2,2.6,-.4,0,1.6); ctx.fill(); // heart
+  } else {
+    ctx.fillStyle='#4a3020'; rr(ctx,-7.5,11+legSwing,6.5,4,1.6); rr(ctx,1,11-legSwing,6.5,4,1.6);
+    ctx.fillStyle='#2e67b1'; rr(ctx,-7,2,14,10,3);
+    ctx.fillStyle='#24548f'; ctx.fillRect(-.5,6.5,1,5.5);
+    ctx.fillStyle='#e0563f'; rr(ctx,-8.5,-3.5,17,8,3.5);
+    ctx.fillStyle='#2e67b1'; rr(ctx,-4.5,-1.5,9,6,1.5);
+    ctx.fillStyle='#ffd24a'; circ(ctx,-3,-.4,.9); circ(ctx,3,-.4,.9);
+  }
+  ctx.fillStyle='#f3c69c'; circ(ctx,0,-8.5,6.2);
+  ctx.fillStyle='#e7ae84'; circ(ctx,-3.9,-8,1.4); circ(ctx,5.6,-7.6,1.6);
+  if(S.gender==='girl'){ // long light-brown hair framing the face
+    ctx.fillStyle='#a9784a';
+    ctx.beginPath(); ctx.moveTo(-6,-11); ctx.quadraticCurveTo(-9.5,-2,-7.2,4.5); ctx.quadraticCurveTo(-5,4.3,-5.6,-3); ctx.quadraticCurveTo(-5,-9,-6,-11); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(6.5,-11); ctx.quadraticCurveTo(10,-2,7.7,4.5); ctx.quadraticCurveTo(5.5,4.3,6.1,-3); ctx.quadraticCurveTo(5.5,-9,6.5,-11); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle='#2a1a10';
+  if(now%3400<130) ctx.fillRect(1.8,-9.4,2.6,.8); else ell(ctx,3,-9.2,1.1,1.45);
+  if(S.gender!=='girl'){
+    ctx.fillStyle='rgba(230,110,90,.45)'; circ(ctx,1.4,-5.9,1.3);
+    ctx.fillStyle='#6b3d22'; rr(ctx,2.6,-6.2,4.2,1.6,.8);
+  } else {
+    ctx.fillStyle='rgba(240,110,140,.5)'; circ(ctx,1.2,-6.4,1.4);                     // rosy cheek
+    ctx.strokeStyle='#8a2f45'; ctx.lineWidth=.9; ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(3.6,-6.4,1.7,.15*Math.PI,.85*Math.PI); ctx.stroke();       // smile
+    ctx.strokeStyle='#2a1a10'; ctx.lineWidth=.6; ctx.beginPath(); ctx.moveTo(3.9,-10.6); ctx.lineTo(4.9,-11.3); ctx.stroke(); // lash
+  }
+  ctx.fillStyle='#ffc21a'; ctx.beginPath(); ctx.arc(0,-11,6.9,Math.PI,0); ctx.fill(); rr(ctx,-8.2,-11.8,16.4,2.5,1.2);
+  if(S.gender==='girl'){ // a small bow tells her apart from across the mine, peeking out under the helmet brim
+    ctx.fillStyle='#e0567f';
+    ctx.beginPath(); ctx.moveTo(-8.6,-10.2); ctx.lineTo(-12,-12.4); ctx.lineTo(-12,-8); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-8.6,-10.2); ctx.lineTo(-5.2,-12.4); ctx.lineTo(-5.2,-8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#b83f63'; circ(ctx,-8.6,-10.2,1.1);
+  }
+  ctx.fillStyle='#e0a100'; ctx.fillRect(-.8,-17.6,1.6,6);
+  if(umbrellaUp()){ // out under the open sky in the rain: out comes the umbrella
+    const ux=-7, top=-31, sway=Math.sin(now*.003)*.6;
+    ctx.strokeStyle='#4a3020'; ctx.lineWidth=1.3; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(ux,4); ctx.lineTo(ux+sway,top+2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(ux+1.6,4,1.6,Math.PI,0,true); ctx.stroke();
+    const cx=ux+sway, cy=top+4, r=14;
+    for(let k=0;k<4;k++){ ctx.fillStyle=k%2?'#fff4e0':'#e0563f'; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,Math.PI+k*Math.PI/4,Math.PI+(k+1)*Math.PI/4); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle='#b83f2a'; for(let k=0;k<4;k++){ ctx.beginPath(); ctx.arc(cx-r+r/4+k*r/2,cy,r/4,0,Math.PI,true); ctx.fill(); }
+    ctx.fillStyle='#4a3020'; circ(ctx,cx,cy-r,1.2);
+    ctx.fillStyle='#f3c69c'; circ(ctx,ux,3,2.1);
+  }
+  if(S.py>0){ // headlamp glow: on once he's underground, off on the surface
+    const flick=.86+Math.sin(now*.006)*.14;
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    const g=ctx.createRadialGradient(5.3,-13.8,0,5.3,-13.8,8.5);
+    g.addColorStop(0,`rgba(255,244,190,${.85*flick})`); g.addColorStop(1,'rgba(255,244,190,0)');
+    ctx.fillStyle=g; circ(ctx,5.3,-13.8,8.5);
+    ctx.restore();
+    ctx.fillStyle='#6b5200'; circ(ctx,5,-13.8,2.3);
+    ctx.fillStyle=`rgba(255,248,207,${flick})`; circ(ctx,5.3,-13.8,1.9);
+  } else {
+    ctx.fillStyle='#6b5200'; circ(ctx,5,-13.8,2.3);
+    ctx.fillStyle='#fff8cf'; circ(ctx,5.3,-13.8,1.7);
+  }
+  ctx.restore();
+  // held tool, pointing in dig direction (put away while the umbrella's up)
+  if(!umbrellaUp()){
+  ctx.save();
+  if(dir===RIGHT) ctx.translate(3,3);
+  else if(dir===LEFT){ctx.scale(-1,1);ctx.translate(3,3);}
+  else if(dir===UP){ctx.translate(facing*3,-3);ctx.rotate(-Math.PI/2);if(facing<0)ctx.scale(1,-1);}
+  else {ctx.translate(facing*3,6);ctx.rotate(Math.PI/2);if(facing<0)ctx.scale(1,-1);}
+  if(dig){
+    // the tool itself shakes to show effort — the camera/screen never does
+    if(S.tool===0||S.tool===1){ctx.rotate(Math.sin(now*.011)*.22);ctx.translate(Math.max(0,Math.sin(now*.011))*3,0);}
+    else if(S.tool===2) ctx.translate(Math.sin(now*.09)>0?2.6:0,(Math.random()-.5)*1.2);
+    else ctx.translate((Math.random()-.5)*2.4,(Math.random()-.5)*1.6);
+  } else if(walking){
+    ctx.rotate(Math.sin(now*.022)*.1);
+  }
+  drawTool(ctx,S.tool,now,dig);
+  ctx.fillStyle='#f3c69c'; circ(ctx,0,0,2.3);
+  ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* ---------- effects ---------- */
+let parts=[], floats=[], ping=null, longPress=null;
+function dust(x,y,col,n,burst){
+  for(let i=0;i<n;i++) parts.push({x,y,vx:(Math.random()-.5)*cs*(burst?5:2.4),vy:-Math.random()*cs*(burst?4:2.2),life:.5+Math.random()*.5,t:0,c:col,s:cs*(.04+Math.random()*.06)});
+}
+function floater(x,y,text,col){floats.push({x:(x+.5)*cs,y:(SKY+y+.35)*cs,text,col,t0:performance.now()});}
+
+/* ---------- game logic ---------- */
+let anim=null, queued=null, held=null, modalOpen=false, walkPath=null, followCam=true;
+let buildMode=false, buildMaterial='dirt';
+const MATNAME={dirt:'Dirt',stone:'Stone',glass:'Glass',steel:'Steel beam',wood:'Wood beam',grass:'Grass',water:'Water',door:'Mine entrance',coins:'Coins'};
+let coinDrop=1000;
+// ¼ mode: the arrows move a small box (¼ of a square each way) instead of the miner.
+// qbox is in quarter-units: square x = floor(qx/4), position inside it = qx%4.
+let quarterMode=false, qbox=null;
+const PIECE_CODE={dirt:'1',stone:'2',glass:'4',steel:'5',wood:'6'}, PIECE_COL={'1':null,'2':'#8f8b86','4':'rgba(200,235,255,.45)'};
+const FULL_OF={'1':EARTH,'2':STONE,'4':GLASS,'5':STEEL,'6':WOOD};
+function initQbox(){
+  const cx=S.px+DX[aim], cy=S.py+DY[aim];
+  // start on the edge of the faced square nearest the miner, at floor level
+  const sx=aim===RIGHT?0:aim===LEFT?3:1, sy=aim===DOWN?0:aim===UP?3:3;
+  qbox={qx:cx*4+sx, qy:cy*4+sy};
+}
+function moveQbox(dir){
+  if(!qbox) initQbox();
+  const nqx=qbox.qx+DX[dir], nqy=qbox.qy+DY[dir], cx=Math.floor(nqx/4), cy=Math.floor(nqy/4);
+  if(Math.abs(cx-S.px)>1||Math.abs(cy-S.py)>1||cx<0||cx>=W||cy<-SKYROWS||cy>=D) return; // stays within reach
+  qbox.qx=nqx; qbox.qy=nqy;
+}
+function setQuarter(on){
+  quarterMode=on; qbox=null; if(on) initQbox();
+  const b=$('qbtn'); b.textContent=on?'¼':'1'; b.classList.toggle('q',on);
+  b.setAttribute('aria-label',on?'Piece size: quarter':'Piece size: whole block');
+  updateHUD();
+}
+function toast(msg,ms=1800){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),ms);}
+function moveTo(x,y,now){anim={fx:S.px,fy:S.py,tx:x,ty:y,t0:now,dur:150};S.px=x;S.py=y;reveal(x,y);updateHUD();}
+function pocketAt(idx){const p=pocketOf(idx); return p>=0&&S.pockets[p].shell.includes(idx)?p:-1;}
+// Tapping a direction you're not already facing only turns you that way (and highlights
+// the build-mode target square). Tapping the direction you're already facing confirms the
+// action — walk, dig, or (in build mode) place. Holding a direction down auto-repeats it,
+// but only once it's already confirmed, so a single hold can never sneak past the turn step.
+function pressDir(dir){
+  if(modalOpen) return;
+  if(walkPath&&walkPath.swim) return;
+  walkPath=null; longPress=null; followCam=true;
+  if(buildMode && quarterMode){ moveQbox(dir); if(dir===LEFT) facing=-1; else if(dir===RIGHT) facing=1; return; }
+  if(dir!==aim){
+    aim=dir;
+    if(dir===LEFT) facing=-1; else if(dir===RIGHT) facing=1;
+    if(S.dig) S.dig=null; // changing direction mid-dig cancels it; this tap only re-aims
+    return;
+  }
+  if(dir===LEFT) facing=-1; else if(dir===RIGHT) facing=1;
+  if(buildMode) buildMove(dir); else doAct(dir);
+}
+function doAct(dir){
+  const now=performance.now();
+  if(anim){ queued=dir; return; }
+  if(S.dig){ if(S.dig.dir===dir) return; S.dig=null; }
+  const nx=S.px+DX[dir], ny=S.py+DY[dir];
+  openIfEntrance(nx,ny);
+  if(nx<0||nx>=W){ toast('Solid rock wall — try another way'); return; }
+  if(ny<=0){
+    if(ny<-SKYROWS){ toast("That's as high as you can go."); return; }
+    const v0=cellAt(nx,ny);
+    if(v0===EMPTY||(ny===0&&S.doors.has(nx))){
+      if(canEnter(nx,ny)) moveTo(nx,ny,now);
+      else toast(ny<0?'Nothing to stand on up there — build a block first.':"That's the sky up there — dig down to go underground!");
+      return;
+    }
+    if(ny<0){ S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000/(v0===PIECES?16:1)}; return; }
+  }
+  const v=S.grid[nx+ny*W];
+  if(v===EMPTY){
+    if(isFull(nx+ny*W)){ toast('Flooded — tap the water to pump it out'); return; }
+    moveTo(nx,ny,now);
+  }
+  else if(v===BEDROCK) toast("Bedrock — nothing can dig through that");
+  else if(v===ROCK) toast('A solid boulder — dig around it');
+  else if(v===WATER){
+    const pid=pocketOf(nx+ny*W);
+    if(pid>=0 && !S.pockets[pid].breached){ breachPocket(pid,nx,ny,now); save(); }
+  }
+  else if(v===WALL){
+    const pid=pocketAt(nx+ny*W), pk=pid>=0?S.pockets[pid]:null;
+    if(pk&&!pk.breached) S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000,breach:pid};
+    else toast("This rock wall won't budge — best leave it alone");
+  }
+  else S.dig={x:nx,y:ny,dir,start:now,dur:curTime(S.tool)*1000/(v===PIECES?16:1)};
+}
+// Build mode: confirming a direction just walks you into it (same collision rules as
+// normal movement); it never digs. The square you end up facing is the fill target.
+function openIfEntrance(nx,ny){
+  const i=nx+ny*W;
+  if(nx>=0&&nx<W&&ny>=0&&ny<D&&S.grid[i]===DOOR&&S.doors.has(i)) toggleDoor(i);
+}
+function buildMove(dir){
+  const now=performance.now();
+  if(anim){ queued=dir; return; }
+  const nx=S.px+DX[dir], ny=S.py+DY[dir];
+  openIfEntrance(nx,ny);
+  if(canEnter(nx,ny)) moveTo(nx,ny,now);
+  else if(ny<0 && cellAt(nx,ny)===EMPTY) toast('Nothing to stand on up there — build a block first.',1600);
+}
+function pieceTarget(){
+  if(!qbox) initQbox();
+  const cx=Math.floor(qbox.qx/4), cy=Math.floor(qbox.qy/4), sub=(qbox.qx-cx*4)+(qbox.qy-cy*4)*4;
+  const idx=cx+cy*W, v=cellAt(cx,cy);
+  let ok=cy>=-SKYROWS && !(cy<=0&&buildMaterial==='water') && !(cx===S.px&&cy===S.py) && !(cy>0&&buildMaterial==='water'&&isFull(idx));
+  ok=ok&&(v===EMPTY||(v===PIECES&&S.pieces.get(idx)[sub]==='0'));
+  return {cx,cy,sub,idx,ok};
+}
+// A pieced square with nothing solid left in it goes back to being an open square; any
+// water pieces in it become ordinary water (1/16 of a block each). Returns true if it opened.
+function normalizePieceCell(idx){
+  const str=S.pieces.get(idx); if(str===undefined) return false;
+  if(/[12456]/.test(str)) return false;
+  const w=(str.match(/3/g)||[]).length;
+  const y=keyY(idx), x=keyX(idx);
+  S.pieces.delete(idx); setCell(x,y,EMPTY); if(w&&y>0) S.mass[idx]+=w/16;
+  wakeWater(); return true;
+}
+// Water pieces inside pieced squares behave like water at ¼ scale: they fall, slide toward
+// the nearest spot where they can drop (so a cup fills evenly from the bottom), and pour out
+// through gaps — into open squares as ordinary water, or into the next pieced square.
+let pieceWaterAcc=0;
+function pieceWaterStep(){
+  const moves=[];
+  for(const [idx,str] of S.pieces){ if(str.includes('3')) moves.push(idx); }
+  if(!moves.length) return false;
+  const get=(i,k)=>S.pieces.get(i)[k], set=(i,k,c)=>{ const t=S.pieces.get(i); S.pieces.set(i,t.slice(0,k)+c+t.slice(k+1)); };
+  // where would a piece at (cell i, slot sx,sy) go if it moved one ¼ step in direction d? null if blocked
+  const step=(i,sx,sy,dx,dy)=>{
+    let nx=sx+dx, ny=sy+dy, ni=i;
+    if(nx<0){ni=i-1;nx=3;} else if(nx>3){ni=i+1;nx=0;} else if(ny>3){ni=i+W;ny=0;}
+    if(ni<W||ni>=W*D||Math.abs((ni%W)-(i%W))>1) return null;
+    if(ni===i||S.grid[ni]===PIECES) return get(ni,ny*4+nx)==='0'?{ni,k:ny*4+nx,open:false}:null;
+    if(S.grid[ni]===EMPTY && S.mass[ni]<W_FULL-1/16) return {ni,open:true};
+    return null;
+  };
+  const moveTo_=(i,k,t)=>{ set(i,k,'0'); if(t.open){ S.mass[t.ni]+=1/16; wakeWater(); } else set(t.ni,t.k,'3'); };
+  let moved=false;
+  for(const i of moves){
+    if(S.grid[i]!==PIECES) continue;
+    for(let sy=3;sy>=0;sy--) for(let sx=0;sx<4;sx++){
+      const k=sy*4+sx; if(get(i,k)!=='3') continue;
+      const down=step(i,sx,sy,0,1);
+      if(down){ moveTo_(i,k,down); moved=true; continue; }
+      // look along the row each way (through empty spots) for the nearest place it could drop
+      let best=null, bestDist=9;
+      for(const dx of [-1,1]){
+        let ci=i, cx=sx;
+        for(let n=1;n<=6;n++){
+          const t=step(ci,cx,sy,dx,0); if(!t) break;
+          if(t.open){ if(n<bestDist){best=dx;bestDist=n;} break; }
+          const tx=t.k%4; if(step(t.ni,tx,sy,0,1) && n<bestDist){ best=dx; bestDist=n; break; }
+          ci=t.ni; cx=tx;
+        }
+      }
+      if(best!==null){ const t=step(i,sx,sy,best,0); if(t){ moveTo_(i,k,t); moved=true; } }
+    }
+    normalizePieceCell(i);
+  }
+  return moved;
+}
+function placePiece(){
+  const t=pieceTarget();
+  if(t.cy<=0 && buildMaterial==='water'){ toast('Water up there would just drain away.'); return; }
+  if(t.cx===S.px&&t.cy===S.py){ toast("You're standing there!"); return; }
+  if(!t.ok){ toast('That spot is already filled.'); return; }
+  const px=(qbox.qx+.5)*cs/4, py=SKY*cs+(qbox.qy+.5)*cs/4;
+  if(buildMaterial==='water'){
+    if(S.grid[t.idx]===PIECES){ const cur=S.pieces.get(t.idx); S.pieces.set(t.idx,cur.slice(0,t.sub)+'3'+cur.slice(t.sub+1)); }
+    else { S.mass[t.idx]+=1/16; wakeWater(); } // open square: it's ordinary water there
+    dust(px,py,'#bfe6ff',4,false); save(); return;
+  }
+  if(cellAt(t.cx,t.cy)===EMPTY){ setCell(t.cx,t.cy,PIECES); S.pieces.set(t.idx,'0'.repeat(16)); if(t.cy>0) displaceWater(t.idx); }
+  const code=PIECE_CODE[buildMaterial], cur=S.pieces.get(t.idx), next=cur.slice(0,t.sub)+code+cur.slice(t.sub+1);
+  if(next===code.repeat(16)){ S.pieces.delete(t.idx); setCell(t.cx,t.cy,FULL_OF[code]); } // a full square of one material becomes a normal block
+  else S.pieces.set(t.idx,next);
+  if(t.cy>=0) S.rev[t.idx]=1;
+  dust(px,py,{stone:'#9a9691',glass:'#e6f5ff',steel:'#aab4bf',wood:'#a26a3a'}[buildMaterial]||'#6b4a2e',4,false);
+  save();
+}
+const DOOR_COST=1000;
+// Coins you drop make a pile on the floor. The bigger the pile, the taller it is (about half
+// a square at 1,000 coins, a full square from 5,000). It slopes down toward any open side and
+// packs flat against walls, so in a dead end it fills the square and tapers off one way.
+function dropCoins(cx,cy){
+  if(cx<0||cx>=W||cy<0||cy>=D-1) return;
+  const idx=cx+cy*W;
+  if(S.grid[idx]!==EMPTY||isFull(idx)){ toast('Coins need an open spot.'); return; }
+  if(S.grid[idx+W]===EMPTY){ toast('Coins need a floor to sit on.'); return; }
+  const amt=Math.min(coinDrop,S.coins);
+  if(amt<=0){ toast('You have no coins to drop.'); return; }
+  S.coins-=amt; S.piles.set(idx,(S.piles.get(idx)||0)+amt); S.rev[idx]=1;
+  dust((cx+.5)*cs,(SKY+cy+.8)*cs,'#ffcf2e',12,true); updateHUD(); save();
+  toast(`Dropped ${amt} coins (pile: ${S.piles.get(idx)}).`,1600);
+}
+// A pile whose floor gets dug out falls until it lands on something.
+function settlePile(idx){
+  if(!S.piles.has(idx)) return;
+  let j=idx; while(j+W<W*D && S.grid[j+W]===EMPTY) j+=W;
+  if(j!==idx){ const a=S.piles.get(idx); S.piles.delete(idx); S.piles.set(j,(S.piles.get(j)||0)+a); }
+}
+let pileTarget=-1;
+function openPile(idx){ pileTarget=idx; $('pileinfo').textContent=`${S.piles.get(idx)} coins are piled up here.`; $('pilemodal').hidden=false; modalOpen=true; }
+function closePile(){ $('pilemodal').hidden=true; modalOpen=false; pileTarget=-1; }
+function pickUpPile(){
+  const a=S.piles.get(pileTarget)||0; if(!a){ closePile(); return; }
+  S.piles.delete(pileTarget); S.coins+=a;
+  dust((pileTarget%W+.5)*cs,(SKY+((pileTarget/W)|0)+.8)*cs,'#ffcf2e',14,true);
+  closePile(); updateHUD(); save(); toast(`Picked up ${a} coins.`);
+}
+function drawCoinPile(X,Y,x,y,amt,now){
+  const H=Math.min(1,Math.sqrt(amt/5000)), L=solidAt(x-1,y), R=solidAt(x+1,y);
+  const k=Math.max(1,2*H);
+  const hAt=t=> (L&&R)?H : L? Math.min(H,k*(1-t)) : R? Math.min(H,k*t) : Math.min(H,k*t,k*(1-t));
+  const base=Y+cs;
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(X,base);
+  for(let i=0;i<=16;i++){ const t=i/16; ctx.lineTo(X+t*cs,base-Math.max(0,hAt(t))*cs); }
+  ctx.lineTo(X+cs,base); ctx.closePath();
+  const g=ctx.createLinearGradient(0,base-H*cs,0,base); g.addColorStop(0,'#ffe066'); g.addColorStop(1,'#c98500');
+  ctx.fillStyle=g; ctx.fill(); ctx.clip();
+  const r=Math.max(1.5,cs*.07);
+  for(let i=0;i<Math.round(8+H*26);i++){           // individual coins in the pile
+    const t=hsh(x+i,y,600), hh=hAt(t)*hsh(x,y+i,601), cxp=X+t*cs, cyp=base-hh*cs;
+    ctx.fillStyle='#b77400'; ctx.beginPath(); ctx.ellipse(cxp,cyp+r*.25,r,r*.55,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=hsh(i,y,602)<.5?'#ffcf2e':'#f5b900'; ctx.beginPath(); ctx.ellipse(cxp,cyp,r,r*.55,0,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+  const ph=(now*.0012+hsh(x,y,603)*5)%4;
+  if(ph<1){ const a=Math.sin(ph*Math.PI), sx=X+cs*(.3+hsh(x,y,604)*.4), sy=base-hAt((sx-X)/cs)*cs+cs*.05, sz=cs*.09*a;
+    ctx.fillStyle=`rgba(255,255,255,${a})`; ctx.beginPath(); ctx.moveTo(sx,sy-sz*2); ctx.lineTo(sx+sz*.4,sy); ctx.lineTo(sx,sy+sz*2); ctx.lineTo(sx-sz*.4,sy); ctx.fill(); }
+}
+function placeDoor(cx,cy){
+  if(cy===0){ // aimed at the grass over a hole: the hatch goes in the top of the shaft, flush with the ground
+    if(cx>=0&&cx<W&&S.grid[cx+W]===EMPTY) cy=1;
+    else { toast('Put the entrance over the top of a shaft, or inside the mine.'); return; }
+  }
+  if(cx<0||cx>=W||cy<0||cy>=D-1){ toast('You can only build underground.'); return; }
+  const idx=cx+cy*W;
+  if(S.grid[idx]!==EMPTY||S.doors.has(idx)){ toast('That spot is already filled.'); return; }
+  if(idx===S.px+S.py*W){ toast("You're standing there!"); return; }
+  if(S.coins<DOOR_COST){ toast(`A mine entrance costs ${DOOR_COST} coins.`); return; }
+  S.coins-=DOOR_COST; updateHUD();
+  S.grid[idx]=DOOR; S.doors.add(idx); S.grass.delete(idx); displaceWater(idx); S.rev[idx]=1;
+  dust((cx+.5)*cs,(SKY+cy+.5)*cs,'#9a6638',10,true); save();
+  toast('Entrance built — tap it to open or close it.',2200);
+}
+let confirmCb=null;
+function openConfirm(text,yes,cb){ $('confirmtext').textContent=text; $('confirmyes').textContent=yes; confirmCb=cb; $('confirmmodal').hidden=false; modalOpen=true; held=null; }
+function closeConfirm(){ $('confirmmodal').hidden=true; modalOpen=false; confirmCb=null; }
+function removeDoor(i){
+  if(!S.doors.has(i)) return;
+  S.doors.delete(i); if(S.grid[i]===DOOR) S.grid[i]=EMPTY;
+  dust((i%W+.5)*cs,(SKY+((i/W)|0)+.5)*cs,'#9a6638',16,true);
+  wakeWater(); settleSky(); save(); toast('Mine entrance removed.');
+}
+let doorHold=null; // {idx,t0} while a finger is held on an entrance
+function toggleDoor(idx){
+  if(S.grid[idx]===DOOR){ S.grid[idx]=EMPTY; wakeWater(); toast('Entrance opened.',1100); }
+  else {
+    if(idx===S.px+S.py*W){ toast('Step out of the doorway to close it.'); return; }
+    S.grid[idx]=DOOR; displaceWater(idx); toast('Entrance closed.',1100);
+  }
+  dust((idx%W+.5)*cs,(SKY+((idx/W)|0)+.5)*cs,'#9a6638',5,false); save();
+}
+function placeGrass(cx,cy){
+  if(cy===0){ toast('The surface already has grass.'); return; }
+  if(cx<0||cx>=W||cy<0||cy>=D-1) return;
+  const idx=cx+cy*W;
+  if(S.grid[idx]!==EMPTY){ toast('Grass goes on the floor of an open space.'); return; }
+  if(S.grass.has(idx)){ S.grass.delete(idx); save(); toast('Grass removed.',1200); return; }
+  if(S.grid[idx+W]===EMPTY){ toast("There's no floor there for grass to grow on."); return; }
+  S.grass.add(idx); S.rev[idx]=1;
+  dust((cx+.5)*cs,(SKY+cy+.9)*cs,'#6fc044',8,false); save();
+}
+function fillHighlighted(){
+  if(!buildMode) return;
+  if(buildMaterial==='coins'){
+    if(quarterMode){ const t=pieceTarget(); dropCoins(t.cx,t.cy); } else dropCoins(S.px+DX[aim],S.py+DY[aim]);
+    return;
+  }
+  if(buildMaterial==='door'){
+    if(quarterMode){ const t=pieceTarget(); placeDoor(t.cx,t.cy); } else placeDoor(S.px+DX[aim],S.py+DY[aim]);
+    return;
+  }
+  if(buildMaterial==='grass'){
+    if(quarterMode){ const t=pieceTarget(); placeGrass(t.cx,t.cy); } else placeGrass(S.px+DX[aim],S.py+DY[aim]);
+    return;
+  }
+  if(quarterMode){ placePiece(); return; }
+  const hx=S.px+DX[aim], hy=S.py+DY[aim];
+  if(hx<0||hx>=W||hy<-SKYROWS||hy>=D){ toast(hy<-SKYROWS?"That's as high as you can build.":"Can't fill there."); return; }
+  if(hy<0){
+    const mat={dirt:EARTH,stone:STONE,glass:GLASS,steel:STEEL,wood:WOOD}[buildMaterial];
+    if(!mat){ toast('Up in the sky you can build with dirt, stone, glass, steel or wood.'); return; }
+    if(cellAt(hx,hy)!==EMPTY){ toast('That spot is already filled.'); return; }
+    if(hx===S.px&&hy===S.py){ toast("You're standing there!"); return; }
+    setSky(hx,hy,mat); settleSky();
+    dust((hx+.5)*cs,(SKY+hy+.5)*cs,{stone:'#9a9691',glass:'#e6f5ff',steel:'#aab4bf',wood:'#a26a3a'}[buildMaterial]||'#6b4a2e',10,true);
+    save(); return;
+  }
+  if(hy===0 && buildMaterial==='water'){ toast('Water up there would just drain away.'); return; }
+  const idx=hx+hy*W;
+  if(S.grid[idx]!==EMPTY || (buildMaterial==='water'&&isFull(idx))){ toast(isFull(idx)?'That spot is already full of water.':'That spot is already filled.'); return; }
+  if(idx===S.px+S.py*W){ toast("You're standing there!"); return; }
+  if(buildMaterial==='water'){ // a block's worth of water, which then flows like any other
+    S.mass[idx]+=1; wakeWater();
+    dust((hx+.5)*cs,(SKY+hy+.5)*cs,'#bfe6ff',10,true);
+    save(); return;
+  }
+  S.grid[idx]={stone:STONE,glass:GLASS,steel:STEEL,wood:WOOD}[buildMaterial]||EARTH;
+  S.grass.delete(idx);
+  displaceWater(idx);
+  S.rev[idx]=1;
+  dust((hx+.5)*cs,(SKY+hy+.5)*cs,{stone:'#9a9691',glass:'#e6f5ff',steel:'#aab4bf',wood:'#a26a3a'}[buildMaterial]||'#6b4a2e',10,true);
+  settleSky(); save();
+}
+function cellColor(x,y){const v=cellAt(x,y),o=OREBY[v]; if(o)return o.c; if(v===WALL)return '#3a3d44'; if(v===ROCK)return '#75757c'; if(v===STONE)return '#8f8b86'; if(v===GLASS)return '#e6f5ff'; if(v===PIECES)return '#9a8a78'; if(v===DOOR)return '#9a6638'; if(v===STEEL)return '#aab4bf'; if(v===WOOD)return '#a26a3a'; return ROWC[y];}
+function autoSwitchTool(){
+  let best=-1,bestTime=Infinity;
+  for(let i=0;i<4;i++){ if(i===S.tool) continue; if(S.dur[i]>0){ const t=curTime(i); if(t<bestTime){bestTime=t;best=i;} } }
+  if(best<0){ S.dur[0]=1; S.wear[0]=0; best=0; }
+  setTool(best);
+}
+function checkCollapse(x,y){
+  if(y<=0) return;
+  let lo=x,hi=x;
+  while(lo-1>=0 && S.grid[(lo-1)+y*W]===EMPTY && !S.doors.has((lo-1)+y*W) && supportAt(lo-1,y)===null && !isFull((lo-1)+y*W)) lo--;
+  while(hi+1<W && S.grid[(hi+1)+y*W]===EMPTY && !S.doors.has((hi+1)+y*W) && supportAt(hi+1,y)===null && !isFull((hi+1)+y*W)) hi++;
+  const len=hi-lo+1;
+  if(len<=5) return false;
+  const chance=Math.min(.6,.05*(len-5));
+  if(Math.random()>=chance) return false;
+  let c,tries=0;
+  do{ c=lo+Math.floor(Math.random()*len); tries++; } while(c===S.px&&y===S.py&&tries<20);
+  if(c===S.px&&y===S.py) return false;
+  const idx=c+y*W, becomesRock=Math.random()<0.2;
+  S.grid[idx]=becomesRock?ROCK:EARTH; S.supports.delete(idx); displaceWater(idx);
+  toast(becomesRock?'⚠️ The tunnel collapsed — a shifted rock is blocking it now!':'⚠️ Part of the tunnel collapsed behind you — you can dig through it again.',3400);
+  return true;
+}
+// Breaking a pocket's rock shell lets its water out; the simulation takes it from there.
+function breachPocket(pid,x,y,now){
+  const pk=S.pockets[pid]; if(!pk||pk.breached) return;
+  pk.breached=true;
+  S.grid[x+y*W]=EMPTY;
+  const oreSet=new Set(pk.ore.map(o=>o.x+o.y*W));
+  pk.cells.forEach(i=>{ if(!oreSet.has(i)){ S.grid[i]=EMPTY; S.mass[i]=W_MAX; } });
+  pk.cells.forEach(i=>S.rev[i]=1); pk.shell.forEach(i=>S.rev[i]=1);
+  wakeWater();
+  toast('💧 You broke into a water pocket! Tap the water to pump it out.',4200);
+}
+/* ---------- water: cell-based flow simulation ---------- */
+// Every open cell holds some amount of water (S.mass; 1 = a full block). Over a hundred
+// times a second, water flows down into the cell below, levels out with its left and right
+// neighbours, and gets pushed up by pressure from below (a full column is very slightly
+// compressed, like real water). So pools fill from the bottom up, spread across floors,
+// rise through U-bends, and drain by themselves the moment you dig a way out. A cell only
+// blocks the miner once it's essentially full; shallow water can be walked through.
+const W_MAX=1, W_COMPRESS=0.02, W_MIN=0.00001, W_MINFLOW=0.01, W_FULL=0.96, W_STEP_MS=8, W_LEVEL=0.12;
+let simAcc=0, newMass=null, waterAwake=true, lastWaterSave=0;
+const isFull=i=>S.mass[i]>=W_FULL;
+const isWet=i=>S.mass[i]>0.04;
+const waterOpen=i=>i>=W && i<W*D && S.grid[i]===EMPTY; // the surface row drains away, water never sits there
+function stableState(total){
+  if(total<=W_MAX) return W_MAX;
+  if(total<2*W_MAX+W_COMPRESS) return (W_MAX*W_MAX+total*W_COMPRESS)/(W_MAX+W_COMPRESS);
+  return (total+W_COMPRESS)/2;
+}
+function waterStep(){
+  const m=S.mass, n=newMass; n.set(m);
+  let any=false;
+  for(let i=W;i<W*D;i++){
+    let rem=m[i]; if(rem<=0) continue;
+    any=true;
+    if(S.grid[i]!==EMPTY){ n[i]=0; continue; }
+    const x=i%W, b=i+W, u=i-W;
+    if(waterOpen(b)){ // down
+      let f=stableState(rem+m[b])-m[b]; if(f>W_MINFLOW) f*=.5; f=clamp(f,0,Math.min(1,rem));
+      n[i]-=f; n[b]+=f; rem-=f; if(rem<=0) continue;
+    }
+    if(x>0 && waterOpen(i-1)){ // left
+      let f=(m[i]-m[i-1])/4; if(f>W_MINFLOW) f*=.5; f=clamp(f,0,rem);
+      n[i]-=f; n[i-1]+=f; rem-=f; if(rem<=0) continue;
+    }
+    if(x<W-1 && waterOpen(i+1)){ // right
+      let f=(m[i]-m[i+1])/4; if(f>W_MINFLOW) f*=.5; f=clamp(f,0,rem);
+      n[i]-=f; n[i+1]+=f; rem-=f; if(rem<=0) continue;
+    }
+    if(waterOpen(u)){ // up, only under pressure
+      let f=rem-stableState(rem+m[u]); if(f>W_MINFLOW) f*=.5; f=clamp(f,0,Math.min(1,rem));
+      n[i]-=f; n[u]+=f;
+    }
+  }
+  for(let i=0;i<W*D;i++){ const v=n[i]; m[i]=v<W_MIN?0:v; }
+  if(any) levelRuns();
+  return any;
+}
+// A square of water is "resting" when it sits on something: solid ground or a full square
+// of water. Resting water on the same row, side by side, finds one common level — the total
+// volume divided evenly by the number of squares (1 block over 10 squares = 10% deep).
+// The flow rules alone spread water sideways very slowly over long tunnels; this pass makes
+// the level correct and conserves every drop.
+const restingCell=i=>S.grid[i]===EMPTY && (S.grid[i+W]!==EMPTY || S.mass[i+W]>=W_FULL);
+function levelRuns(){
+  const m=S.mass;
+  for(let y=1;y<D-1;y++){
+    let x=0;
+    while(x<W){
+      if(!restingCell(x+y*W)){ x++; continue; }
+      let x2=x, sum=0;
+      while(x2<W && restingCell(x2+y*W)){ sum+=m[x2+y*W]; x2++; }
+      if(x2-x>1 && sum>0){
+        const avg=sum/(x2-x);
+        for(let k=x;k<x2;k++){ const j=k+y*W; m[j]+=(avg-m[j])*W_LEVEL; }
+      }
+      x=x2;
+    }
+  }
+}
+function wakeWater(){ waterAwake=true; }
+// Nothing between this column and the sky: no entrance, block or roof on the grass row or above.
+function openAbove(x,y){ for(let yy=y-1;yy>=-SKYROWS;yy--) if(cellAt(x,yy)!==EMPTY) return false; return true; }
+const umbrellaUp=()=>S.py<=0 && isRaining() && openAbove(S.px,S.py);
+function skyOpen(x){ for(let y=0;y>=-SKYROWS;y--) if(cellAt(x,y)!==EMPTY) return false; return true; }
+function updateWater(dtMs){
+  if(!newMass||newMass.length!==W*D) newMass=new Float32Array(W*D);
+  const raining=isRaining();
+  if(!waterAwake && !raining){ simAcc=0; return; }
+  simAcc=Math.min(simAcc+dtMs,W_STEP_MS*12);
+  const perStep=W_STEP_MS/RAIN_DROP_EVERY_MS; // each open shaft takes in one block of water every 5 s of rain
+  let any=false;
+  while(simAcc>=W_STEP_MS){
+    simAcc-=W_STEP_MS;
+    if(raining){
+      const flood=flashFlood();
+      for(let x=0;x<W;x++){
+        const i=x+W; if(S.grid[i]!==EMPTY || S.mass[i]>=W_MAX) continue;
+        let add=skyOpen(x)?perStep:0;
+        // flash flood: water running over the ground pours into any hole that isn't capped right at the grass
+        if(flood && S.grid[x]===EMPTY) add+=perStep*1.5;
+        if(add) S.mass[i]=Math.min(W_MAX,S.mass[i]+add);
+      }
+    }
+    any=waterStep()||any;
+  }
+  if(!any && !raining) waterAwake=false;
+  if(any && performance.now()-lastWaterSave>3000){ lastWaterSave=performance.now(); save(); }
+}
+// When a cell turns solid (building, a collapse), its water is pushed out rather than lost.
+function displaceWater(idx){
+  const v=S.mass[idx]; if(!(v>0)) return;
+  S.mass[idx]=0;
+  for(const j of [idx-W,idx-1,idx+1,idx+W]) if(waterOpen(j)){ S.mass[j]+=v; break; }
+  wakeWater();
+}
+// If the miner ends up inside a completely flooded square, he swims along the tunnel to
+// the nearest square that still has air in it.
+function swimOut(){
+  const start=S.px+S.py*W; if(!isFull(start)) return;
+  const prev=new Int32Array(W*D).fill(-1), seen=new Uint8Array(W*D); seen[start]=1;
+  const q=[start]; let qi=0, goal=-1;
+  while(qi<q.length){
+    const cur=q[qi++]; if(!isFull(cur)){ goal=cur; break; }
+    const cx=cur%W, cy=(cur/W)|0;
+    for(let d2=0;d2<4;d2++){
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(seen[ni]||S.grid[ni]!==EMPTY) continue;
+      seen[ni]=1; prev[ni]=cur; q.push(ni);
+    }
+  }
+  if(goal<0) return;
+  const path=[]; for(let c=goal;c!==start;c=prev[c]) path.push([c%W,(c/W)|0]); path.reverse();
+  S.dig=null; held=null; queued=null;
+  walkPath=path; walkPath.swim=true; followCam=true;
+  if(!anim && walkPath.length){ const [nx,ny]=walkPath.shift(); moveTo(nx,ny,performance.now()); anim.dur=110; }
+  if(!walkPath.length) walkPath=null;
+  toast('💦 Swimming to the nearest air!',1600);
+}
+/* ---------- rain ---------- */
+function rainEndAt(){ return S.rain? S.rain.startAt+S.rain.duration : 0; }
+function isRaining(){ return !!S.rain && Date.now()<rainEndAt(); }
+// After 35 seconds of rain the ground can't soak it up any more: water runs across the surface
+// and pours into every open shaft, even ones sheltered by overhangs. A closed entrance, or
+// a block sitting right on top of the hole, keeps it out.
+const FLASH_FLOOD_MS=35000;
+const flashFlood=()=>isRaining() && Date.now()-S.rain.startAt>=FLASH_FLOOD_MS;
+function startRain(){
+  S.rain={startAt:Date.now(),duration:Math.round(RAIN_MIN_MS+Math.random()*(RAIN_MAX_MS-RAIN_MIN_MS))};
+  wakeWater();
+  toast('🌧️ It started raining — water is running into your shafts!',2800);
+  save();
+}
+function updateRain(){
+  const now=Date.now();
+  if(!S.rain){ if(now>=S.nextRainAt) startRain(); return; }
+  const end=rainEndAt();
+  if(now>=end){ S.rain=null; S.nextRainAt=end+RAIN_INTERVAL_MS; save(); } // next rain counts from when this one stopped
+}
+/* ---------- pumping ---------- */
+function poolAt(startIdx){
+  const seen=new Set([startIdx]), q=[startIdx]; let qi=0;
+  while(qi<q.length){
+    const cur=q[qi++], cx=cur%W, cy=(cur/W)|0;
+    for(let d2=0;d2<4;d2++){
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(seen.has(ni)||!(S.mass[ni]>0.005)) continue;
+      seen.add(ni); q.push(ni);
+    }
+  }
+  return q;
+}
+let pumpTarget=null;
+function openPump(idx){
+  const cells=poolAt(idx), vol=cells.reduce((a,i)=>a+Math.min(1,S.mass[i]),0);
+  const blocks=Math.max(1,Math.ceil(vol-0.05)), cost=blocks*PUMP_COST_PER_SQUARE;
+  pumpTarget={cells,cost};
+  $('pumpinfo').textContent=`About ${blocks} block${blocks===1?'':'s'} of water — pump it out for ${cost} coins?`+(isRaining()?' (It\'s still raining, so more may flow in.)':'');
+  $('pumpconfirm').disabled=S.coins<cost;
+  $('pumpmodal').hidden=false; modalOpen=true;
+}
+function closePump(){ $('pumpmodal').hidden=true; modalOpen=false; pumpTarget=null; }
+function pumpPocket(){
+  if(!pumpTarget) return;
+  if(S.coins<pumpTarget.cost){ toast('Not enough coins.'); return; }
+  S.coins-=pumpTarget.cost;
+  pumpTarget.cells.forEach(i=>{S.mass[i]=0;});
+  wakeWater(); save(); updateHUD(); closePump();
+  toast('Pumped the water out — that stretch is clear now.');
+}
+function sanitizeWater(){ for(let i=0;i<W*D;i++) if(S.mass[i] && (i<W||S.grid[i]!==EMPTY||!(S.mass[i]>0))) S.mass[i]=0; }
+/* ---------- supports: tap to remove ---------- */
+const keyY=k=>Math.floor(k/W), keyX=k=>k-Math.floor(k/W)*W;
+// The support covering square (gx,gy), or null if there isn't one.
+function supportAt(gx,gy){
+  for(const [idx,h] of S.supports){ const sx=keyX(idx), sy=keyY(idx); if(gx===sx && gy<=sy && gy>sy-(h||1)) return idx; }
+  return null;
+}
+let supportTarget=null;
+function openSupport(idx){ supportTarget=idx; $('supportmodal').hidden=false; modalOpen=true; }
+function closeSupport(){ $('supportmodal').hidden=true; modalOpen=false; supportTarget=null; }
+function removeSupport(){
+  if(supportTarget===null) return;
+  S.supports.delete(supportTarget); settleSky(); save(); closeSupport();
+  toast('Support removed.');
+}
+function breakSupport(base,h,msg){
+  const sx=keyX(base), sy=keyY(base);
+  S.supports.delete(base);
+  for(let k=0;k<h;k++) dust((sx+.5)*cs,(SKY+sy-k+.5)*cs,'#8a6640',5,true);
+  let fell=false;
+  for(let k=0;k<h && !fell;k++) fell=checkCollapse(sx,sy-k)===true;
+  if(!fell) toast(msg,2800);
+  settleSky();
+}
+function finishDig(now){
+  const d=S.dig; S.dig=null;
+  if(d.y<0 && cellAt(d.x,d.y)!==PIECES){ // a block you built up in the sky
+    const col=cellColor(d.x,0); setSky(d.x,d.y,EMPTY);
+    const idx=d.x+d.y*W;
+    for(const [base,h0] of [...S.supports]){ const h=h0||1; if(base===idx-W||base-h*W===idx){ S.supports.delete(base); toast('🪵 That support lost its hold and fell.',2200); } }
+    dust((d.x+.5)*cs,(SKY+d.y+.5)*cs,col,14,true); settleSky(); save(); return;
+  }
+  const idx=d.x+d.y*W, v=cellAt(d.x,d.y);
+  const bx=(d.x+.5)*cs, by=(SKY+d.y+.5)*cs;
+  dust(bx,by,ROWC[Math.max(0,d.y)],14,true);
+  if(v===WALL && d.breach!=null){ breachPocket(d.breach,d.x,d.y,now); save(); return; }
+  if(v===DOOR) S.doors.delete(idx);
+  if(v===PIECES){
+    // Take the next piece from the side you're digging from (columns/rows nearest you first).
+    let str=S.pieces.get(idx)||'0'.repeat(16), pick=-1;
+    for(let line=0;line<4&&pick<0;line++) for(let j=0;j<4&&pick<0;j++){
+      const k= d.dir===RIGHT? j*4+line : d.dir===LEFT? j*4+(3-line) : d.dir===DOWN? line*4+j : (3-line)*4+j;
+      if(str[k]!=='0'&&str[k]!=='3') pick=k;
+    }
+    if(pick>=0) str=str.slice(0,pick)+'0'+str.slice(pick+1);
+    S.pieces.set(idx,str);
+    if(normalizePieceCell(idx)){ if(d.y>0?!isFull(idx):canEnter(d.x,d.y)) moveTo(d.x,d.y,now); if(d.y<=0) settleSky(); }
+    else { if(held===d.dir) setTimeout(()=>{ if(held===d.dir&&!S.dig) doAct(d.dir); },0); }
+    save(); return;
+  }
+  const o=OREBY[v];
+  if(o){
+    S.inv[o.id]++; dust(bx,by,o.h,10,true); floater(d.x,d.y,`+1 ${o.name}`,o.h);
+    const el=$('ri-'+o.id); if(el){el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');}
+  }
+  S.grid[idx]=EMPTY; wakeWater();
+  { const pid=pocketOf(idx); if(pid>=0 && !S.pockets[pid].breached && S.pockets[pid].cells.includes(idx)) breachPocket(pid,d.x,d.y,now); } // mined a gem out of a sealed pocket
+  if(S.grass.has(idx-W)) S.grass.delete(idx-W); // the grass above lost its floor
+  settlePile(idx-W);
+  // Dug out the floor under a support, or the ceiling it was holding up? It breaks, and the
+  // tunnel it was supporting gets its usual chance to cave in.
+  for(const [base,h0] of [...S.supports]){
+    const h=h0||1;
+    if(base===idx-W) breakSupport(base,h,'🪵 You dug out the floor under a support — it toppled over.');
+    else if(base-h*W===idx) breakSupport(base,h,'🪵 You mined out the ceiling above a support — it came loose and fell.');
+  }
+  moveTo(d.x,d.y,now);
+  S.wear[S.tool]++;
+  if(S.wear[S.tool]>=33){
+    S.wear[S.tool]=0;
+    if(S.dur[S.tool]>1){ S.dur[S.tool]--; toast(`${TOOLS[S.tool].name} is wearing down — ${curTime(S.tool)}s per block now.`,2600); }
+    else { S.dur[S.tool]=0; toast(`${TOOLS[S.tool].name} broke down!`,2600); autoSwitchTool(); }
+  }
+  checkCollapse(d.x,d.y);
+  if(d.y<=1) settleSky();
+  save();
+}
+function findPath(sx0,sy0,tx0,ty0){
+  const startIdx=sx0+sy0*W, targetIdx=tx0+ty0*W;
+  if(startIdx===targetIdx) return [];
+  const visited=new Uint8Array(W*D); visited[startIdx]=1;
+  const prev=new Int32Array(W*D).fill(-1);
+  const q=[startIdx]; let qi=0, found=false, nodes=0;
+  while(qi<q.length && nodes<8000){
+    const cur=q[qi++]; nodes++;
+    if(cur===targetIdx){found=true;break;}
+    const cx=cur%W, cy=(cur/W)|0;
+    for(let d2=0;d2<4;d2++){
+      const nx=cx+DX[d2], ny=cy+DY[d2]; if(nx<0||nx>=W||ny<0||ny>=D) continue;
+      const ni=nx+ny*W; if(visited[ni]||S.grid[ni]!==EMPTY||isFull(ni)) continue;
+      visited[ni]=1; prev[ni]=cur; q.push(ni);
+      if(ni===targetIdx){found=true;qi=q.length;break;}
+    }
+  }
+  if(!found) return null;
+  const path=[]; let cur=targetIdx;
+  while(cur!==startIdx){ path.push([cur%W,(cur/W)|0]); cur=prev[cur]; if(cur===-1) return null; }
+  path.reverse();
+  return path;
+}
+function update(now,dt){
+  if(S.dig){
+    const d=S.dig, p=(now-d.start)/d.dur;
+    if(Math.random()<.22+S.tool*.25){
+      const ex=(S.px+.5+DX[d.dir]*.5)*cs, ey=(SKY+S.py+.5+DY[d.dir]*.5)*cs;
+      dust(ex,ey,cellColor(d.x,d.y),1,false);
+    }
+    if(p>=1) finishDig(now);
+  }
+  if(anim&&now-anim.t0>=anim.dur){
+    anim=null; const q=queued; queued=null;
+    if(walkPath&&!walkPath.length) walkPath=null;
+    const swimming=!!(walkPath&&walkPath.swim);
+    if(!swimming && q!==null) pressDir(q);
+    else if(!swimming && held!==null) pressDir(held);
+    else if(walkPath&&walkPath.length){
+      const [nx,ny]=walkPath.shift();
+      const swim=walkPath.swim;
+      if(S.grid[nx+ny*W]===EMPTY && (swim||!isFull(nx+ny*W))){ moveTo(nx,ny,now); if(swim) anim.dur=110; if(!walkPath.length) walkPath=null; }
+      else { walkPath=null; toast('Path blocked'); }
+    }
+  }
+  const g=cs*9;
+  parts=parts.filter(p=>{p.t+=dt;p.vy+=g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;return p.t<p.life;});
+  floats=floats.filter(f=>now-f.t0<1300);
+  const ring=$('ring'), rt=$('ringt');
+  if(S.dig){const p=clamp((now-S.dig.start)/S.dig.dur,0,1);ring.style.background=`conic-gradient(#ffc21a ${p*360}deg, rgba(0,0,0,.3) 0)`;rt.textContent=Math.ceil((1-p)*S.dig.dur/1000)+'s';}
+  else if(rt.textContent){ring.style.background='rgba(0,0,0,.25)';rt.textContent='';}
+  if(longPress&&now-longPress.t0>=5000){toggleDevReveal();longPress=null;}
+  if(doorHold&&now-doorHold.t0>=3000){
+    const i=doorHold.idx; doorHold=null; if(gesture) gesture.doorDone=true;
+    openConfirm('Remove this mine entrance? You won\u2019t get the coins back.','🪓 Remove',()=>removeDoor(i));
+  }
+  updateRain();
+  updateWater(dt*1000);
+  pieceWaterAcc+=dt*1000; if(pieceWaterAcc>=70){ pieceWaterAcc=0; if(pieceWaterStep() && performance.now()-lastWaterSave>2000){ lastWaterSave=performance.now(); save(); } }
+  if(!anim && !(walkPath&&walkPath.swim) && S.py>0 && isFull(S.px+S.py*W)) swimOut();
+  if(!anim && S.py<0 && !standable(S.px,S.py)){ S.dig=null; walkPath=null; moveTo(S.px,S.py+1,now); anim.dur=120; }
+  const rtxt=$('raintxt');
+  if(flashFlood() && !S.rain.floodWarned){ S.rain.floodWarned=true; toast('🌊 Flash flood! Water is running over the ground into open shafts — close your entrances!',4200); }
+  if(isRaining()){ rtxt.textContent=(flashFlood()?'🌊 Flash flood ':'Raining ')+fmtCountdown(rainEndAt()-Date.now()); }
+  else { rtxt.textContent=fmtCountdown(S.nextRainAt-Date.now()); }
+}
+function fmtCountdown(ms){
+  const s=Math.max(0,Math.ceil(ms/1000)), m=Math.floor(s/60), r=s%60;
+  return m+':'+String(r).padStart(2,'0');
+}
+function playerPos(now){
+  if(!anim) return [S.px,S.py];
+  const p=Math.min(1,(now-anim.t0)/anim.dur), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+  return [anim.fx+(anim.tx-anim.fx)*e, anim.fy+(anim.ty-anim.fy)*e];
+}
+// A shallow sheet of water over the grass during a flash flood, dipping into open holes.
+function drawSurfaceFlood(now){
+  const gy=GROUND*cs; if(cam.y>gy+cs) return;
+  const c0=Math.max(0,Math.floor(cam.x/cs)), c1=Math.min(W-1,Math.floor((cam.x+vw)/cs)), h=cs*.13;
+  ctx.save();
+  for(let x=c0;x<=c1;x++){
+    if(S.grid[x]!==EMPTY && !S.doors.has(x)) continue; // something built sits on the grass here
+    const X=x*cs, hole=S.grid[x+W]===EMPTY;
+    ctx.fillStyle='rgba(40,120,185,.72)'; ctx.fillRect(X,gy-h,cs+.5,hole?h+cs*.08:h);
+    ctx.fillStyle='rgba(255,255,255,.35)';
+    const off=(now*.05+x*cs)%cs; ctx.fillRect(X+((off)%cs),gy-h,cs*.28,Math.max(1,cs*.025));
+  }
+  ctx.restore();
+}
+function drawRainOverlay(now){
+  const bottom=GROUND*cs; if(cam.y>=bottom) return;
+  const top=cam.y, h=bottom-top, left=cam.x, w=vw;
+  ctx.save();
+  ctx.fillStyle='rgba(55,70,95,.28)'; ctx.fillRect(left-2,top-2,w+4,h+2); // overcast sky
+  ctx.strokeStyle='rgba(205,228,255,.6)'; ctx.lineWidth=Math.max(1,cs*.028); ctx.lineCap='round';
+  const n=Math.min(500,Math.round(w*h/(cs*cs)*2.2)), len=cs*.42, speed=cs*.016;
+  // rain stops on the top of anything built above the ground
+  const roof={}; const floorAt=gx=>{ if(roof[gx]===undefined){ let r=bottom; for(let yy=-SKYROWS;yy<=0;yy++) if(cellAt(gx,yy)!==EMPTY){ r=(SKY+yy)*cs; break; } roof[gx]=r; } return roof[gx]; };
+  ctx.beginPath();
+  for(let i=0;i<n;i++){
+    const sp=.8+hsh(i,17,702)*.5;
+    const x=left+(((hsh(i,11,700)*w - now*speed*.22*sp)%w)+w)%w;
+    const y=top+((hsh(i,13,701)*h + now*speed*sp)%h);
+    const stop=floorAt(Math.floor(x/cs)); if(y>=stop) continue;
+    ctx.moveTo(x,y); ctx.lineTo(x-len*.22,Math.min(stop,y+len));
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+// Water in transit: a droplet while falling down a shaft, a flat streak while running
+// along a tunnel floor.
+function render(now,dt){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#120b07'; ctx.fillRect(0,0,vw,vh);
+  const [rx,ry]=playerPos(now);
+  if(followCam){ cam.x=(rx+.5)*cs-vw/2; cam.y=(SKY+ry+.5)*cs-vh/2; camInit=true; }
+  ctx.translate(-Math.round(cam.x),-Math.round(cam.y));
+
+  const gyl=GROUND*cs;
+  if(cam.y<gyl){const g=ctx.createLinearGradient(0,0,0,gyl);g.addColorStop(0,'#58b1ee');g.addColorStop(1,'#c8ebff');ctx.fillStyle=g;ctx.fillRect(cam.x-2,cam.y-2,vw+4,gyl-cam.y+2);}
+  ctx.fillStyle='#231f29';
+  if(cam.x<0) ctx.fillRect(cam.x-2,Math.max(gyl,cam.y),-cam.x+2,vh+4);
+  if(cam.x+vw>W*cs) ctx.fillRect(W*cs,Math.max(gyl,cam.y),cam.x+vw-W*cs+2,vh+4);
+  if(cam.y<gyl) drawSky(now);
+  const c0=Math.max(0,Math.floor(cam.x/cs)), c1=Math.min(W-1,Math.floor((cam.x+vw)/cs));
+  const r0=Math.max(0,Math.floor(cam.y/cs)-SKY), r1=Math.min(D-1,Math.floor((cam.y+vh)/cs)-SKY);
+  for(let y=r0;y<=r1;y++) for(let x=c0;x<=c1;x++) drawCell(x,y,now);
+  const skyTop=Math.max(-SKYROWS,Math.floor(cam.y/cs)-SKY);
+  for(let y=skyTop;y<0;y++) for(let x=c0;x<=c1;x++) drawSkyBlock(x,y);
+  drawBeamPieces(c0,c1,Math.min(skyTop,r0),r1);
+  drawWaterFlows(c0,c1,r0,r1,now);
+  drawDoors(c0,c1,r0,r1);
+  if(doorHold){ // a ring fills up around the entrance while you hold it
+    const k=clamp((now-doorHold.t0)/3000,0,1), ex=(doorHold.idx%W+.5)*cs, ey=(SKY+((doorHold.idx/W)|0)+.5)*cs;
+    ctx.save(); ctx.lineCap='round';
+    ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.lineWidth=cs*.12; ctx.beginPath(); ctx.arc(ex,ey,cs*.62,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.strokeStyle='#e0563f'; ctx.lineWidth=cs*.08; ctx.beginPath(); ctx.arc(ex,ey,cs*.62,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.restore();
+  }
+  drawSupports(c0,c1,r0,r1,now);
+  if(cam.y<GROUND*cs+cs) drawGrass();
+  if(isRaining()) drawRainOverlay(now);
+  if(flashFlood()) drawSurfaceFlood(now);
+
+  if(buildMode && quarterMode){
+    const t=pieceTarget(), q=cs/4, X=qbox.qx*q, Y=SKY*cs+qbox.qy*q;
+    ctx.save();
+    ctx.strokeStyle='rgba(20,12,6,.35)'; ctx.lineWidth=Math.max(2,cs*.045); ctx.strokeRect(t.cx*cs+.5,(SKY+t.cy)*cs+.5,cs-1,cs-1);
+    ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=Math.max(1,cs*.02); ctx.strokeRect(t.cx*cs+.5,(SKY+t.cy)*cs+.5,cs-1,cs-1); // the square it's in
+    if(t.ok){ ctx.fillStyle='rgba(255,255,255,.35)'; ctx.fillRect(X,Y,q,q); }
+    ctx.strokeStyle='rgba(20,12,6,.7)'; ctx.lineWidth=Math.max(3,cs*.07); ctx.strokeRect(X+1,Y+1,q-2,q-2);
+    ctx.strokeStyle=t.ok?'rgba(255,255,255,.98)':'rgba(255,255,255,.45)'; ctx.lineWidth=Math.max(1.5,cs*.035); ctx.strokeRect(X+1,Y+1,q-2,q-2);
+    ctx.restore();
+  } else if(buildMode){
+    const hx=S.px+DX[aim], hy=S.py+DY[aim];
+    if(hx>=0&&hx<W&&hy>=-SKYROWS&&hy<D){
+      const X=hx*cs, Y=(SKY+hy)*cs, fillable=hy>=-SKYROWS&&cellAt(hx,hy)===EMPTY&&(hy<0||buildMaterial!=='water'||!isFull(hx+hy*W))&&!(hx===S.px&&hy===S.py);
+      ctx.save();
+      if(fillable){ ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(X,Y,cs,cs); }
+      ctx.strokeStyle='rgba(20,12,6,.6)'; ctx.lineWidth=cs*.12; ctx.strokeRect(X+cs*.035,Y+cs*.035,cs*.93,cs*.93);
+      ctx.strokeStyle=fillable?'rgba(255,255,255,.95)':'rgba(255,255,255,.4)';
+      ctx.lineWidth=cs*.07; ctx.strokeRect(X+cs*.035,Y+cs*.035,cs*.93,cs*.93);
+      ctx.restore();
+    }
+  }
+  if(S.dig){
+    const d=S.dig, p=clamp((now-d.start)/d.dur,0,1), X=d.x*cs, Y=(SKY+d.y)*cs;
+    ctx.fillStyle=`rgba(0,0,0,${p*.22})`; ctx.fillRect(X,Y,cs,cs);
+    ctx.strokeStyle='rgba(22,10,4,.8)'; ctx.lineWidth=cs*.05; ctx.lineCap='round';
+    const st=Math.min(4,Math.floor(p*5));
+    for(let i=0;i<st;i++) CRACKS[i].forEach(([a,b,c,e])=>{ctx.beginPath();ctx.moveTo(X+a*cs,Y+b*cs);ctx.lineTo(X+c*cs,Y+e*cs);ctx.stroke();});
+    const bw=cs*.78,bx=X+(cs-bw)/2,by=Y+cs*.07,bh=Math.max(4,cs*.12);
+    ctx.fillStyle='rgba(0,0,0,.65)'; rr(ctx,bx-1.5,by-1.5,bw+3,bh+3,bh/2+1);
+    ctx.fillStyle='#ffc21a'; if(p>0.02) rr(ctx,bx,by,bw*p,bh,bh/2);
+  }
+  parts.forEach(p=>{ctx.globalAlpha=1-p.t/p.life;ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s);});
+  ctx.globalAlpha=1;
+  drawMiner((rx+.5)*cs,(SKY+ry+.5)*cs,now);
+  if(ping){
+    const k=(now-ping)/900;
+    if(k<1){
+      const px=(rx+.5)*cs,py=(SKY+ry+.5)*cs;
+      ctx.strokeStyle=`rgba(74,144,217,${1-k})`; ctx.lineWidth=cs*.08;
+      ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*(.6+k*1.6),0,Math.PI*2); ctx.stroke();
+    } else ping=null;
+  }
+  if(longPress){
+    const k=clamp((now-longPress.t0)/5000,0,1), px=(rx+.5)*cs, py=(SKY+ry+.5)*cs;
+    ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=cs*.11;
+    ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*.85,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.strokeStyle='#ffc21a'; ctx.lineWidth=cs*.09;
+    ctx.beginPath(); ctx.arc(px,py-cs*.15,cs*.85,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+  }
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.round(cs*.36)}px "Lilita One","Arial Black",sans-serif`; ctx.lineWidth=cs*.1; ctx.lineJoin='round';
+  floats.forEach(f=>{const k=(now-f.t0)/1300;ctx.globalAlpha=1-k*k;const y=f.y-k*cs*.9;ctx.strokeStyle='#1a0f07';ctx.strokeText(f.text,f.x,y);ctx.fillStyle=f.col;ctx.fillText(f.text,f.x,y);});
+  ctx.globalAlpha=1;
+}
+
+/* ---------- HUD & shop ---------- */
+const icStyle=o=>`--c:${o.c};--h:${o.h}`;
+$('res').innerHTML=ORES.map(o=>`<div class="ri" id="ri-${o.id}" title="${o.name}"><i class="ic${o.gem?' gem':''}" style="${icStyle(o)}"></i><b>0</b></div>`).join('');
+function updateHUD(){
+  ORES.forEach(o=>{const el=$('ri-'+o.id);el.querySelector('b').textContent=S.inv[o.id];el.classList.toggle('zero',!S.inv[o.id]);});
+  $('coins').textContent=S.coins;
+  $('depth').textContent=S.py<0?`${-S.py} m up`:S.py+' m';
+  $('toolinfo').textContent=buildMode
+    ? `Building with ${MATNAME[buildMaterial]}${buildMaterial==='coins'?` (${coinDrop} per pile)`:quarterMode?' (¼ pieces)':''} · Mine ${S.mine}`
+    : `${TOOLS[S.tool].name}, ${curTime(S.tool)}s per block · Mine ${S.mine}`;
+}
+function renderShop(){
+  $('scoins').textContent=S.coins;
+  $('sell').innerHTML=ORES.map(o=>{const n=S.inv[o.id];return `<button class="tile" data-sell="${o.id}" ${n?'':'disabled'}><i class="ic${o.gem?' gem':''}" style="${icStyle(o)}"></i><span class="nm">${o.name}</span><span class="ct">×${n}</span><span class="pr"><span class="coin sm"></span>${o.value} each</span></button>`}).join('');
+  const total=ORES.reduce((a,o)=>a+S.inv[o.id]*o.value,0);
+  const sa=$('sellall'); sa.disabled=!total; sa.textContent=total?`Sell everything for ${total} coins`:'No ore to sell yet';
+  $('scanbtn').disabled=S.coins<1000;
+  $('tools').innerHTML=TOOLS.map((t,i)=>{
+    const lv=S.owned[i], maxLv=t.levels.length, isCur=S.tool===i, broken=lv>0&&S.dur[i]===0;
+    const time=S.dur[i]>0?t.levels[S.dur[i]-1].time:null;
+    let top;
+    if(lv===0) top=`<button class="buy" data-buy="${i}" ${S.coins>=t.levels[0].price?'':'disabled'}><span class="coin sm"></span>${t.levels[0].price}</button>`;
+    else if(broken) top='<span class="tag" style="color:#e0563f">Broken</span>';
+    else if(isCur) top='<span class="tag">In use</span>';
+    else top=`<button class="buy" data-use="${i}">Use</button>`;
+    let up='';
+    if(lv>0&&!broken&&S.dur[i]===lv&&lv<maxLv){
+      const price=t.levels[lv].price;
+      up=`<button class="buy sm" data-upgrade="${i}" ${S.coins>=price?'':'disabled'}>⚡ ${t.levels[lv].time}s · <span class="coin sm"></span>${price}</button>`;
+    }
+    let rep='';
+    if(lv>0&&S.dur[i]<lv){
+      const rcost=Math.round(t.levels[0].price*0.10);
+      rep=`<button class="buy sm" data-repair="${i}" ${S.coins>=rcost?'':'disabled'}>🔧 Repair · <span class="coin sm"></span>${rcost}</button>`;
+    }
+    const wear=lv>0?` · wear ${S.wear[i]}%`:'';
+    return `<div class="tool${isCur?' cur':''}"><canvas data-ti="${i}" width="144" height="80"></canvas><div class="tt"><b>${t.name}</b><span>${time?time+'s per block':'unusable'}${lv>0&&maxLv>1?` · speed ${S.dur[i]}/${maxLv}`:''}${wear}</span></div><div class="toolbtns">${top}${up}${rep}</div></div>`;
+  }).join('');
+  document.querySelectorAll('canvas[data-ti]').forEach(c=>{const x=c.getContext('2d');x.translate(34,40);x.scale(4,4);drawTool(x,+c.dataset.ti,0,false);});
+  const lvl=S.detectLvl||0;
+  $('detect').innerHTML = lvl<1
+    ? `<button class="buy" data-detect="1" style="width:100%;justify-content:center" ${S.coins>=1000?'':'disabled'}>👁️ Detect 2 blocks away · <span class="coin sm"></span>1000</button>`
+    : lvl<2
+    ? `<button class="buy" data-detect="2" style="width:100%;justify-content:center" ${S.coins>=2500?'':'disabled'}>👁️ Detect 3 blocks away · <span class="coin sm"></span>2500</button>`
+    : `<span class="tag">Max detection range: 3 blocks</span>`;
+}
+function setTool(i){
+  const now=performance.now();
+  if(S.dig){const p=clamp((now-S.dig.start)/S.dig.dur,0,1),nd=curTime(i)*1000;S.dig.dur=nd;S.dig.start=now-p*nd;}
+  S.tool=i;
+}
+function openShop(){modalOpen=true;held=null;walkPath=null;$('modal').hidden=false;renderShop();$('close').focus();}
+function closeShop(){modalOpen=false;$('modal').hidden=true;armNew(false);}
+$('upg').addEventListener('click',openShop);
+// A support always runs from the floor to the ceiling of the space you're in — straight
+// through water, full or not. Returns {base, h}, or null if there's no ceiling above.
+function supportSpan(x,y){
+  let by=y; while(by+1<D && cellAt(x,by+1)===EMPTY) by++;
+  let h=1, cy=by-1;
+  while(cy>=-SKYROWS && h<40){ if(cellAt(x,cy)!==EMPTY) return {base:x+by*W,h}; h++; cy--; }
+  return null; // nothing overhead all the way up: open to the sky
+}
+$('supportbtn').addEventListener('click',()=>{
+  if(supportAt(S.px,S.py)!==null){toast('Already supported here.'); return;}
+  const sp=supportSpan(S.px,S.py);
+  if(!sp){toast("There's nothing overhead to hold up — supports go under a ceiling or an overhang."); return;}
+  if(S.coins<5){toast('Not enough coins.'); return;}
+  S.coins-=5; S.supports.set(sp.base,sp.h); save(); updateHUD();
+  toast(sp.h>1?`Support placed, ${sp.h} blocks from floor to ceiling.`:'Support placed — this stretch is safer now.');
+});
+function setMatBtns(){
+  $('matsw').dataset.mat=buildMaterial;
+  document.querySelectorAll('.mattile').forEach(b=>b.classList.toggle('sel',b.dataset.mat===buildMaterial));
+}
+function toggleBuildMode(){
+  if(modalOpen) return;
+  buildMode=!buildMode;
+  S.dig=null; held=null; queued=null; walkPath=null;
+  const b=$('buildbtn');
+  b.classList.toggle('on',buildMode);
+  b.innerHTML=buildMode?'<span class="bi">⛏️</span><span class="bl">Dig</span>':'<span class="bi">🧱</span><span class="bl">Build</span>';
+  b.setAttribute('aria-label',buildMode?'Switch to dig mode':'Switch to build mode');
+  $('matpick').hidden=!buildMode;
+  $('fillbtn').classList.toggle('show',buildMode); requestAnimationFrame(placeFillBtn);
+  $('pad').classList.toggle('buildmode',buildMode);
+  if(buildMode) setMatBtns(); else setQuarter(false);
+  updateHUD();
+  toast(buildMode?'Build mode — aim with the arrows, tap Place on the left to build':'Back to digging',2400);
+}
+$('buildbtn').addEventListener('click',toggleBuildMode);
+$('qbtn').addEventListener('click',()=>{ setQuarter(!quarterMode); toast(quarterMode?'¼ pieces — the arrows move the little box, Place puts a piece there':'Whole blocks',1600); });
+$('matgrid').innerHTML=Object.keys(MATNAME).map(k=>`<button class="mattile" data-mat="${k}"><span class="mat" data-mat="${k}"></span>${MATNAME[k]}${k==='door'?`<small>${DOOR_COST} coins</small>`:''}</button>`).join('');
+function openMats(){ modalOpen=true; held=null; setMatBtns(); $('matmodal').hidden=false; }
+function closeMats(){ $('matmodal').hidden=true; modalOpen=false; }
+$('matbtn').addEventListener('click',openMats);
+$('matclose').addEventListener('click',closeMats);
+$('matmodal').addEventListener('click',e=>{ if(e.target.id==='matmodal'&&performance.now()-lastCanvasTap>500) closeMats(); });
+$('matgrid').addEventListener('click',e=>{
+  const b=e.target.closest('.mattile'); if(!b) return;
+  buildMaterial=b.dataset.mat; setMatBtns(); updateHUD(); closeMats();
+  if(buildMaterial==='coins'){ $('coinamt').value=Math.max(1,Math.min(coinDrop,S.coins)||coinDrop); $('coinmodal').hidden=false; modalOpen=true; }
+  else toast(MATNAME[buildMaterial],1100);
+});
+$('coinquick').addEventListener('click',e=>{ const b=e.target.closest('[data-amt]'); if(!b) return; $('coinamt').value=b.dataset.amt==='all'?S.coins:b.dataset.amt; });
+$('coinok').addEventListener('click',()=>{
+  const v=Math.floor(+$('coinamt').value); coinDrop=v>0?v:1000;
+  $('coinmodal').hidden=true; modalOpen=false; updateHUD(); toast(`Dropping ${coinDrop} coins per pile — aim and tap Place.`,2400);
+});
+$('pileleave').addEventListener('click',closePile);
+$('confirmno').addEventListener('click',closeConfirm);
+$('confirmyes').addEventListener('click',()=>{ const cb=confirmCb; closeConfirm(); if(cb) cb(); });
+$('confirmmodal').addEventListener('click',e=>{ if(e.target.id==='confirmmodal'&&performance.now()-lastCanvasTap>500) closeConfirm(); });
+$('piletake').addEventListener('click',pickUpPile);
+$('pilemodal').addEventListener('click',e=>{ if(e.target.id==='pilemodal'&&performance.now()-lastCanvasTap>500) closePile(); });
+$('fillbtn').addEventListener('pointerdown',e=>{ e.preventDefault(); fillHighlighted(); });
+$('close').addEventListener('click',closeShop);
+$('modal').addEventListener('click',e=>{if(e.target.id==='modal'&&performance.now()-lastCanvasTap>500)closeShop();});
+$('sell').addEventListener('click',e=>{
+  const b=e.target.closest('[data-sell]'); if(!b) return;
+  const o=ORES.find(o=>o.id===b.dataset.sell), gain=S.inv[o.id]*o.value;
+  S.coins+=gain; S.inv[o.id]=0; save(); updateHUD(); renderShop(); toast(`Sold ${o.name} for ${gain} coins`);
+});
+$('sellall').addEventListener('click',()=>{
+  let gain=0; ORES.forEach(o=>{gain+=S.inv[o.id]*o.value;S.inv[o.id]=0;});
+  S.coins+=gain; save(); updateHUD(); renderShop(); toast(`Sold everything for ${gain} coins`);
+});
+$('scanbtn').addEventListener('click',()=>{
+  if(S.coins<1000) return;
+  S.coins-=1000; revealArea(S.px,S.py,10); save(); updateHUD(); renderShop();
+  toast('Scanned the ground around you — minerals nearby are now visible');
+});
+$('detect').addEventListener('click',e=>{
+  const b=e.target.closest('[data-detect]'); if(!b||b.disabled) return;
+  const lv=+b.dataset.detect, cost=lv===1?1000:2500;
+  if(S.coins<cost) return;
+  S.coins-=cost; S.detectLvl=lv; save(); updateHUD(); renderShop();
+  toast(`Detection upgraded — you now spot minerals ${lv+1} blocks away.`);
+});
+$('pumpcancel').addEventListener('click',closePump);
+$('supportcancel').addEventListener('click',closeSupport);
+$('supportdel').addEventListener('click',removeSupport);
+$('supportmodal').addEventListener('click',e=>{if(e.target.id==='supportmodal'&&performance.now()-lastCanvasTap>500)closeSupport();});
+$('pumpconfirm').addEventListener('click',pumpPocket);
+$('pumpmodal').addEventListener('click',e=>{if(e.target.id==='pumpmodal'&&performance.now()-lastCanvasTap>500)closePump();});
+$('tools').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b||b.disabled) return;
+  if(b.dataset.buy){const i=+b.dataset.buy;S.coins-=TOOLS[i].levels[0].price;S.owned[i]=1;S.dur[i]=1;S.wear[i]=0;setTool(i);toast(`Bought the ${TOOLS[i].name}!`);}
+  else if(b.dataset.use){setTool(+b.dataset.use);}
+  else if(b.dataset.upgrade){const i=+b.dataset.upgrade;S.coins-=TOOLS[i].levels[S.owned[i]].price;S.owned[i]++;S.dur[i]=S.owned[i];S.wear[i]=0;setTool(i);toast(`${TOOLS[i].name} upgraded to ${curTime(i)}s per block!`);}
+  else if(b.dataset.repair){const i=+b.dataset.repair;const cost=Math.round(TOOLS[i].levels[0].price*0.10);S.coins-=cost;S.dur[i]=S.owned[i];S.wear[i]=0;toast(`${TOOLS[i].name} repaired!`);}
+  save(); updateHUD(); renderShop();
+});
+let armed=false;
+function armNew(on){armed=on;const b=$('newmine');b.classList.toggle('arm',on);b.textContent=on?'Tap again to start a new mine (you keep coins, ore and tools)':'⛏️ Start a new mine';}
+$('newmine').addEventListener('click',()=>{
+  if(!armed){armNew(true);return;}
+  newGame({inv:S.inv,coins:S.coins,tool:S.tool,owned:S.owned,dur:S.dur,wear:S.wear,detectLvl:S.detectLvl,name:S.name,gender:S.gender,mine:S.mine});
+  closeMenu(); updateHUD(); toast(`Welcome to mine ${S.mine}!`);
+});
+
+/* ---------- character (name & gender) ---------- */
+function setGenderBtns(sel){
+  $('menuboy').classList.toggle('sel',sel==='boy');
+  $('menugirl').classList.toggle('sel',sel==='girl');
+}
+function openMenu(){modalOpen=true;held=null;walkPath=null;$('menuname').value=S.name||'';setGenderBtns(S.gender||'boy');$('menu').hidden=false;}
+function closeMenu(){modalOpen=false;$('menu').hidden=true;armNew(false);}
+$('menuname').addEventListener('change',()=>{S.name=$('menuname').value.trim().slice(0,16);save();});
+$('menuboy').addEventListener('click',()=>{S.gender='boy';setGenderBtns('boy');save();});
+$('menugirl').addEventListener('click',()=>{S.gender='girl';setGenderBtns('girl');save();});
+
+/* ---------- menu: save / load / quit ---------- */
+$('menubtn').addEventListener('click',openMenu);
+$('menuclose').addEventListener('click',closeMenu);
+$('menu').addEventListener('click',e=>{if(e.target.id==='menu'&&performance.now()-lastCanvasTap>500)closeMenu();});
+$('refreshbtn').addEventListener('click',()=>{
+  save();
+  toast('Refreshing…',1200);
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistration().then(reg=>{ if(reg) reg.update().catch(()=>{}); }).catch(()=>{});
+  }
+  setTimeout(()=>location.reload(),150);
+});
+// Saving a file: iPhones/iPads can't download from a home-screen app, so they get the
+// share sheet ("Save to Files"); everything else gets a normal download.
+$('savefile').addEventListener('click',async()=>{
+  await save();
+  const text=JSON.stringify(lastSavePayload), name=`deep-dig-save-mine${S.mine}.json`;
+  const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  try{
+    const file=new File([text],name,{type:'application/json'});
+    if(isIOS && navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); toast('Save file ready'); return; }
+  }catch(e){ if(e&&e.name==='AbortError') return; }
+  const url=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+  const a=document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  toast('Save file downloaded');
+});
+$('loadfilebtn').addEventListener('click',()=>$('loadinput').click());
+$('loadinput').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    // Apply the file straight into the game (no round-trip through storage, which an
+    // in-flight autosave could overwrite), then save the result.
+    const ok=applySave(reader.result);
+    if(ok===true){ closeMenu(); camInit=false; followCam=true; resize(); updateHUD(); save(); toast('Save file loaded'); }
+    else if(ok){ newGame(ok,true); closeMenu(); resize(); updateHUD(); toast('Save file loaded (older map, coins & tools kept)'); }
+    else toast("That file doesn't look like a Deep Dig save.",3000);
+  };
+  reader.onerror=()=>toast("Couldn't read that file.");
+  reader.readAsText(file);
+  e.target.value='';
+});
+let quitting=false;
+$('quitbtn').addEventListener('click',()=>{
+  if(!confirm("Quit Neya's Mine? Your progress is saved automatically.")) return;
+  save(); quitting=true; closeMenu();
+  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:\'Lilita One\',sans-serif;font-size:22px;color:#fff4e0;background:#23170f;text-align:center;padding:20px">Thanks for playing Neya\'s Mine!<br>You can close this tab now.</div>';
+  try{window.close();}catch(e){}
+});
+
+/* ---------- mine map ---------- */
+// The whole mine drawn at one pixel per square, then scaled up. You see what you've found:
+// tunnels, water, things you've built, and minerals and rock that have been revealed.
+const hexRGB=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+const ROWRGB=ROWC.map(c=>c.match(/\d+/g).map(Number));
+let mapImg=null, mapV=null, mapPtrs=new Map(), mapGest=null;
+function mapColor(i,y){
+  if(y===0 && S.grid[i]===EMPTY) return S.piles.has(i)?[240,190,40]:[150,205,240];
+  const v=S.grid[i], rev=S.rev[i]||devReveal;
+  if(v===EMPTY){ if(S.doors.has(i)) return [120,80,45]; if(S.mass[i]>0.3) return [40,120,185]; return S.grass.has(i)?[70,140,55]:[30,21,15]; }
+  if(v===BEDROCK) return [35,31,41];
+  if(v===STONE) return [143,139,134];
+  if(v===GLASS) return [200,230,245];
+  if(v===STEEL) return [150,162,175];
+  if(v===WOOD) return [162,106,58];
+  if(v===DOOR) return [154,102,56];
+  if(v===PIECES) return [140,125,110];
+  if(!rev) return ROWRGB[y];
+  if(OREBY[v]) return hexRGB(OREBY[v].c);
+  if(v===WATER) return [40,120,185];
+  if(v===WALL) return [60,62,70];
+  if(v===ROCK) return [117,117,124];
+  return ROWRGB[y];
+}
+function buildMapImage(){
+  const c=document.createElement('canvas'); c.width=W; c.height=D;
+  const x=c.getContext('2d'), img=x.createImageData(W,D);
+  for(let y=0;y<D;y++) for(let xx=0;xx<W;xx++){ const i=xx+y*W, col=mapColor(i,y), o=i*4; img.data[o]=col[0]; img.data[o+1]=col[1]; img.data[o+2]=col[2]; img.data[o+3]=255; }
+  x.putImageData(img,0,0); mapImg=c;
+}
+function mapSize(){ const cv=$('mapcv'); return {w:cv.clientWidth, h:cv.clientHeight}; }
+function mapMinScale(){ const {w,h}=mapSize(); return Math.min(w/W,h/D); }
+function clampMap(){
+  const {w,h}=mapSize(), sw=W*mapV.scale, sh=D*mapV.scale;
+  mapV.ox= sw<=w ? -(w-sw)/2 : clamp(mapV.ox,0,sw-w);
+  mapV.oy= sh<=h ? -(h-sh)/2 : clamp(mapV.oy,0,sh-h);
+}
+function zoomMap(f,cx,cy){
+  const {w,h}=mapSize(); if(cx===undefined){cx=w/2;cy=h/2;}
+  const ns=clamp(mapV.scale*f,mapMinScale(),40), k=ns/mapV.scale;
+  mapV.ox=(mapV.ox+cx)*k-cx; mapV.oy=(mapV.oy+cy)*k-cy; mapV.scale=ns; clampMap(); drawMap();
+}
+function drawMap(){
+  const cv=$('mapcv'), {w,h}=mapSize(), r=Math.min(3,window.devicePixelRatio||1);
+  if(cv.width!==Math.round(w*r)||cv.height!==Math.round(h*r)){ cv.width=Math.round(w*r); cv.height=Math.round(h*r); }
+  const m=cv.getContext('2d'); m.setTransform(r,0,0,r,0,0); m.clearRect(0,0,w,h);
+  m.imageSmoothingEnabled=false;
+  m.drawImage(mapImg,-mapV.ox,-mapV.oy,W*mapV.scale,D*mapV.scale);
+  const px=(S.px+.5)*mapV.scale-mapV.ox, py=(S.py+.5)*mapV.scale-mapV.oy, rad=Math.max(5,mapV.scale*.9);
+  m.fillStyle='rgba(255,194,26,.3)'; m.beginPath(); m.arc(px,py,rad*2.2,0,Math.PI*2); m.fill();
+  m.fillStyle='#ffc21a'; m.strokeStyle='#3a2400'; m.lineWidth=2; m.beginPath(); m.arc(px,py,rad,0,Math.PI*2); m.fill(); m.stroke();
+}
+function openMap(){
+  if(modalOpen) return;
+  modalOpen=true; held=null; $('mapmodal').hidden=false;
+  buildMapImage();
+  requestAnimationFrame(()=>{
+    const {w,h}=mapSize(), sc=Math.max(mapMinScale(),Math.min(w/W*1.6,12)); // a bit closer than "whole width", centred on the miner
+    mapV={scale:sc, ox:(S.px+.5)*sc-w/2, oy:(S.py+.5)*sc-h/2}; clampMap(); drawMap();
+  });
+}
+function closeMap(){ $('mapmodal').hidden=true; modalOpen=false; mapPtrs.clear(); mapGest=null; }
+$('mapbtn').addEventListener('click',openMap);
+$('mapclose').addEventListener('click',closeMap);
+$('mapin').addEventListener('click',()=>zoomMap(1.5));
+$('mapout').addEventListener('click',()=>zoomMap(1/1.5));
+$('mapcv').addEventListener('wheel',e=>{ e.preventDefault(); zoomMap(e.deltaY<0?1.15:1/1.15,e.offsetX,e.offsetY); },{passive:false});
+window.addEventListener('resize',()=>{ if(!$('mapmodal').hidden&&mapV){ clampMap(); drawMap(); } });
+// one finger drags, two fingers pinch-zoom, a quick tap walks there
+$('mapcv').addEventListener('pointerdown',e=>{
+  e.preventDefault(); $('mapcv').setPointerCapture(e.pointerId);
+  mapPtrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+  if(mapPtrs.size===1) mapGest={x0:e.offsetX,y0:e.offsetY,moved:false};
+  else if(mapGest) mapGest.moved=true;
+});
+$('mapcv').addEventListener('pointermove',e=>{
+  const pt=mapPtrs.get(e.pointerId); if(!pt||!mapV) return;
+  if(mapPtrs.size===2){
+    const [a,b]=[...mapPtrs.values()], d0=Math.hypot(a.x-b.x,a.y-b.y);
+    pt.x=e.offsetX; pt.y=e.offsetY;
+    const [a2,b2]=[...mapPtrs.values()], d1=Math.hypot(a2.x-b2.x,a2.y-b2.y);
+    if(d0>0) zoomMap(d1/d0,(a2.x+b2.x)/2,(a2.y+b2.y)/2);
+    return;
+  }
+  const dx=e.offsetX-pt.x, dy=e.offsetY-pt.y; pt.x=e.offsetX; pt.y=e.offsetY;
+  if(mapGest && Math.hypot(e.offsetX-mapGest.x0,e.offsetY-mapGest.y0)>7) mapGest.moved=true;
+  if(mapGest && mapGest.moved){ mapV.ox-=dx; mapV.oy-=dy; clampMap(); drawMap(); }
+});
+['pointerup','pointercancel'].forEach(ev=>$('mapcv').addEventListener(ev,e=>{
+  const wasTap=ev==='pointerup' && mapPtrs.size===1 && mapGest && !mapGest.moved;
+  mapPtrs.delete(e.pointerId);
+  if(wasTap){
+    const gx=Math.floor((e.offsetX+mapV.ox)/mapV.scale), gy=Math.floor((e.offsetY+mapV.oy)/mapV.scale);
+    if(gx>=0&&gx<W&&gy>=0&&gy<D){ closeMap(); walkToCell(gx,gy); }
+  }
+  if(!mapPtrs.size) mapGest=null;
+}));
+
+/* ---------- input ---------- */
+let gesture=null;
+cv.addEventListener('pointerdown',e=>{
+  if(modalOpen) return;
+  e.preventDefault();
+  const now=performance.now(), [rx,ry]=playerPos(now);
+  const px=(rx+.5)*cs-cam.x, py=(SKY+ry+.5)*cs-cam.y-cs*.15;
+  const onPlayer=Math.hypot(e.offsetX-px,e.offsetY-py)<=cs*1.3;
+  gesture={x0:e.offsetX,y0:e.offsetY,lastX:e.offsetX,lastY:e.offsetY,onPlayer,moved:false,t0:now};
+  { const c=tapCell(e.offsetX,e.offsetY); if(c&&c[1]>=0&&S.doors.has(c[0]+c[1]*W)) doorHold={idx:c[0]+c[1]*W,t0:now}; }
+  if(onPlayer) longPress={t0:now};
+});
+cv.addEventListener('pointermove',e=>{
+  if(!gesture) return;
+  const dx=e.offsetX-gesture.lastX, dy=e.offsetY-gesture.lastY;
+  if(!gesture.moved && Math.hypot(e.offsetX-gesture.x0,e.offsetY-gesture.y0)>8){gesture.moved=true; longPress=null; doorHold=null;}
+  if(gesture.moved){
+    followCam=false;
+    cam.x=clamp(cam.x-dx,-vw*.5,Math.max(-vw*.5,W*cs-vw*.5));
+    cam.y=clamp(cam.y-dy,-vh*.5,Math.max(-vh*.5,(SKY+D)*cs-vh*.5));
+  }
+  gesture.lastX=e.offsetX; gesture.lastY=e.offsetY;
+});
+function tapToWalk(px,py){
+  if(buildMode) return;
+  walkToCell(Math.floor((px+cam.x)/cs), Math.floor((py+cam.y)/cs)-SKY);
+}
+function walkToCell(gx,gy){
+  if(gx<0||gx>=W||gy<0||gy>=D) return;
+  if(gx===S.px&&gy===S.py) return;
+  if(S.grid[gx+gy*W]!==EMPTY){toast("You'll need to dig your way there first."); return;}
+  if(isFull(gx+gy*W)){toast('That spot is flooded.'); return;}
+  const path=findPath(S.px,S.py,gx,gy);
+  if(!path){toast("Can't find a path there through what you've already dug."); return;}
+  walkPath=path; followCam=true; held=null;
+  if(!anim && walkPath.length){ const [nx,ny]=walkPath.shift(); moveTo(nx,ny,performance.now()); }
+}
+function tapCell(px,py){
+  const gx=Math.floor((px+cam.x)/cs), gy=Math.floor((py+cam.y)/cs)-SKY;
+  return (gx<0||gx>=W||gy<-SKYROWS||gy>=D)?null:[gx,gy];
+}
+function handleTap(px,py,onPlayer){
+  const c=tapCell(px,py); if(!c) return;
+  const [gx,gy]=c, idx=gx+gy*W;
+  if(S.doors.has(idx)){ toggleDoor(idx); return; }
+  if(S.piles.has(idx)){ openPile(idx); return; }
+  if(S.grid[idx]===EMPTY && isWet(idx)){ openPump(idx); return; }
+  const sup=supportAt(gx,gy);
+  if(sup===null && onPlayer){ const own=supportAt(S.px,S.py); if(own!==null){ openSupport(own); return; } }
+  if(sup!==null){ openSupport(sup); return; }
+  if(!onPlayer && gy>=0) tapToWalk(px,py);
+}
+let lastCanvasTap=0;
+['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,e=>{
+  longPress=null; lastCanvasTap=performance.now();
+  doorHold=null;
+  if(ev==='pointerup'&&gesture&&!gesture.moved&&!gesture.doorDone&&!modalOpen&&(!gesture.onPlayer||performance.now()-gesture.t0<450))
+    handleTap(gesture.lastX,gesture.lastY,gesture.onPlayer);
+  gesture=null;
+}));
+cv.addEventListener('pointerleave',()=>{longPress=null; gesture=null; doorHold=null;});
+document.querySelectorAll('.db').forEach(b=>{
+  const d=+b.dataset.dir;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}held=d;b.classList.add('on');pressDir(d);});
+  const up=()=>{if(held===d)held=null;b.classList.remove('on');};
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,up));
+  b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pressDir(d);}});
+});
+const KEYS={ArrowUp:UP,w:UP,W:UP,ArrowRight:RIGHT,d:RIGHT,D:RIGHT,ArrowDown:DOWN,s:DOWN,S:DOWN,ArrowLeft:LEFT,a:LEFT,A:LEFT};
+window.addEventListener('keydown',e=>{
+  if(modalOpen){if(e.key==='Escape'){if(!$('confirmmodal').hidden)closeConfirm();else if(!$('pilemodal').hidden)closePile();else if(!$('coinmodal').hidden){$('coinmodal').hidden=true;modalOpen=false;}else if(!$('mapmodal').hidden)closeMap();else if(!$('matmodal').hidden)closeMats();else if(!$('pumpmodal').hidden)closePump();else if(!$('supportmodal').hidden)closeSupport();else if(!$('modal').hidden)closeShop();else if(!$('menu').hidden)closeMenu();}return;}
+  if(e.key==='u'||e.key==='U'){openShop();return;}
+  if(e.key==='b'||e.key==='B'){toggleBuildMode();return;}
+  if((e.key==='f'||e.key==='F')&&buildMode){fillHighlighted();return;}
+  const d=KEYS[e.key]; if(d===undefined) return; e.preventDefault();
+  if(e.repeat) return; held=d; pressDir(d);
+});
+window.addEventListener('keyup',e=>{const d=KEYS[e.key];if(d!==undefined&&held===d)held=null;});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+document.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ---------- splash: first-time name & character pick ---------- */
+let splashGender='boy';
+function setSplashGender(g){splashGender=g;$('genderboy').classList.toggle('sel',g==='boy');$('gendergirl').classList.toggle('sel',g==='girl');}
+$('genderboy').addEventListener('click',()=>setSplashGender('boy'));
+$('gendergirl').addEventListener('click',()=>setSplashGender('girl'));
+$('startbtn').addEventListener('click',()=>{
+  S.name=$('nameinput').value.trim().slice(0,16); S.gender=splashGender; save();
+  $('splash').hidden=true; modalOpen=false;
+});
+
+/* ---------- boot ---------- */
+(async()=>{
+  const hadSave=await load();
+  if(hadSave===true){/* loaded fully */}
+  else if(hadSave){newGame(hadSave,true); toast('Your mine map was updated — coins and tools carried over.',3200);}
+  else newGame(null);
+  resize(); updateHUD();
+  if(!S.name){ setSplashGender('boy'); $('splash').hidden=false; modalOpen=true; }
+  else if(!hadSave) setTimeout(()=>toast('Tap an arrow to start digging',3000),400);
+  let last=performance.now();
+  function frame(now){
+    if(quitting) return;
+    const dt=Math.min(.05,(now-last)/1000);last=now;update(now,dt);render(now,dt);requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      if(reg.waiting) reg.waiting.postMessage('skip');
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        nw && nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed' && navigator.serviceWorker.controller) nw.postMessage('skip');
+        });
+      });
+      setInterval(()=>reg.update(),60000);
+    }).catch(e=>console.warn('Service worker failed:',e));
+    let refreshed=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(refreshed) return; refreshed=true; location.reload();
+    });
+  });
+}
+</script>
+</body>
+</html>
