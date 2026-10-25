@@ -87,12 +87,11 @@
     </style>
 </head>
 <body tabindex="-1">
-    <div id="size-overlay" style="position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(0,0,0,0.75);color:#33ffcc;font-size:0.8rem;padding:2px 8px;border:1px solid #33ffcc;border-radius:4px;pointer-events:none;"></div>
     <div class="display-area">
         <div class="history-viewport" id="viewport"><div id="history-container"></div></div>
         <div class="divider"></div>
         <div class="tag-container">
-            <div class="version-tag">VERSION 3.12</div>
+            <div class="version-tag">VERSION 3.13</div>
             <div class="status-group">
                 <div id="notif-tag" class="status-tag"></div>
                 <div id="mem-tag" class="status-tag">MEM</div>
@@ -724,12 +723,6 @@
         e.preventDefault();
         handleInput(val);
     });
-
-    // Width overlay: shows the app width while the window is being resized.
-    const sizeTag = document.getElementById('size-overlay');
-    function showSize() { sizeTag.textContent = Math.round(document.body.getBoundingClientRect().width) + ' px'; }
-    window.addEventListener('resize', showSize);
-    showSize();
 
     initHistory(); renderEntry();
 </script>
