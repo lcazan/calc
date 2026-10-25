@@ -91,7 +91,7 @@
         <div class="history-viewport" id="viewport"><div id="history-container"></div></div>
         <div class="divider"></div>
         <div class="tag-container">
-            <div class="version-tag">VERSION 3.13</div>
+            <div class="version-tag">VERSION 3.14</div>
             <div class="status-group">
                 <div id="notif-tag" class="status-tag"></div>
                 <div id="mem-tag" class="status-tag">MEM</div>
@@ -719,10 +719,20 @@
         if (/^[0-9.+\-*\/]$/.test(e.key)) val = e.key;
         else if (e.key === 'Enter') val = '=';
         else if (e.key === 'Backspace') val = 'del';
+        else if (e.key === 'ArrowUp') val = 'up';
+        else if (e.key === 'ArrowDown') val = 'down';
+        else if (e.key === 'ArrowLeft') val = 'left';
+        else if (e.key === 'ArrowRight') val = 'right';
+        if (e.key !== 'Shift') shiftChorded = true;
         if (val === null) return;
         e.preventDefault();
         handleInput(val);
     });
+    // Shift key toggles the calculator SHIFT, but only when tapped on its own: typing + or * needs a
+    // physical Shift held down, so Shift used as a modifier for another key must not toggle it.
+    let shiftChorded = false;
+    document.addEventListener('keydown', (e) => { if (e.key === 'Shift' && !e.repeat) shiftChorded = false; });
+    document.addEventListener('keyup', (e) => { if (e.key === 'Shift' && !shiftChorded) handleInput('shift'); });
 
     initHistory(); renderEntry();
 </script>
