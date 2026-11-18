@@ -77,8 +77,9 @@ const LEVEL_COUNT = AREAS.length * 3;
 
 // Builds one level from the recipe. Needs OBJ (art.js) for object widths, so it runs after art.js has loaded.
 // Level shape: objs [type,x,variant,baseY], solids [kind,x,w,h], plats [x,y,w,style,(liftTopY)], blobs [x,range], birds [x,range,y]
-function buildLevel(i) {
-  const a = Math.floor(i / 3), k = i % 3, A = AREAS[a], SC = A.scenes[k], r = rng(i * 7919 + 13), boss = k === 2;
+// seed: a new one each time a level is played (ui.js play) -> same ingredients, new order; level 1 is always the fixed tutorial
+function buildLevel(i, seed) {
+  const a = Math.floor(i / 3), k = i % 3, A = AREAS[a], SC = A.scenes[k], r = rng(i === 0 || seed == null ? i * 7919 + 13 : seed), boss = k === 2;
   const d = i / (LEVEL_COUNT - 1);
   const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [] };
   const blk = A.block;
@@ -134,24 +135,23 @@ function buildLevel(i) {
   let plan;
   if (i === 0) {
     L.signs.push([70, 'move'], [240, 'spray']); x = 420;
-    plan = ['g', 'g', 'H', 'jump', 's2', 'g', 'g', 'H', 's2', 'g', 'g', 's3', 'g'];
+    plan = ['g', 'g', 'H', 'jump', 's2', 'g', 'g', 'H', 's2', 'g', 'g', 's3', 'g', 'O', 'g', 'H', 'tog', 'g'];
   } else {
-    const climbs = ['s3'];
-    if (i >= 2) climbs.push('lift');
-    if (i >= 4) climbs.push('hops');
-    if (i >= 3) climbs.push('tog');
-    const n = boss ? 5 : 8 + Math.round(d * 4);
+    // the level's ingredients (v1.12): every gadget from level 2 on, more of them later
+    const feats = boss
+      ? ['O', 'tog', ['s3', 'lift', 'hops'][Math.floor(r() * 3)]].concat(i >= 5 ? ['P'] : [])
+      : ['F', 'P', 'tog'];
+    if (!boss) {
+      for (let h = 0, nh = 2 + Math.round(d * 1.4); h < nh; h++) feats.push('O');
+      if (d > 0.5) feats.push('tog'); if (d > 0.6) feats.push('P');
+      const climbs = ['s3', 'lift', 'hops'];
+      for (let c = 0, nc = 1 + Math.round(d * 2); c < nc; c++) feats.push(climbs[Math.floor(r() * 3)]);
+    }
+    // shuffle, then never the same gadget twice in a row
+    for (let j = feats.length - 1; j > 0; j--) { const m = Math.floor(r() * (j + 1)); [feats[j], feats[m]] = [feats[m], feats[j]]; }
+    for (let j = 1; j < feats.length; j++) if (feats[j] === feats[j - 1]) { const m = feats.findIndex((f, q) => q > j && f !== feats[j] && f !== feats[j - 2]); if (m > 0) [feats[j], feats[m]] = [feats[m], feats[j]]; }
     plan = ['g'];
-    for (let s = 1; s < n; s++) plan.push(s % 2 ? climbs[Math.floor(r() * climbs.length)] : 'g');
-    if (i === 2) plan[1] = 'lift';
-    if (i === 4) plan[1] = 'hops';
-    plan.splice(2, 0, 'H'); if (plan.length > 6) plan.splice(6, 0, 'H'); if (plan.length > 10) plan.splice(10, 0, 'H');
-    if (i >= 3 && !boss && (i === 3 || r() < 0.55)) plan.splice(1, 0, 'F', 'g');
-    if (i === 3) plan.splice(4, 0, 'tog');
-    if (i >= 4 && !boss && (i === 4 || r() < 0.6)) plan.splice(3 + Math.floor(r() * (plan.length - 3)), 0, 'P');
-    if (d > 0.5 && !boss && r() < 0.5) plan.splice(plan.length - 1, 0, 'P');
-    const nh = i === 1 ? 1 : 1 + Math.floor(r() * 2) + (d > 0.5 ? 1 : 0);
-    for (let h = 0; h < nh; h++) plan.splice(2 + Math.floor(r() * (plan.length - 2)), 0, 'O');
+    feats.forEach((f, j) => { plan.push(f); if (r() < 0.6 || j === feats.length - 1) plan.push('g'); if (j % 3 === 0) plan.push('H'); });
   }
   for (const p of plan) {
     if (p === 'g') ground();
@@ -174,10 +174,10 @@ function buildLevel(i) {
   // enemies on flat stretches only
   const nb = i === 0 ? 2 : 4 + Math.floor(d * 7) + (r() < 0.5 ? 1 : 0);
   for (let j = 0; j < nb && flat.length; j++) { const [x0, x1] = flat[Math.floor(j * flat.length / nb)]; if (x0 > 500) L.blobs.push([Math.round((x0 + x1) / 2) + ((j * 37) % 60) - 30, Math.max(40, Math.min(130, (x1 - x0) / 2))]); }
-  const nbird = i < 1 ? 0 : 1 + Math.floor(d * 5);
+  const nbird = i < 1 ? 0 : 2 + Math.floor(d * 5);
   for (let j = 0; j < nbird; j++) L.birds.push([Math.round(700 + (x - 900) * (j + 0.5) / nbird), 180, 190 + Math.floor(r() * 50)]);
   if (i > 0) L.hydrants.unshift(60);
-  L.waveEvery = i >= 2 ? Math.round(30 - d * 14) : 0;
+  L.waveEvery = i >= 1 ? Math.round(32 - d * 16) : 0;
   // mud monsters keep dropping in while the slime wall is shut (v1.11)
   L.blobEvery = i === 0 ? 0 : Math.round(10 - d * 5.5); L.blobMax = 2 + Math.round(d * 3);
   L.pipeEvery = Math.round((3.2 - 1.4 * d) * 10) / 10; L.pipeMax = 3 + (d > 0.5 ? 1 : 0); L.pipeWaves = i >= 9;

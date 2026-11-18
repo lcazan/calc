@@ -71,6 +71,7 @@ const UI = (() => {
   function play(i) {
     if (i === 0 && !SAVE.seenIntro) { SAVE.seenIntro = true; persist(); return runStory('intro', () => play(0)); }
     goFull();
+    if (i > 0) LEVELS[i] = buildLevel(i, (Math.random() * 2 ** 31) | 0); // new layout every play
     setScene('game'); startLevel(LEVELS[i], i, false); show(null);
     const L = LEVELS[i];
     Sfx.music('happy'); banner(L.name + (L.boss ? ': Boss!' : ''));

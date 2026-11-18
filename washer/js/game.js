@@ -471,9 +471,10 @@ function updEnemies(dt) {
       if (Math.abs(dx) < 480 && Math.abs(dx) > 70 && G.respawnT <= 0 && !G.demo) {
         e.shootT -= dt;
         if (e.shootT <= 0) {
-          e.shootT = Math.max(2, 3.6 - G.idx * 0.06) * (0.8 + Math.random() * 0.4);
-          const T = 1.1, x0 = e.x, y0 = e.y - e.r * 1.3;
-          G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T, vy: (GROUND - 30 - y0 - 0.5 * 900 * T * T) / T, r: 11, hp: 0.3, hp0: 0.3, slime: swamp, temp: !!e.auto });
+          e.shootT = Math.max(1.2, 2.2 - G.idx * 0.035) * (0.8 + Math.random() * 0.4);
+          const T = 1.1, x0 = e.x, y0 = e.y - e.r * 1.3, vy = (GROUND - 30 - y0 - 0.5 * 900 * T * T) / T;
+          G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T, vy, r: 11, hp: 0.3, hp0: 0.3, slime: swamp, temp: !!e.auto });
+          if (G.idx >= 9 && Math.random() < 0.3) for (const f of [0.7, 1.3]) G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T * f, vy, r: 10, hp: 0.3, hp0: 0.3, slime: swamp, temp: true });
           e.dir = Math.sign(dx) || 1; e.hop = 0; Sfx.throw();
         }
       }
@@ -485,11 +486,15 @@ function updEnemies(dt) {
       e.t += dt; e.x += e.dir * 70 * dt; e.y = e.y0 + Math.sin(e.t * 2) * 22;
       if (e.x < e.minX) e.dir = 1; if (e.x > e.maxX) e.dir = -1;
       e.dropT -= dt;
-      if (e.dropT <= 0 && Math.abs(P.x - e.x) < 90) { G.balls.push({ x: e.x, y: e.y + 14, vx: 0, vy: 40, r: 12, hp: 0.3, hp0: 0.3, slime: swamp }); e.dropT = 3.5; Sfx.throw(); }
+      if (e.dropT <= 0 && Math.abs(P.x - e.x) < 170 && G.respawnT <= 0 && !G.demo) {
+        const T = Math.sqrt(2 * Math.max(40, P.y - 40 - e.y) / 900);
+        G.balls.push({ x: e.x, y: e.y + 14, vx: clamp((P.x - e.x) / T, -260, 260), vy: 40, r: 12, hp: 0.3, hp0: 0.3, slime: swamp }); e.dropT = 1.5 + Math.random() * 0.5; Sfx.throw();
+      }
       if (Math.abs(P.x - e.x) < 30 && Math.abs(P.y - 45 - e.y) < 50) hurtPlayer(e.x);
     }
     if (e.hp <= 0 && e.gone) continue;
     if (e.hp <= 0) {
+      if (e.kind === 'blob') { const col = swamp ? '#6f9a2a' : '#7b5431'; for (let k = 0; k < 14; k++) part(e.x, e.y - 20, (Math.random() - 0.5) * 520, -150 - Math.random() * 380, 0.9, 6 + Math.random() * 7, col, 'c'); if (!G.arena || !G.arena.started) for (const dx of [-55, 0, 50]) if (!holeAt(e.x + dx, 0)) G.puddles.push({ x: e.x + dx, w: 26 + Math.random() * 20, life: 2.5, slime: swamp }); shake(3); }
       Sfx.pop(); splash(e.x, e.y - 20, e.kind === 'bird' ? '#4a3a5a' : e.kind === 'wave' ? '#7fb52e' : (swamp ? '#6f9a2a' : '#7b5431'), e.kind === 'wave' ? 30 : 16); bubbles(e.x, e.y - 20, 6);
       if (!e.noCoin) { spawnCoins(e.x, e.y - 30, e.kind === 'wave' ? 4 : 2); floatText(e.x, e.y - 60, e.kind === 'wave' ? 'Wave washed!' : 'Splash!', '#bfe9ff', 24); }
     }
