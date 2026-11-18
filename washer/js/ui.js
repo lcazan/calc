@@ -6,6 +6,7 @@ const SAVE_DEF = { gender: 'boy', skin: 0, hair: 0, sound: true, music: true, vo
 function loadSave() {
   const d = JSON.parse(JSON.stringify(SAVE_DEF));
   try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s) { Object.assign(d, s); d.up = Object.assign({ pressure: 0, tank: 0 }, s.up || {}); } } catch (e) { }
+  if (d.ver !== 2) { d.ver = 2; d.unlocked = 1; d.done = []; } // 30-level layout: old progress no longer matches
   return d;
 }
 let SAVE = loadSave();
@@ -14,7 +15,7 @@ function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE));
 const $ = id => document.getElementById(id);
 const UI = (() => {
   let scene = 'none', sceneT = 0, story = null, afterStory = null, overlay = null, settingsBack = null;
-  const screens = ['title', 'map', 'shop', 'settings', 'pause', 'complete', 'story'];
+  const screens = ['title', 'map', 'areaPop', 'shop', 'settings', 'pause', 'complete', 'story'];
   function show(id) {
     for (const s of screens) $(s).classList.toggle('show', s === id);
     overlay = id;
@@ -38,16 +39,30 @@ const UI = (() => {
     setScene('map'); show('map'); Sfx.spray(false, false, 0); Sfx.music('calm'); Sfx.hush();
     $('mapCoins').textContent = SAVE.coins;
     const box = $('mapNodes'); box.innerHTML = '';
-    LEVELS.forEach((L, i) => {
-      const [x, y] = MAP_NODES[i], open = i < SAVE.unlocked, done = SAVE.done[i];
+    AREAS.forEach((A, a) => {
+      const [x, y] = MAP_NODES[a], open = a * 3 < SAVE.unlocked, done = [0, 1, 2].every(k => SAVE.done[a * 3 + k]);
+      const cur = Math.floor((SAVE.unlocked - 1) / 3) === a && !done;
       const b = document.createElement('button');
-      b.className = 'node' + (open ? '' : ' locked') + (done ? ' done' : '') + (L.boss ? ' boss' : '') + (i === SAVE.unlocked - 1 ? ' next' : '');
+      b.className = 'node' + (open ? '' : ' locked') + (done ? ' done' : '') + (cur ? ' next' : '');
       b.style.left = (x * 100) + '%'; b.style.top = (y * 100) + '%';
-      b.innerHTML = `<span class="num">${open ? (L.boss ? '' : i + 1) : ''}</span><span class="lbl">${L.name}</span>`;
-      if (L.boss && open) { const c = mkCanvas(80, 80); c.className = 'bossic'; drawBossIcon(c); b.querySelector('.num').appendChild(c); }
-      b.onclick = () => { click(); if (!open) { Sfx.nope(); Sfx.say('Finish the level before this one first!'); return; } play(i); };
+      b.innerHTML = `<span class="num">${open ? a + 1 : ''}</span><span class="lbl">${A.name}</span>`;
+      b.onclick = () => { click(); if (!open) { Sfx.nope(); Sfx.say('Finish the place before this one first!'); return; } areaPop(a); };
       box.appendChild(b);
     });
+  }
+  function areaPop(a) {
+    const A = AREAS[a]; $('apTitle').textContent = A.name; Sfx.say(A.name);
+    const box = $('apLevels'); box.innerHTML = '';
+    for (let k = 0; k < 3; k++) {
+      const i = a * 3 + k, open = i < SAVE.unlocked, done = SAVE.done[i];
+      const b = document.createElement('button');
+      b.className = 'node lv' + (open ? '' : ' locked') + (done ? ' done' : '') + (k === 2 ? ' boss' : '') + (i === SAVE.unlocked - 1 ? ' next' : '');
+      b.innerHTML = `<span class="num">${open && k < 2 ? k + 1 : ''}</span><span class="lbl">${k === 2 ? 'Boss!' : 'Level ' + (k + 1)}</span>`;
+      if (k === 2 && open) { const c = mkCanvas(80, 80); c.className = 'bossic'; drawBossIcon(c); b.querySelector('.num').appendChild(c); }
+      b.onclick = () => { click(); if (!open) { Sfx.nope(); Sfx.say('Finish the level before this one first!'); return; } play(i); };
+      box.appendChild(b);
+    }
+    show('areaPop');
   }
   function drawBossIcon(cv) {
     const c = cv.getContext('2d'); c.scale(80 / 200, 80 / 200); c.translate(10, 40);
@@ -57,8 +72,9 @@ const UI = (() => {
     if (i === 0 && !SAVE.seenIntro) { SAVE.seenIntro = true; persist(); return runStory('intro', () => play(0)); }
     goFull();
     setScene('game'); startLevel(LEVELS[i], i, false); show(null);
-    Sfx.music('happy'); banner(`${i + 1}. ${LEVELS[i].name}`);
-    Sfx.say(`Level ${i + 1}. ${LEVELS[i].name}!` + (i === 0 ? ' Hold the blue button to spray!' : ''));
+    const L = LEVELS[i];
+    Sfx.music('happy'); banner(L.boss ? AREAS[L.area].name + ': Boss!' : L.name);
+    Sfx.say(L.boss ? `${AREAS[L.area].name}. Find Sir Sludgington!` : `${L.name}!` + (i === 0 ? ' Hold the blue button to spray!' : ''));
   }
   function banner(s) { const b = $('banner'); b.textContent = s; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); }
 
@@ -67,25 +83,26 @@ const UI = (() => {
     const i = G.idx, L = G.L;
     SAVE.done[i] = true; SAVE.unlocked = Math.max(SAVE.unlocked, Math.min(LEVELS.length, i + 2)); persist();
     Sfx.music(null); Sfx.fanfare();
-    $('cmpTitle').textContent = L.boss && L.boss.fight === 3 ? 'You won!' : 'Squeaky Clean!';
+    const won = L.boss && L.boss.fight >= AREAS.length;
+    $('cmpTitle').textContent = won ? 'You won!' : 'Squeaky Clean!';
     $('cmpCoins').textContent = '+' + G.lvlCoins;
     $('cmpTotal').textContent = SAVE.coins;
     $('cmpNext').style.display = i + 1 < LEVELS.length ? '' : 'none';
     const c = $('cmpKid').getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 200, 200);
     c.translate(100, 190); c.scale(1.8, 1.8); drawKid(c, Object.assign(kidState(), { air: true, aim: -0.9 }));
     show('complete');
-    Sfx.say(L.boss && L.boss.fight === 3 ? 'You did it! You won!' : 'Squeaky clean! Great job!');
+    Sfx.say(won ? 'You did it! You won!' : 'Squeaky clean! Great job!');
   }
   function afterLevel(next) {
     const i = G.idx, L = G.L;
     const go = () => next && i + 1 < LEVELS.length ? play(i + 1) : map();
-    if (L.boss) return runStory(['', 'flee1', 'flee2', 'ending'][L.boss.fight], L.boss.fight === 3 ? map : go);
+    if (L.boss) return L.boss.fight >= AREAS.length ? runStory(STORY.ending, map) : runStory(fleeStory(L.area), go);
     go();
   }
 
   // ---------------- story
   function runStory(name, then) {
-    story = { pages: STORY[name], i: 0 }; afterStory = then;
+    story = { pages: typeof name === 'string' ? STORY[name] : name, i: 0 }; afterStory = then;
     setScene('story'); show('story'); Sfx.music('calm'); storyPage();
   }
   function storyPage() {
@@ -140,9 +157,9 @@ const UI = (() => {
     }
     g = sec('Power & water');
     const pl = SAVE.up.pressure;
-    item(g, iconCanvas(44, (c, s) => gaugeIcon(c, s, pl / 4)), 'Pressure', `${PRESSURE[pl].psi} PSI ${pips(pl, 5)}`, pl >= 4 ? 'max' : 'buy', PRESSURE_COST[pl], () => { SAVE.up.pressure++; });
+    item(g, iconCanvas(44, (c, s) => gaugeIcon(c, s, pl / (PRESSURE.length - 1))), 'Pressure', `${PRESSURE[pl].psi} PSI ${pips(pl, PRESSURE.length)}`, pl >= PRESSURE.length - 1 ? 'max' : 'buy', PRESSURE_COST[pl], () => { SAVE.up.pressure++; });
     const tl = SAVE.up.tank;
-    item(g, iconCanvas(44, (c, s) => tankIcon(c, s, (tl + 1) / 4)), 'Water tank', `Holds ${TANK[tl]} ${pips(tl, 4)}`, tl >= 3 ? 'max' : 'buy', TANK_COST[tl], () => { SAVE.up.tank++; });
+    item(g, iconCanvas(44, (c, s) => tankIcon(c, s, (tl + 1) / TANK.length)), 'Water tank', `Holds ${TANK[tl]} ${pips(tl, TANK.length)}`, tl >= TANK.length - 1 ? 'max' : 'buy', TANK_COST[tl], () => { SAVE.up.tank++; });
     g = sec('Hats');
     for (const id in HATS) {
       const own = SAVE.hats.includes(id);
@@ -263,6 +280,7 @@ const UI = (() => {
     requestAnimationFrame(loop);
   }
   function boot() {
+    buildLevels();
     view.cv = $('cv'); view.ctx = view.cv.getContext('2d');
     resize(); addEventListener('resize', () => { resize(); if (scene === 'map') map(); });
     bindHold('bL', 'left'); bindHold('bR', 'right'); bindHold('bJump', 'jump'); bindHold('bSpray', 'spray');
@@ -276,6 +294,7 @@ const UI = (() => {
     on('titleSet', () => settings('title'));
     on('mapHome', () => { click(); title(); });
     on('mapShop', shop);
+    on('apBack', () => { click(); show('map'); });
     on('mapSet', () => settings('map'));
     on('shopBack', () => { click(); show(scene === 'map' ? 'map' : null); map(); });
     on('gear', () => { click(); pause(); });

@@ -92,7 +92,14 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 .node.done::after { content: '★'; position: absolute; top: -32%; right: -22%; font-size: calc(6 * var(--u)); color: #ffd23f; -webkit-text-stroke: calc(.4 * var(--u)) var(--ink); }
 .node.locked { background: #b9bec8; filter: saturate(.3); }
 .node.locked .num::before { content: '🔒'; font-size: calc(5 * var(--u)); }
-.node.next { animation: bob 1.2s ease-in-out infinite; }
+.node.next { animation: nbob 1.2s ease-in-out infinite; }
+@keyframes nbob { 50% { transform: translate(-50%, -58%) scale(1.06); } }
+.node.lv.next { animation: lbob 1.2s ease-in-out infinite; }
+@keyframes lbob { 50% { transform: translateY(-8%) scale(1.06); } }
+#apLevels { display: flex; gap: calc(7 * var(--u)); justify-content: center; margin: calc(2 * var(--u)) calc(4 * var(--u)) calc(9 * var(--u)); }
+.node.lv { position: relative; transform: none; width: calc(20 * var(--u)); height: calc(20 * var(--u)); }
+.node.lv .num { font-size: calc(10 * var(--u)); }
+.node.lv .bossic { width: calc(17 * var(--u)); height: calc(17 * var(--u)); }
 
 #shop .panel { width: min(96vw, calc(170 * var(--u))); height: 92vh; display: flex; gap: calc(3 * var(--u)); padding: calc(2.5 * var(--u)); text-align: left; }
 #shop .side { width: calc(40 * var(--u)); flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); }
@@ -171,6 +178,14 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
     <span class="sp"></span>
     <button id="mapShop" class="btn pink">🛒 Shop</button>
     <button id="mapSet" class="btn round white" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
+  </div>
+</div>
+
+<div id="areaPop" class="screen dim">
+  <div class="panel">
+    <h2 id="apTitle"></h2>
+    <div id="apLevels"></div>
+    <button id="apBack" class="btn blue">◀ Back</button>
   </div>
 </div>
 

@@ -92,7 +92,7 @@ function curPressure() { return PRESSURE[SAVE.up.pressure] || PRESSURE[0]; }
 function tankMax() { return TANK[SAVE.up.tank] || TANK[0]; }
 function newPlayer(x) {
   return { x, y: GROUND, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, jbuf: 0, walk: 0, hearts: 3, inv: 0, hurtT: 0,
-    tank: tankMax(), spraying: false, hitting: false, aimA: 0.35, blinkT: 2.5, blink: 0, lock: false, sputT: 0, glugT: 0, lowSaid: false };
+    tank: tankMax(), gy: GROUND, on: null, spraying: false, hitting: false, aimA: 0.35, blinkT: 2.5, blink: 0, lock: false, sputT: 0, glugT: 0, lowSaid: false };
 }
 function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 1, r: 26, hop: Math.random() * 3, flash: 0, spd: 45 }; }
 function startLevel(L, idx, demo) {
@@ -103,7 +103,7 @@ function startLevel(L, idx, demo) {
   let seed = (idx + 1) * 1000;
   for (const [type, x, v, by] of L.objs) G.objs.push(makeObj(type, x, by || GROUND, v || 0, L.dirt, seed++));
   G.total = G.objs.filter(o => o.count && o.grid).length;
-  for (const [x, y, w, style] of (L.plats || [])) G.plats.push({ x, y, w, style });
+  for (const [x, y, w, style, top] of (L.plats || [])) G.plats.push({ x, y, w, style, y0: y, y1: top || y, wait: 0 });
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   G.hydrants = (L.hydrants || []).map(x => ({ x, active: false }));
   for (const [x, range] of (L.blobs || [])) G.enemies.push(newBlob(x, range));
@@ -131,6 +131,7 @@ function bossSay(s) { if (!G.boss) return; G.boss.say = s; G.boss.sayT = 3; Sfx.
 function update(dt) {
   G.t += dt;
   if (G.done) { updParts(dt); updCoins(dt); updCam(dt); return; }
+  updLifts(dt);
   updPlayer(dt);
   updSpray(dt);
   updEnemies(dt);
@@ -143,6 +144,27 @@ function update(dt) {
   if (!G.demo) hud();
 }
 function solidsHit(x, y) { for (const s of G.solids) if (x + 15 > s.x && x - 15 < s.x + s.w && y > s.y + 2 && y - 86 < s.y + s.h) return s; return null; }
+function updLifts(dt) {
+  const P = G.p;
+  for (const p of G.plats) {
+    if (p.style !== 'lift') continue;
+    const on = P.on === p && P.ground && G.respawnT <= 0;
+    if (on) {
+      if (p.y > p.y1) { p.y = Math.max(p.y1, p.y - 100 * dt); if (p.y === p.y1) Sfx.ding(); }
+      p.wait = 1.5;
+    } else { p.wait -= dt; if (p.wait <= 0 && p.y < p.y0) p.y = Math.min(p.y0, p.y + 100 * dt); }
+    if (on) { P.y = p.y; P.gy = p.y; }
+  }
+}
+function fallHurt(drop) {
+  const P = G.p;
+  if (P.inv > 0 || G.demo || G.done) return;
+  P.hearts--; P.inv = 1.4; P.hurtT = 0.35;
+  Sfx.hurt(); shake(8); floatText(P.x, P.y - 110, 'Ouch!', '#ffd23f', 30);
+  for (let i = 0; i < 6; i++) part(P.x, P.y - 95, (Math.random() - 0.5) * 200, -Math.random() * 120, 0.7, 7, '#fff27a', 's', 300);
+  if (!G.fallSaid) { G.fallSaid = true; kidSay('Ouch! Big falls hurt. Climb down carefully!', true); }
+  if (P.hearts <= 0) { G.respawnT = 1.4; P.lock = true; Sfx.say("Oops! Let's try again!"); }
+}
 function updPlayer(dt) {
   const P = G.p;
   P.inv = Math.max(0, P.inv - dt); P.hurtT = Math.max(0, P.hurtT - dt);
@@ -150,7 +172,7 @@ function updPlayer(dt) {
   if (G.respawnT > 0) {
     const before = G.respawnT; G.respawnT -= dt;
     if (before > 0.7 && G.respawnT <= 0.7) {
-      P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.vx = P.vy = 0; P.hearts = 3; P.inv = 2; G.balls.length = 0;
+      P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.hearts = 3; P.inv = 2; G.balls.length = 0;
       G.cam.x = clamp(P.x - view.W * 0.4, 0, Math.max(0, G.L.len - view.W)); if (G.arena && G.arena.started) G.cam.x = G.arena.L;
     }
     if (G.respawnT <= 0) P.lock = false;
@@ -176,12 +198,14 @@ function updPlayer(dt) {
   P.x = clamp(P.x, minX, maxX);
   // y
   const prevY = P.y, wasGround = P.ground, vyBefore = P.vy;
-  P.y += P.vy * dt; P.ground = false;
+  P.y += P.vy * dt; P.ground = false; P.on = null;
   if (P.y >= GROUND) { P.y = GROUND; P.vy = 0; P.ground = true; }
   if (vyBefore >= 0) {
-    for (const p of G.plats) if (prevY <= p.y + 1 && P.y >= p.y && P.x > p.x - 10 && P.x < p.x + p.w + 10) { P.y = p.y; P.vy = 0; P.ground = true; }
+    for (const p of G.plats) if (prevY <= p.y + 1 && P.y >= p.y && P.x > p.x - 10 && P.x < p.x + p.w + 10) { P.y = p.y; P.vy = 0; P.ground = true; P.on = p; }
     for (const s2 of G.solids) if (prevY <= s2.y + 1 && P.y >= s2.y && P.x + 14 > s2.x && P.x - 14 < s2.x + s2.w) { P.y = s2.y; P.vy = 0; P.ground = true; }
   }
+  if (P.ground && !wasGround && P.y - (P.gy == null ? P.y : P.gy) >= 130) fallHurt(P.y - P.gy);
+  if (P.ground) P.gy = P.y;
   if (P.ground && !wasGround && vyBefore > 500) { Sfx.land(); for (let i = 0; i < 4; i++) part(P.x, P.y, (Math.random() - 0.5) * 160, -Math.random() * 80, 0.35, 4, 'rgba(255,255,255,.8)', 'm', 0); }
   P.walk += Math.abs(P.vx) * dt * 0.05;
   // hydrants: refill + checkpoint
@@ -257,7 +281,7 @@ function updSpray(dt) {
       else {
         const want2 = Math.floor((1 - o.rem) * o.reward * 0.5);
         if (o.given < want2) { spawnCoins(G.aim.x, G.aim.y, want2 - o.given); o.given = want2; }
-        if (o.rem < 0.035) completeObj(o);
+        if (o.rem < 0.05) completeObj(o);
       }
     }
   }
@@ -399,7 +423,7 @@ function startBoss() {
   A.L = Math.max(0, G.L.len - view.W);
   const o = makeObj('boss', 0, GROUND, 0, 'slime', 999 + A.fight);
   G.boss = { o, x: G.L.len - 260, y: -260, vx: 0, vy: 0, face: -1, st: 'enter', t: 0, throwT: 2.5, jumpT: 6, blobT: 8, mood: 'angry', moodT: 0,
-    say: '', sayT: 0, hitT: 0, ground: false, clean: 0, target: [0, 0.35, 0.6, 0.93][A.fight], blinkT: 3, blink: 0, tx: 0 };
+    say: '', sayT: 0, hitT: 0, ground: false, clean: 0, target: bossTarget(A.fight), diff: bossDiff(A.fight), blinkT: 3, blink: 0, tx: 0 };
   G.checkpoint = A.L + 90; G.hydrants.push({ x: A.L + 60, active: true });
   Sfx.music('boss');
 }
@@ -418,12 +442,12 @@ function updBoss(dt) {
   b.blinkT -= dt; if (b.blinkT < 0) { b.blink = 0.15; b.blinkT = 2 + Math.random() * 3; } b.blink = Math.max(0, b.blink - dt);
   if (b.st === 'enter') {
     b.vy += 1400 * dt; b.y += b.vy * dt;
-    if (b.y >= GROUND) { b.y = GROUND; b.vy = 0; b.ground = true; b.st = 'intro'; b.t = 0; shake(14); Sfx.splat(); splash(b.x, GROUND - 10, '#6f9a2a', 30); bossSay(BOSS_INTRO[A.fight - 1]); Sfx.laugh(); b.mood = 'laugh'; b.moodT = 2; }
+    if (b.y >= GROUND) { b.y = GROUND; b.vy = 0; b.ground = true; b.st = 'intro'; b.t = 0; shake(14); Sfx.splat(); splash(b.x, GROUND - 10, '#6f9a2a', 30); bossSay(A.fight >= AREAS.length ? BOSS_FINAL_INTRO : pick(BOSS_INTRO)); Sfx.laugh(); b.mood = 'laugh'; b.moodT = 2; }
   } else if (b.st === 'intro') {
     b.face = P.x < b.x ? -1 : 1;
     if (b.t > 2.4) { b.st = 'fight'; b.t = 0; b.sayT = 2; }
   } else if (b.st === 'fight') {
-    const diff = A.fight;
+    const diff = b.diff;
     b.face = P.x < b.x ? -1 : 1;
     if (b.ground) {
       if (!b.tx || Math.abs(b.tx - b.x) < 12) b.tx = L + 260 + Math.random() * Math.max(100, R - L - 380);
@@ -443,7 +467,7 @@ function updBoss(dt) {
       G.balls.length = 0;
       for (const e of G.enemies) { e.hp = 0; splash(e.x, e.y - 20, '#6f9a2a', 10); }
       G.enemies.length = 0; b.t = 0; b.vx = 0; Sfx.spray(false, false, 0);
-      if (A.fight < 3) { b.st = 'flee'; bossSay(pick(BOSS_FLEE)); Sfx.laugh(); }
+      if (A.fight < AREAS.length) { b.st = 'flee'; bossSay(pick(BOSS_FLEE)); Sfx.laugh(); }
       else { b.st = 'defeat'; Sfx.stopMusic(); shake(10); }
     }
   } else if (b.st === 'flee') {
@@ -465,7 +489,7 @@ function updBoss(dt) {
     if (b.y >= GROUND) {
       if (!b.ground && b.vy > 300) {
         shake(10); Sfx.splat(); splash(b.x, GROUND - 6, '#6f9a2a', 18);
-        if (b.st === 'fight' && A.fight >= 2) for (const s of [-1, 1]) G.balls.push({ x: b.x + s * 70, y: GROUND - 40, vx: s * 170, vy: -420, r: 12, hp: 0.3, hp0: 0.3, slime: true });
+        if (b.st === 'fight' && b.diff >= 2) for (const s of [-1, 1]) G.balls.push({ x: b.x + s * 70, y: GROUND - 40, vx: s * 170, vy: -420, r: 12, hp: 0.3, hp0: 0.3, slime: true });
       }
       b.y = GROUND; b.vy = 0; b.ground = true;
     } else b.ground = false;
@@ -494,7 +518,7 @@ function render() {
   drawGround(c, G.theme, cx, W);
   const vis = (x, w) => x + w > cx - 50 && x < cx + W + 50;
   for (const [x, k] of (G.L.signs || [])) if (vis(x, 130)) drawSign(c, x, k, G.t);
-  for (const p of G.plats) if (vis(p.x, p.w)) drawPlat(c, p, G.theme);
+  for (const p of G.plats) if (vis(p.x, p.w)) drawPlat(c, p, G.theme, G.t);
   for (const p of G.puddles) { c.globalAlpha = Math.min(1, p.life); ell(c, p.x, GROUND + 4, p.w, 7); c.fillStyle = p.slime ? '#6f9a2a' : '#6b4526'; c.fill(); c.globalAlpha = 1; }
   for (const o of G.objs) {
     if (!vis(o.x, o.w)) continue;
@@ -625,7 +649,7 @@ function hud() {
   hudSet('hearts', 'h', P.hearts, (el, v) => { el.innerHTML = [0, 1, 2].map(i => `<span class="heart${i < v ? '' : ' off'}"></span>`).join(''); });
   hudSet('coinN', 'c', SAVE.coins, (el, v) => { el.textContent = v; el.parentNode.classList.remove('pop'); void el.offsetWidth; el.parentNode.classList.add('pop'); });
   const tankPct = Math.round(P.tank / tankMax() * 100);
-  hudSet('tankFill', 't', tankPct + (P.refill ? 'r' : ''), (el, v) => { el.style.height = parseInt(v) + '%'; el.parentNode.classList.toggle('low', parseInt(v) < 20 || P.refill); });
+  hudSet('tankFill', 't', tankPct + (P.refill ? 'r' : ''), (el, v) => { el.style.height = parseInt(v) + '%'; el.parentNode.classList.toggle('low', parseInt(v) < 20 || !!P.refill); });
   let prog, label;
   if (G.boss && G.boss.st !== 'enter') { prog = Math.min(1, G.boss.clean / G.boss.target); label = 'boss'; }
   else { let s = 0; for (const o of G.objs) if (o.count && o.grid) s += 1 - o.rem; prog = G.total ? s / G.total : 1; label = `${G.total - G.left}/${G.total}`; }
