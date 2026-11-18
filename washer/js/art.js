@@ -678,6 +678,9 @@ const OBJ = {
     rrect(c, 0, 110, 142, 40, 8); paint(c, '#ffd23f'); rrect(c, 10, 146, 20, 56, 4); paint(c, '#ffd23f'); rrect(c, 112, 146, 20, 56, 4); paint(c, '#ffd23f');
     star(c, 71, 50, 14, 5); paint(c, '#ffd23f', 2);
   } },
+  puddle: { w: 86, h: 18, snd: 'chime', draw(c) {
+    ell(c, 43, 10, 42, 8); c.fillStyle = 'rgba(140,190,225,.7)'; c.fill(); ell(c, 30, 6, 12, 2); c.fillStyle = 'rgba(255,255,255,.6)'; c.fill();
+  } },
   boss: { w: 180, h: 192, count: false, draw(c) {
     ell(c, 60, 184, 24, 9); paint(c, '#4b2a6b'); ell(c, 120, 184, 24, 9); paint(c, '#4b2a6b');
     circ(c, 8, 118, 15); paint(c, '#fff'); circ(c, 172, 118, 15); paint(c, '#fff');

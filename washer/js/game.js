@@ -122,12 +122,13 @@ function startLevel(L, idx, demo) {
     done: false, respawnT: 0, checkpoint: 120, nagT: 3, kidSay: null, demoT: 0, paused: false, waveT: 12 };
   let seed = (idx + 1) * 1000;
   for (const [type, x, v, by] of L.objs) G.objs.push(makeObj(type, x, by || GROUND, v || 0, L.dirt, seed++));
-  G.total = G.objs.filter(o => o.count && o.grid).length;
   for (const [x, y, w, style, top] of (L.plats || [])) G.plats.push({ x, y, w, style, y0: y, y1: top || y, wait: 0 });
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   G.hydrants = (L.hydrants || []).map(x => ({ x, active: false }));
   for (const [x, range] of (L.blobs || [])) G.enemies.push(newBlob(x, range));
-  for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 2, r: 24, t: 0 });
+  for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', req: true, x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 2, r: 24, t: 0 });
+  G.birdsReq = G.enemies.filter(e => e.req).length;
+  G.total = G.objs.filter(o => o.count && o.grid).length + G.birdsReq;
   if (L.boss) G.arena = { x: L.boss.x, fight: L.boss.fight, started: false, L: 0 };
   G.p = newPlayer(L.startX || 120);
   In.left = In.right = In.jump = In.spray = In.jp = false;
@@ -361,7 +362,7 @@ function completeObj(o) {
   sparkleBurst(o.x + o.w / 2, o.top + o.h / 2, 26, Math.min(o.w, 200));
   bubbles(o.x + o.w / 2, o.top + o.h / 2, 10);
   Sfx.ding(); setTimeout(() => Sfx.obj(o.snd), 250);
-  floatText(o.x + o.w / 2, o.top - 10, pick(CHEERS), '#fff', 30);
+  if (o.type === 'puddle') o.goneAt = G.t; else floatText(o.x + o.w / 2, o.top - 10, pick(CHEERS), '#fff', 30);
   G.cleaned++;
   G.tgt = null;
 }
@@ -383,8 +384,8 @@ function updEnemies(dt) {
       e.x += e.dir * e.spd * dt;
       if (Math.random() < dt * 12) part(e.x - e.dir * 40 * e.size, GROUND - 10 - Math.random() * 40 * e.size, -e.dir * 40, -40, 0.6, 3 + Math.random() * 4, '#7fb52e', 'c');
       const hitSolid = G.solids.some(s => e.x > s.x - 10 && e.x < s.x + s.w + 10) || (G.wall && !G.wall.open && Math.abs(e.x - G.wall.x - 38) < 40);
-      if (hitSolid) { e.hp = 0; e.noCoin = true; }
-      else if (e.x < G.cam.x - 300 || e.x > G.cam.x + view.W + 400) { e.hp = 0; e.gone = true; }
+      const lo = G.arena && G.arena.started ? G.arena.L + 40 : 40, hi = G.L.len - 40;
+      if (hitSolid || e.x < lo || e.x > hi) { e.dir = e.x < lo ? 1 : e.x > hi ? -1 : -e.dir; e.x += e.dir * 14; Sfx.splat(); for (let k = 0; k < 6; k++) part(e.x, GROUND - 40 * e.size, e.dir * Math.random() * 200, -Math.random() * 200, 0.5, 4, '#7fb52e', 'c'); }
       else if (Math.abs(P.x - e.x) < 52 * e.size + 12 && P.y > GROUND - 88 * e.size) hurtPlayer(e.x);
     } else if (e.kind === 'blob') {
       if (e.fall) { e.vy = (e.vy || 0) + 1500 * dt; e.y += e.vy * dt; if (e.y >= GROUND) { e.y = GROUND; e.fall = false; Sfx.splat(); splash(e.x, GROUND - 6, swamp ? '#6f9a2a' : '#7b5431', 8); } continue; }
@@ -441,23 +442,32 @@ function updWaves(dt) {
   const P = G.p, dir = -P.face, x0 = P.face > 0 ? G.cam.x + view.W + 80 : G.cam.x - 80;
   const lo = Math.min(x0, P.x), hi = Math.max(x0, P.x);
   const blocked = x0 < 100 || x0 > G.L.len - 50 || G.solids.some(s => s.x + s.w > lo && s.x < hi) || (G.wall && !G.wall.open && G.wall.x > lo && G.wall.x < hi);
-  if (blocked) { G.waveT = 3; return; }
+  if (blocked || G.enemies.filter(e => e.kind === 'wave').length >= 3) { G.waveT = 3; return; }
   G.waveT = G.L.waveEvery * (0.8 + Math.random() * 0.5);
   G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 1.5, hp0: 1.5, r: 46, size: 1, flash: 0, t: 0 });
   Sfx.whoosh();
   if (!G.waveSaid) { G.waveSaid = true; kidSay('A slime wave! Spray it, or jump over it when it gets small!', true); }
+}
+// monster mud that hits the ground stays as a dirty puddle you must wash (outside boss arenas)
+function addPuddle(x) {
+  if (G.demo) return;
+  const near = G.objs.find(o => o.type === 'puddle' && Math.abs(o.x + o.w / 2 - x) < 46);
+  if (near) { dirtyAt(near, clamp(x, near.x + 10, near.x + near.w - 10), GROUND - 2, 30); near.goneAt = null; return; }
+  const o = makeObj('puddle', x - 43, GROUND + 2, 0, G.L.dirt, 5000 + G.objs.length);
+  o.reward = 1; G.objs.push(o); G.total++;
 }
 function updBalls(dt) {
   const P = G.p;
   for (const b of G.balls) {
     b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.hp <= 0) { b.dead = true; for (let i = 0; i < 8; i++) part(b.x, b.y, (Math.random() - 0.5) * 240, (Math.random() - 0.5) * 240, 0.4, 3, '#d6f1ff', 'c'); Sfx.pop(); continue; }
-    if (b.mud) {
+    const arena = G.arena && G.arena.started;
+    if (!arena) {
       let hit = false;
       for (const o of G.objs) if (o.type !== 'spinner' && o.grid && b.x > o.x && b.x < o.x + o.w && b.y > o.top && b.y < o.y && dirtyAt(o, b.x, b.y, 26) > 0) { hit = true; break; }
       if (hit) { b.dead = true; Sfx.splat(); splash(b.x, b.y, b.slime ? '#6f9a2a' : '#7b5431', 6); continue; }
     }
-    if (b.y >= GROUND - 4) { b.dead = true; Sfx.splat(); splash(b.x, GROUND - 4, b.slime ? '#6f9a2a' : '#7b5431', 10); G.puddles.push({ x: b.x, w: 40, life: 3, slime: b.slime }); continue; }
+    if (b.y >= GROUND - 4) { b.dead = true; Sfx.splat(); splash(b.x, GROUND - 4, b.slime ? '#6f9a2a' : '#7b5431', 10); if (arena) G.puddles.push({ x: b.x, w: 40, life: 3, slime: b.slime }); else addPuddle(b.x); continue; }
     if (b.x > P.x - 18 - b.r && b.x < P.x + 18 + b.r && b.y > P.y - 88 - b.r && b.y < P.y + b.r) { b.dead = true; hurtPlayer(b.x); }
   }
   G.balls = G.balls.filter(b => !b.dead);
@@ -486,8 +496,9 @@ function updParts(dt) {
 }
 function updProgress(dt) {
   const P = G.p;
-  const left = G.objs.filter(o => o.count && o.grid && !o.done).length;
-  G.left = left;
+  const birds = G.enemies.filter(e => e.req && e.hp > 0).length;
+  const left = G.objs.filter(o => o.count && o.grid && !o.done).length + birds;
+  G.left = left; G.birdsLeft = birds;
   if (G.demo) { if (!left) { G.demoT += dt; if (G.demoT > 2.5) UI.restartDemo(); } return; }
   const w = G.wall;
   if (w && !w.open && !left) {
@@ -497,10 +508,13 @@ function updProgress(dt) {
   if (w && w.open) w.melt = Math.min(1, w.melt + dt * 0.8);
   if (w && !w.open && P.x > w.x - 150) {
     G.nagT -= dt;
-    if (G.nagT <= 0) { G.nagT = 8; kidSay(left === 1 ? 'One more dirty thing to wash!' : `${left} more dirty things to wash!`, true); }
+    if (G.nagT <= 0) { G.nagT = 8; kidSay(birds && birds === left ? (birds === 1 ? 'One more bird to wash!' : `${birds} more birds to wash!`) : left === 1 ? 'One more dirty thing to wash!' : `${left} more dirty things to wash!`, true); }
   }
   if (G.arena && !G.arena.started && P.x > G.arena.x + 120) startBoss();
-  if (!G.arena && G.finish && w && w.open && P.x > G.finish - 20) completeLevel();
+  if (!G.arena && G.finish && w && w.open && P.x > G.finish - 20) {
+    if (!left) completeLevel();
+    else { P.x = Math.min(P.x, G.finish - 20); G.nagT -= dt; if (G.nagT <= 0) { G.nagT = 8; kidSay('New mud puddles! Wash them all first!', true); } }
+  }
 }
 function updCam(dt) {
   const P = G.p, c = G.cam;
@@ -657,13 +671,15 @@ function render() {
   for (const p of G.puddles) { c.globalAlpha = Math.min(1, p.life); ell(c, p.x, GROUND + 4, p.w, 7); c.fillStyle = p.slime ? '#6f9a2a' : '#6b4526'; c.fill(); c.globalAlpha = 1; }
   for (const o of G.objs) {
     if (!vis(o.x, o.w)) continue;
+    const fade = o.type === 'puddle' && o.done ? 1 - (G.t - (o.goneAt || -9)) : 1;
+    if (fade <= 0) continue;
     if (o.need) recompose(o);
     const b = o.bounce > 0 ? Math.sin(o.bounce * 18) * o.bounce * 0.12 : 0;
-    c.save(); c.translate(o.x + o.w / 2, o.y); c.scale(1 - b * 0.5, 1 + b); c.translate(-o.w / 2, -o.h);
+    c.save(); c.globalAlpha = fade; c.translate(o.x + o.w / 2, o.y); c.scale(1 - b * 0.5, 1 + b); c.translate(-o.w / 2, -o.h);
     c.drawImage(o.art, 0, 0, o.w, o.h);
     if (o.grid && !(o.done && !o.need)) c.drawImage(o.out, 0, 0, o.w, o.h);
     c.restore();
-    if (o.grid && !o.done && o.count) stink(c, o.x + o.w / 2, o.top + 4, G.t + o.x);
+    if (o.grid && !o.done && o.count && o.type !== 'puddle') stink(c, o.x + o.w / 2, o.top + 4, G.t + o.x);
     else if (o.done && Math.random() < 0.02) part(o.x + Math.random() * o.w, o.top + Math.random() * o.h, 0, -10, 0.6, 6, '#fff', 's', 0);
   }
   for (const s of G.solids) if (vis(s.x, s.w)) drawSolid(c, s);
@@ -780,9 +796,10 @@ function edgeArrow(c, W) {
   if (!G.left || G.boss) return;
   const cx = G.cam.x;
   let best = null, bd = 1e9;
-  for (const o of G.objs) if (o.count && o.grid && !o.done) { const ox = o.x + o.w / 2, d = Math.abs(ox - G.p.x); if (d < bd) { bd = d; best = o; } }
+  for (const o of G.objs) if (o.count && o.grid && !o.done) { const ox = o.x + o.w / 2, d = Math.abs(ox - G.p.x); if (d < bd) { bd = d; best = { x: ox }; } }
+  for (const e of G.enemies) if (e.req && e.hp > 0) { const d = Math.abs(e.x - G.p.x); if (d < bd) { bd = d; best = { x: e.x }; } }
   if (!best) return;
-  const ox = best.x + best.w / 2;
+  const ox = best.x;
   if (ox > cx - 20 && ox < cx + W + 20) return;
   const left = ox < cx, x = left ? 46 : W - 110, y = 300 + Math.sin(G.t * 5) * 6;
   c.save(); c.translate(x + (left ? -1 : 1) * Math.sin(G.t * 6) * 6, y);
@@ -803,7 +820,7 @@ function hud() {
   hudSet('tankFill', 't', tankPct + '', (el, v) => { el.style.height = parseInt(v) + '%'; el.parentNode.classList.toggle('low', parseInt(v) < 20); });
   let prog, label;
   if (G.boss && G.boss.st !== 'enter') { prog = Math.min(1, G.boss.clean / G.boss.target); label = 'boss'; }
-  else { let s = 0; for (const o of G.objs) if (o.count && o.grid) s += 1 - o.rem; prog = G.total ? s / G.total : 1; label = `${G.total - G.left}/${G.total}`; }
+  else { let s = (G.birdsReq || 0) - (G.birdsLeft || 0); for (const o of G.objs) if (o.count && o.grid) s += 1 - o.rem; prog = G.total ? s / G.total : 1; label = `${G.total - G.left}/${G.total}`; }
   hudSet('progFill', 'p', Math.round(prog * 200), (el, v) => { el.style.width = (v / 2) + '%'; });
   hudSet('progTxt', 'pl', label, (el, v) => { el.textContent = v === 'boss' ? 'Sir Sludgington' : v; document.getElementById('prog').classList.toggle('boss', v === 'boss'); });
   hudSet('nozzles', 'n', SAVE.noz + SAVE.nozzles.join(), UI.drawNozzles);
