@@ -720,7 +720,9 @@ function updBalls(dt) {
   for (const p of G.puddles) p.life -= dt;
   G.puddles = G.puddles.filter(p => p.life > 0);
 }
-function gotCoin() { SAVE.coins++; G.lvlCoins++; SAVE.heartAcc = (SAVE.heartAcc || 0) + 1; if (SAVE.heartAcc >= 100) { SAVE.heartAcc -= 100; SAVE.heartPend = Math.min(3, (SAVE.heartPend || 0) + 1); } }
+// coins per falling heart grow with the area, since later levels pay far more coins (v1.24): 100 in area 1 up to 460 in area 10
+function heartCost() { return 100 + 40 * Math.floor((G ? G.idx : 0) / 3); }
+function gotCoin() { SAVE.coins++; G.lvlCoins++; SAVE.heartAcc = (SAVE.heartAcc || 0) + 1; const hc = heartCost(); if (SAVE.heartAcc >= hc) { SAVE.heartAcc -= hc; SAVE.heartPend = Math.min(3, (SAVE.heartPend || 0) + 1); } }
 function updCoins(dt) {
   const P = G.p;
   for (const c of G.coins) {
