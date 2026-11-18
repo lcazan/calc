@@ -91,14 +91,45 @@ function buildLevel(i, seed) {
     for (let j = 0; j < n; j++) { const [t, v] = SC.ground[gc++ % SC.ground.length]; const x0 = x; L.objs.push([t, x, v || 0]); x += W(t) + 80 + Math.floor(r() * 60); flat.push([x0, x - 60]); }
   };
   const high = () => SC.high[hc++ % SC.high.length];
+  // block stairs; outside the tutorial the shape varies: 2-4 steps, narrow or wide steps, and sometimes floating steps down
   const stairs = (steps) => {
+    let sw = 70, floatDown = false;
+    if (i > 0) { steps = 2 + Math.floor(r() * 3); sw = r() < 0.5 ? 70 : 100; floatDown = r() < 0.4; }
     const [t, v] = high(), top = Math.max(W(t) + 40, 170), h = steps * 70;
-    for (let s = 1; s < steps; s++) L.solids.push([blk, x + (s - 1) * 70, 70, s * 70]);
-    const tx = x + (steps - 1) * 70;
+    for (let s = 1; s < steps; s++) L.solids.push([blk, x + (s - 1) * sw, sw, s * 70]);
+    const tx = x + (steps - 1) * sw;
     L.solids.push([blk, tx, top, h]);
     L.objs.push([t, tx + (top - W(t)) / 2, v || 0, GROUND - h]);
-    for (let s = steps - 1; s >= 1; s--) L.solids.push([blk, tx + top + (steps - 1 - s) * 70, 70, s * 70]);
-    x = tx + top + (steps - 1) * 70 + 110;
+    if (floatDown) {
+      const fx = tx + top + 40;
+      L.plats.push([fx, GROUND - Math.round(h * 0.62), 110, 'float'], [fx + 170, GROUND - Math.round(h * 0.3), 110, 'float']);
+      x = fx + 170 + 110 + 110;
+    } else {
+      for (let s = steps - 1; s >= 1; s--) L.solids.push([blk, tx + top + (steps - 1 - s) * sw, sw, s * 70]);
+      x = tx + top + (steps - 1) * sw + 110;
+    }
+  };
+  // Mario-style run: a sewer pit with 2-4 platforms sliding left and right over it (v1.17)
+  const movers = () => {
+    const n = Math.min(4, 2 + (d > 0.35 ? 1 : 0) + (d > 0.7 ? 1 : 0) + (r() < 0.3 ? 1 : 0)), pw = 120, gap = 230, amp = 60 + Math.round(d * 30);
+    const spd = 1.7 + d * 0.7, opp = d > 0.25, px = x + 40;
+    for (let j = 0; j < n; j++) {
+      const y = GROUND - (j % 2 ? 110 : 70) - (d > 0.5 && j === n - 1 ? 40 : 0);
+      L.plats.push([px + 10 + j * gap, y, pw, 'mover', 0, amp, 0, spd, opp && j % 2 ? Math.PI : 0]);
+    }
+    const pitW = 10 + (n - 1) * gap + pw + 50;
+    L.holes.push([px, pitW]);
+    x = px + pitW + 90;
+  };
+  // two elevator platforms going up and down by themselves, with a high ledge between them (v1.17)
+  const elev = () => {
+    const [t, v] = high(), ew = 110, ly = GROUND - 230, ledge = W(t) + 60;
+    L.plats.push([x, GROUND - 20, ew, 'mover', 0, 0, 210, 1.3, 0]);
+    const lx = x + ew + 12;
+    L.plats.push([lx, ly, ledge, 'wood']);
+    L.objs.push([t, lx + 30, v || 0, ly]);
+    L.plats.push([lx + ledge + 12, GROUND - 20, ew, 'mover', 0, 0, 210, 1.3, Math.PI]);
+    x = lx + ledge + 12 + ew + 110;
   };
   const lift = () => {
     const [t, v] = high(), ly = GROUND - (d > 0.5 ? 250 : 220), lw = 110, ledge = W(t) + 60;
@@ -139,11 +170,12 @@ function buildLevel(i, seed) {
   } else {
     // the level's ingredients (v1.12): every gadget from level 2 on, more of them later
     const feats = boss
-      ? ['O', 'tog', ['s3', 'lift', 'hops'][Math.floor(r() * 3)]].concat(i >= 5 ? ['P'] : [])
-      : ['F', 'P', 'tog'];
+      ? ['O', 'tog', 'M', ['s3', 'lift', 'hops'][Math.floor(r() * 3)]].concat(i >= 5 ? ['P'] : [])
+      : ['F', 'P', 'tog', 'M'];
     if (!boss) {
       for (let h = 0, nh = 2 + Math.round(d * 1.4); h < nh; h++) feats.push('O');
       if (d > 0.5) feats.push('tog'); if (d > 0.6) feats.push('P');
+      if (d > 0.4) feats.push('M'); if (d > 0.2) feats.push('E');
       const climbs = ['s3', 'lift', 'hops'];
       for (let c = 0, nc = 1 + Math.round(d * 2); c < nc; c++) feats.push(climbs[Math.floor(r() * 3)]);
     }
@@ -169,6 +201,8 @@ function buildLevel(i, seed) {
     else if (p === 'tog') tog();
     else if (p === 'O') hole();
     else if (p === 'P') pipe();
+    else if (p === 'M') movers();
+    else if (p === 'E') elev();
   }
   if (i === 3 && !L.signs.length) L.signs.push([120, 'nozzle']);
   // enemies on flat stretches only

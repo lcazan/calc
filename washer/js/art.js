@@ -787,6 +787,17 @@ function drawPlat(c, p, theme, t) {
     if (p.y > p.y1 + 4) { const bob = Math.sin((t || 0) * 5) * 4; poly(c, [p.x + p.w / 2, p.y - 38 + bob, p.x + p.w / 2 - 14, p.y - 20 + bob, p.x + p.w / 2 + 14, p.y - 20 + bob]); paint(c, '#43c46b', 2.5); }
     return;
   }
+  if (p.style === 'mover') {
+    const vert = p.my > 0;
+    if (vert) { rrect(c, p.x + p.w / 2 - 4, p.y + 14, 8, GROUND - p.y - 14, 2); c.fillStyle = 'rgba(80,90,110,.35)'; c.fill(); }
+    rrect(c, p.x, p.y, p.w, 18, 6); paint(c, '#3a8cf0');
+    rrect(c, p.x + 6, p.y + 3, p.w - 12, 5, 2); c.fillStyle = 'rgba(255,255,255,.45)'; c.fill();
+    const cx = p.x + p.w / 2, cy = p.y + 10; c.fillStyle = '#ffd23f';
+    if (vert) { poly(c, [cx - 22, cy + 4, cx - 16, cy - 4, cx - 10, cy + 4]); c.fill(); poly(c, [cx + 10, cy - 4, cx + 16, cy + 4, cx + 22, cy - 4]); c.fill(); }
+    else { poly(c, [cx - 30, cy, cx - 20, cy - 6, cx - 20, cy + 6]); c.fill(); poly(c, [cx + 30, cy, cx + 20, cy - 6, cx + 20, cy + 6]); c.fill(); }
+    c.globalAlpha = 0.2; ell(c, p.x + p.w / 2, GROUND + 6, p.w / 2, 5); c.fillStyle = '#000'; c.fill(); c.globalAlpha = 1;
+    return;
+  }
   if (p.style === 'float') {
     const col = { swamp: '#8e8a9c', beach: '#b5895a', farm: '#c98a45' }[theme] || '#c98a45';
     rrect(c, p.x, p.y, p.w, 16, 6); paint(c, col);

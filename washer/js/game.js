@@ -122,7 +122,7 @@ function startLevel(L, idx, demo) {
     done: false, respawnT: 0, checkpoint: 120, nagT: 3, kidSay: null, demoT: 0, paused: false, waveT: 12 };
   let seed = (idx + 1) * 1000;
   for (const [type, x, v, by] of L.objs) G.objs.push(makeObj(type, x, by || GROUND, v || 0, L.dirt, seed++));
-  for (const [x, y, w, style, top] of (L.plats || [])) G.plats.push({ x, y, w, style, y0: y, y1: top || y, wait: 0 });
+  for (const [x, y, w, style, top, mx, my, mv, ph] of (L.plats || [])) G.plats.push({ x, y, w, style, y0: y, y1: top || y, wait: 0, x0: x, mx: mx || 0, my: my || 0, mv: mv || 0, ph: ph || 0 });
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   for (const [x, w, lo, hi] of (L.toggles || [])) G.solids.push({ kind: 'tog', x, y: GROUND - lo, w, h: lo, tog: { lo, hi, up: false } });
   G.holes = (L.holes || []).map(([x, w]) => ({ x, w }));
@@ -185,6 +185,14 @@ function solidsHit(x, y) { for (const s of G.solids) if (x + 15 > s.x && x - 15 
 function updLifts(dt) {
   const P = G.p;
   for (const p of G.plats) {
+    if (p.style === 'mover') {
+      // slides between x0 and x0+mx and/or rises from y0 to y0-my, carrying the kid standing on it
+      const f = (1 - Math.cos(G.t * p.mv + p.ph)) / 2, nx = p.x0 + p.mx * f, ny = p.y0 - p.my * f;
+      const on = P.on === p && G.respawnT <= 0;
+      if (on) { P.x += nx - p.x; P.y = ny; P.gy = ny; }
+      p.py = p.y; p.x = nx; p.y = ny;
+      continue;
+    }
     if (p.style !== 'lift') continue;
     const on = P.on === p && P.ground && G.respawnT <= 0;
     if (on) {
@@ -281,7 +289,7 @@ function updPlayer(dt) {
   if (P.inHole) { if (P.y > GROUND + 120) { holeFall(); return; } }
   else if (P.y >= GROUND) { P.y = GROUND; P.vy = 0; P.ground = true; }
   if (vyBefore >= 0) {
-    for (const p of G.plats) if (prevY <= p.y + 1 && P.y >= p.y && P.x > p.x - 10 && P.x < p.x + p.w + 10) { P.y = p.y; P.vy = 0; P.ground = true; P.on = p; }
+    for (const p of G.plats) if (prevY <= Math.max(p.y, p.py == null ? p.y : p.py) + 1 && P.y >= p.y && P.x > p.x - 10 && P.x < p.x + p.w + 10) { P.y = p.y; P.vy = 0; P.ground = true; P.on = p; }
     for (const s2 of G.solids) if (prevY <= s2.y + 1 && P.y >= s2.y && P.x + 14 > s2.x && P.x - 14 < s2.x + s2.w) { P.y = s2.y; P.vy = 0; P.ground = true; P.onS = s2; }
   }
   if (P.ground && P.y === GROUND && !holeAt(P.x, -20)) P.safeX = P.x;
