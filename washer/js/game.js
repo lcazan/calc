@@ -332,6 +332,7 @@ function updSpray(dt) {
   let t = G.tgt;
   const valid = t && (t.k === 'ball' ? G.balls.includes(t.ref) && ok(t.ref.x, t.ref.y)
     : t.k === 'valve' ? t.ref.open && ok(...valvePos(t.ref))
+    : t.k === 'tog' ? t.ref.tog.up && P.onS !== t.ref && ok(...togBase(t.ref))
     : t.k === 'en' ? t.ref.hp > 0 && ok(t.ref.x, t.ref.y - t.ref.r * 0.7)
     : t.o.grid[t.i] > 0.06 && !t.o.done && ok(t.o.x + t.cx, t.o.top + t.cy));
   if (!valid || G.retarget <= 0 || t.k === 'cell') {
@@ -342,6 +343,8 @@ function updSpray(dt) {
     if (threat) t = threat;
     else if (!valid || G.retarget <= 0) {
       G.needClimb = false; t = findCell(hx, hy, R, ok);
+      // nothing to wash: aim at the base of a raised lift block the kid is not standing on (brings it back down)
+      if (!t) for (const s2 of G.solids) if (s2.tog && s2.tog.up && P.onS !== s2 && ok(...togBase(s2))) { t = { k: 'tog', ref: s2 }; break; }
       if (!t && G.needClimb) hintOnce('climb', 'I need to climb up there to wash that!');
     }
     G.retarget = 0.25;
@@ -351,6 +354,7 @@ function updSpray(dt) {
   if (!t) { tx = hx + P.face * R * 0.6; ty = hy + 25; }
   else if (t.k === 'cell') { tx = t.o.x + t.cx; ty = t.o.top + t.cy; }
   else if (t.k === 'valve') { [tx, ty] = valvePos(t.ref); sp = 1000; }
+  else if (t.k === 'tog') { [tx, ty] = togBase(t.ref); sp = 1000; }
   else { tx = t.ref.x; ty = t.k === 'en' ? t.ref.y - t.ref.r * 0.7 : t.ref.y; sp = 1500; }
   const dx = tx - G.aim.x, dy = ty - G.aim.y, d = Math.hypot(dx, dy), stepD = sp * dt;
   if (d <= stepD) { G.aim.x = tx; G.aim.y = ty; } else { G.aim.x += dx / d * stepD; G.aim.y += dy / d * stepD; }
@@ -379,6 +383,7 @@ function updSpray(dt) {
   }
   for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt * gearMult() / (G.L.tough || 2); e.flash = 0.1; got += 0.01; }
   for (const b of G.balls) if (Math.hypot(b.x - G.aim.x, b.y - G.aim.y) < b.r + r) { b.hp -= amt; got += 0.01; }
+  for (const s2 of G.solids) if (s2.tog && s2.tog.up && P.onS !== s2 && G.aim.x > s2.x - 12 && G.aim.x < s2.x + s2.w + 12 && G.aim.y > s2.y + 20 && G.aim.y < GROUND + 5) { s2.baseT = (s2.baseT || 0) + dt; got += 0.01; if (s2.baseT >= 0.5) { s2.baseT = 0; flipToggle(s2); G.tgt = null; } }
   for (const pp of G.pipes) { if (!pp.open) continue; const [vx, vy] = valvePos(pp); if (Math.hypot(vx - G.aim.x, vy - G.aim.y) < 30 + r) { pp.hp -= dt; pp.turnT = 0.15; got += 0.01; if (pp.hp <= 0) closeValve(pp); } }
   P.hitting = got > 0;
   // water spray particles
@@ -386,6 +391,7 @@ function updSpray(dt) {
   if (Math.random() < 0.25) part(G.aim.x, G.aim.y, 0, -20, 0.5, r * 0.6, 'rgba(255,255,255,.5)', 'm', 0);
   Sfx.spray(true, P.hitting, SAVE.up.pressure);
 }
+function togBase(s) { return [s.x + s.w / 2, GROUND - 35]; }
 function valvePos(pp) { return [pp.x + pp.w / 2, GROUND - pp.h - 34]; }
 function closeValve(pp) {
   pp.open = false; G.cleaned++; G.tgt = null;
