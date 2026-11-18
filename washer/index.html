@@ -105,7 +105,8 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 #shop .side { width: calc(40 * var(--u)); flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); }
 #shop .side h2 { font-size: calc(6.5 * var(--u)); text-align: center; }
 #shopKid { width: calc(32 * var(--u)); height: calc(40 * var(--u)); background: radial-gradient(circle, #d8f3ff, #8fd8ff); border-radius: calc(3 * var(--u)); border: calc(.5 * var(--u)) solid var(--ink); }
-#shopItems { flex: 1; overflow-y: auto; touch-action: pan-y; padding-right: calc(1 * var(--u)); }
+#shopItems { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding-right: calc(1 * var(--u)); padding-bottom: calc(4 * var(--u)); }
+#shopItems, #shopItems * { touch-action: pan-y; }
 #shopItems h3 { margin: calc(1 * var(--u)) 0; font-size: calc(5 * var(--u)); }
 #shopItems .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(30 * var(--u)), 1fr)); gap: calc(1.6 * var(--u)); }
 .item { background: #fff; border: calc(.5 * var(--u)) solid var(--ink); border-radius: calc(2.4 * var(--u)); padding: calc(1.2 * var(--u)); display: flex; flex-direction: column; align-items: center; text-align: center; gap: calc(.4 * var(--u)); }
@@ -197,7 +198,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
       <span class="pill"><span class="coin"></span><b id="shopCoins">0</b></span>
       <button id="shopBack" class="btn blue">◀ Back</button>
     </div>
-    <div id="shopItems"></div>
+    <div id="shopItems" class="scroll"></div>
   </div>
 </div>
 

@@ -286,7 +286,7 @@ const UI = (() => {
     bindHold('bL', 'left'); bindHold('bR', 'right'); bindHold('bJump', 'jump'); bindHold('bSpray', 'spray');
     keys();
     document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); persist(); Sfx.spray(false, false, 0); } });
-    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    document.addEventListener('touchmove', e => { if (!e.target.closest || !e.target.closest('.scroll')) e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturestart', e => e.preventDefault());
     document.addEventListener('dblclick', e => e.preventDefault());
     const on = (id, f) => $(id).addEventListener('click', f);
