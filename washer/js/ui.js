@@ -5,12 +5,18 @@ const SAVE_DEF = { gender: 'boy', skin: 0, hair: 0, sound: true, music: true, vo
   up: { pressure: 0, tank: 0 }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
 function loadSave() {
   const d = JSON.parse(JSON.stringify(SAVE_DEF));
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s) { Object.assign(d, s); d.up = Object.assign({ pressure: 0, tank: 0 }, s.up || {}); } } catch (e) { }
+  // the save is kept twice (v1.25); if the main copy is missing or broken the backup is used, so progress is never lost to a bad read
+  const read = k => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } };
+  const main = read(SAVE_KEY), back = read(SAVE_KEY + '-backup');
+  const s = main || back;
+  if (s) { Object.assign(d, s); d.up = Object.assign({ pressure: 0, tank: 0 }, s.up || {}); }
   if (d.ver !== 2) { d.ver = 2; d.unlocked = 1; d.done = []; } // 30-level layout: old progress no longer matches
   return d;
 }
 let SAVE = loadSave();
-function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { } }
+function persist() { const j = JSON.stringify(SAVE); try { localStorage.setItem(SAVE_KEY, j); } catch (e) { } try { localStorage.setItem(SAVE_KEY + '-backup', j); } catch (e) { } }
+// ask the browser not to clear the game's storage when space runs low
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
 
 const $ = id => document.getElementById(id);
 const UI = (() => {

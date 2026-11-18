@@ -129,6 +129,7 @@ function startLevel(L, idx, demo) {
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   for (const [x, w, lo, hi] of (L.toggles || [])) G.solids.push({ kind: 'tog', x, y: GROUND - lo, w, h: lo, tog: { lo, hi, up: false } });
   G.holes = (L.holes || []).map(([x, w, sw]) => ({ x, w, sewer: !!sw, pit: !!L.sewer }));
+  G.jets = (L.cracks || []).map(x => ({ x, st: 0, t: 0 })); G.jetT = 2;
   if (L.lift) G.plats.push({ x: L.lift[0], y: GROUND, w: L.lift[1], style: 'lift', y0: GROUND, y1: 90, wait: 0, x0: L.lift[0], mx: 0, my: 0, mv: 0, ph: 0, exit: true });
   G.pipes = (L.pipes || []).map(x => ({ x, w: 90, h: 120, open: true, hp: 1.6, spawnT: 1.5, n: 0, ang: 0, turnT: 0 }));
   for (const pp of G.pipes) G.solids.push({ kind: 'pipe', x: pp.x, y: GROUND - pp.h, w: pp.w, h: pp.h, pipe: pp });
@@ -186,6 +187,7 @@ function update(dt) {
   updBalls(dt);
   updCoins(dt);
   updHeart(dt);
+  updJets(dt);
   updParts(dt);
   updProgress(dt);
   updCam(dt);
@@ -283,6 +285,28 @@ function updHeart(dt) {
   if (Math.abs(P.x - h.x) < 42 && Math.abs(P.y - 45 - h.y) < 66 && G.respawnT <= 0) {
     G.heart = null; P.hearts = Math.min(maxHearts(), P.hearts + 1);
     Sfx.buy(); sparkleBurst(h.x, h.y, 14); floatText(h.x, h.y - 40, '+1 heart!', '#ff6f8a', 30);
+  }
+}
+// slime jets (v1.25): cracks in the sewer floor bubble for 0.8 s, then shoot slime up for 1 s; at least one every 4 s near the kid
+function updJets(dt) {
+  if (!G.jets.length) return;
+  const P = G.p;
+  G.jetT -= dt;
+  if (G.jetT <= 0 && G.respawnT <= 0) {
+    const near = G.jets.filter(j => !j.st && j.x > G.cam.x + 40 && j.x < G.cam.x + view.W - 40);
+    const pool = near.length ? near : G.jets.filter(j => !j.st);
+    if (pool.length) { const j = pool[Math.floor(Math.random() * pool.length)]; j.st = 1; j.t = 0.8; }
+    G.jetT = 1.6 + Math.random() * 2.4;
+  }
+  for (const j of G.jets) {
+    if (!j.st) continue;
+    j.t -= dt;
+    if (j.st === 1) { if (Math.random() < dt * 20) part(j.x + (Math.random() - 0.5) * 24, GROUND - 4, (Math.random() - 0.5) * 40, -80 - Math.random() * 80, 0.4, 3 + Math.random() * 3, '#9be05a', 'c'); if (j.t <= 0) { j.st = 2; j.t = 1; Sfx.splat(); hintOnce('jet', 'Watch out! Slime jets shoot up from the cracks!'); } }
+    else {
+      if (Math.random() < dt * 30) part(j.x + (Math.random() - 0.5) * 20, GROUND - 190 + Math.random() * 30, (Math.random() - 0.5) * 220, -60 - Math.random() * 120, 0.6, 4 + Math.random() * 4, '#7fb52e', 'c');
+      if (Math.abs(P.x - j.x) < 30 && P.y > GROUND - 200 && P.y - 86 < GROUND) hurtPlayer(j.x);
+      if (j.t <= 0) { j.st = 0; }
+    }
   }
 }
 function holeFall() {
@@ -720,8 +744,8 @@ function updBalls(dt) {
   for (const p of G.puddles) p.life -= dt;
   G.puddles = G.puddles.filter(p => p.life > 0);
 }
-// coins per falling heart grow with the area, since later levels pay far more coins (v1.24): 100 in area 1 up to 460 in area 10
-function heartCost() { return 100 + 40 * Math.floor((G ? G.idx : 0) / 3); }
+// coins per falling heart grow with the level, since later levels pay far more coins (v1.25, owner's numbers): 100 / 150 / 200 / 250
+function heartCost() { const i = G ? G.idx : 0; return i < 3 ? 100 : i < 12 ? 150 : i < 27 ? 200 : 250; }
 function gotCoin() { SAVE.coins++; G.lvlCoins++; SAVE.heartAcc = (SAVE.heartAcc || 0) + 1; const hc = heartCost(); if (SAVE.heartAcc >= hc) { SAVE.heartAcc -= hc; SAVE.heartPend = Math.min(3, (SAVE.heartPend || 0) + 1); } }
 function updCoins(dt) {
   const P = G.p;
@@ -923,6 +947,7 @@ function render() {
   if (G.under) drawSewerFloor(c, cx, W); else drawGround(c, G.theme, cx, W);
   const vis = (x, w) => x + w > cx - 50 && x < cx + W + 50;
   for (const h of G.holes) if (vis(h.x, h.w)) drawSewerHole(c, h, G.t);
+  for (const j of G.jets) if (vis(j.x - 40, 80)) drawCrack(c, j, G.t);
   if (!G.under) drawScenery(c, cx, W);
   for (const [x, k] of (G.L.signs || [])) if (vis(x, 130)) drawSign(c, x, k, G.t);
   for (const p of G.plats) if (vis(p.x, p.w)) drawPlat(c, p, G.theme, G.t);
@@ -956,6 +981,7 @@ function render() {
   if (G.p.ground && !G.p.inHole) { ell(c, G.p.x, G.p.y + 2, 24, 5); c.fillStyle = 'rgba(0,0,0,.16)'; c.fill(); }
   if (G.p.y > GROUND + 1 && G.p.inHole) { const h = G.p.inHole; c.save(); c.beginPath(); c.rect(cx - 100, -400, W + 200, GROUND + 400); c.rect(h.x, GROUND, h.w, 300); c.clip(); drawPlayer(c); c.restore(); }
   else drawPlayer(c);
+  for (const j of G.jets) if (j.st === 2 && vis(j.x - 40, 80)) drawJet(c, j, G.t);
   drawStream(c);
   drawParts(c);
   for (const t of G.texts) { c.globalAlpha = Math.min(1, t.life * 1.5); outlinedText(c, t.s, t.x, t.y, t.size, t.col); c.globalAlpha = 1; }

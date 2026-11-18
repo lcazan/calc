@@ -1402,3 +1402,17 @@ function drawExitLight(c, p, t) {
   c.globalAlpha = 0.18 + 0.05 * Math.sin(t * 3); c.fillStyle = '#fff6c0'; poly(c, [p.x + 10, 40, p.x + p.w - 10, 40, p.x + p.w + 20, GROUND, p.x - 20, GROUND]); c.fill(); c.globalAlpha = 1;
   if (p.y > p.y1 + 4) { const ax = p.x + p.w / 2, ay = p.y - 120 + Math.sin(t * 4) * 8; poly(c, [ax, ay, ax + 30, ay + 34, ax + 13, ay + 34, ax + 13, ay + 64, ax - 13, ay + 64, ax - 13, ay + 34, ax - 30, ay + 34]); paint(c, '#43c46b', 4); txt(c, 'UP', ax, ay + 50, 15, '#fff'); }
 }
+
+function drawCrack(c, j, t) {
+  const x = j.x, y = GROUND, warn = j.st === 1;
+  c.strokeStyle = OUT; c.lineWidth = 3; c.beginPath(); c.moveTo(x - 26, y + 2); c.lineTo(x - 12, y + 8); c.lineTo(x - 4, y + 1); c.lineTo(x + 6, y + 9); c.lineTo(x + 14, y + 2); c.lineTo(x + 26, y + 6); c.stroke();
+  c.globalAlpha = warn ? 0.6 + 0.4 * Math.sin(t * 30) : 0.35; ell(c, x, y + 4, 18, 4); c.fillStyle = '#9be05a'; c.fill(); c.globalAlpha = 1;
+  if (warn) { const sh = Math.sin(t * 50) * 2; for (const k of [-10, 4, 14]) { circ(c, x + k + sh, y - 4 - Math.abs(Math.sin(t * 9 + k)) * 6, 4); paint(c, '#9be05a', 2); } }
+}
+function drawJet(c, j, t) {
+  // a column of slime: rises fast, wobbles, sinks at the end
+  const x = j.x, life = 1 - j.t, h = 190 * Math.min(1, life * 6) * Math.min(1, j.t * 4 + 0.15), top = GROUND - h, wob = Math.sin(t * 25) * 3;
+  c.beginPath(); c.moveTo(x - 16, GROUND); c.quadraticCurveTo(x - 10 + wob, GROUND - h * 0.5, x - 12, top + 10); c.lineTo(x + 12, top + 10); c.quadraticCurveTo(x + 10 - wob, GROUND - h * 0.5, x + 16, GROUND); c.closePath(); paint(c, '#7fc23a', 3);
+  circ(c, x, top + 8, 20 + Math.sin(t * 20) * 2); paint(c, '#8fd448', 3);
+  c.globalAlpha = 0.6; ell(c, x - 6, top + 2, 6, 4); c.fillStyle = '#e0ffb0'; c.fill(); line(c, x - 4, GROUND - 10, x - 4, top + 30, 'rgba(224,255,176,.6)', 3); c.globalAlpha = 1;
+}

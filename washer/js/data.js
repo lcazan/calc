@@ -251,6 +251,9 @@ function buildSewer(i, seed) {
   const nw = Math.max(1, Math.round((3 + Math.floor(d * 4)) * mm));
   for (let j = 0; j < nw; j++) { const [a, b] = flat[j % flat.length]; L.worms.push([Math.round(a + (b - a) * (0.3 + 0.4 * ((j * 0.37) % 1))), 90]); }
   if (d > 0.3) { const [a, b] = flat[1 % flat.length]; L.blobs.push([Math.round((a + b) / 2), 80]); }
+  // slime-jet cracks (v1.25): 2 per walkway stretch, none near the start/hydrant or on the exit lift
+  L.cracks = [];
+  for (const [a, b] of flat) for (let k = 0; k < 2; k++) { const cx = Math.round(a + 40 + r() * (b - a - 80)); if (cx > 360 && !L.cracks.some(q => Math.abs(q - cx) < 90)) L.cracks.push(cx); }
   L.lift = [x, 130]; L.len = x + 150;
   return L;
 }
