@@ -351,14 +351,14 @@ function updSpray(dt) {
   const adx = Math.max(16, (G.aim.x - hx) * P.face), ady = G.aim.y - hy;
   P.aimA = clamp(Math.atan2(ady, adx), -1.25, 1.1);
   // clean
-  const amt = 3.2 * noz.pow * pr.pow * dt, r = noz.r;
+  const base = 3.2 * noz.pow * pr.pow * dt, amt = base * 3.4, r = noz.r; // things wash 3.4x base; the boss uses base
   let got = 0;
   const [nzx, nzy] = nozzleWorld(), wb = waveBlocks(nzx, nzy, G.aim.x, G.aim.y);
   if (wb) { G.aim.x = wb.x; G.aim.y = GROUND - 40 * wb.size; G.tgt = { k: 'en', ref: wb }; }
   const list = wb ? [] : G.boss && G.boss.st === 'fight' ? G.objs.concat([G.boss.o]) : G.objs;
   for (const o of list) {
     if (tooLow(o)) continue;
-    const g = cleanAt(o, G.aim.x, G.aim.y, r, G.boss && o === G.boss.o ? amt * G.boss.armor : amt);
+    const g = cleanAt(o, G.aim.x, G.aim.y, r, G.boss && o === G.boss.o ? base * G.boss.armor : amt);
     if (g > 0) {
       got += g;
       if (Math.random() < 0.7) part(G.aim.x, G.aim.y, (Math.random() - 0.5) * 300 - P.face * 80, -Math.random() * 260, 0.5, 2.5 + Math.random() * 3, o.dirtCol, 'c');
