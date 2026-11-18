@@ -126,7 +126,8 @@ const UI = (() => {
 
   // ---------------- shop
   function iconCanvas(size, fn) { const c = mkCanvas(size * 2, size * 2); c.style.width = c.style.height = size + 'px'; const x = c.getContext('2d'); x.scale(2, 2); x.lineJoin = x.lineCap = 'round'; fn(x, size); return c; }
-  function shop() { click(); show('shop'); renderShop(); Sfx.say('Welcome to the Washer Shop! Spend your coins on cool stuff.'); }
+  let shopFromGame = false;
+  function shop() { click(); shopFromGame = scene === 'game' && !!G && !G.demo && !G.done && G.paused; show('shop'); renderShop(); Sfx.say('Welcome to the Washer Shop! Spend your coins on cool stuff.'); }
   function renderShop() {
     $('shopCoins').textContent = SAVE.coins;
     const pv = $('shopKid').getContext('2d'); pv.setTransform(1, 0, 0, 1, 0, 0); pv.clearRect(0, 0, 240, 300);
@@ -297,7 +298,9 @@ const UI = (() => {
     on('mapShop', shop);
     on('apBack', () => { click(); show('map'); });
     on('mapSet', () => settings('map'));
-    on('shopBack', () => { click(); show(scene === 'map' ? 'map' : null); map(); });
+    on('shopBack', () => { click(); if (shopFromGame) { shopFromGame = false; resume(); hudReset(); } else { show(scene === 'map' ? 'map' : null); map(); } });
+    on('hudShop', () => { pause(); if (G && G.paused) shop(); });
+    on('pauseShop', shop);
     on('gear', () => { click(); pause(); });
     on('resumeBtn', () => { click(); resume(); });
     on('restartBtn', () => { click(); play(G.idx); });

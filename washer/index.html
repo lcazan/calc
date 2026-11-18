@@ -40,6 +40,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 #progTxt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: calc(3.6 * var(--u)); color: #fff; text-shadow: 0 0 3px var(--ink), 0 0 3px var(--ink), 0 0 3px var(--ink); }
 #gear { top: calc(2 * var(--u)); right: calc(2.5 * var(--u) + env(safe-area-inset-right)); width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: #ef3a4c; border: calc(.5 * var(--u)) solid var(--ink); box-shadow: 0 calc(.6 * var(--u)) 0 rgba(0,0,0,.25); display: grid; place-items: center; }
 #gear svg { width: 62%; height: 62%; fill: #fff; }
+#hudShop { position: absolute; top: calc(2 * var(--u)); right: calc(14.5 * var(--u) + env(safe-area-inset-right)); width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: #ff7eb6; border: calc(.5 * var(--u)) solid var(--ink); box-shadow: 0 calc(.6 * var(--u)) 0 rgba(0,0,0,.25); display: grid; place-items: center; font-size: calc(5 * var(--u)); line-height: 1; padding: 0; pointer-events: auto; }
 #tank { top: calc(16 * var(--u)); right: calc(4 * var(--u) + env(safe-area-inset-right)); width: calc(5.4 * var(--u)); height: calc(40 * var(--u)); background: #5a4a6a; border: calc(.5 * var(--u)) solid var(--ink); border-radius: 99px; overflow: hidden; box-shadow: 0 0 0 calc(.5 * var(--u)) #ffb627; }
 #tankFill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; background: linear-gradient(90deg, #3a9cf0, #8fd8ff 60%, #3a9cf0); transition: height .15s; }
 #tank span { position: absolute; left: 0; right: 0; bottom: -1px; text-align: center; font-size: calc(3 * var(--u)); }
@@ -154,6 +155,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
   <div id="card"><canvas id="face" width="112" height="112"></canvas><div id="hearts"></div></div>
   <div id="coins"><span class="coin"></span><b id="coinN">0</b></div>
   <div id="prog"><div id="progFill"></div><div id="progTxt"></div></div>
+  <button id="hudShop" aria-label="Shop">🛒</button>
   <button id="gear" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
   <div id="tank"><div id="tankFill"></div><span>💧</span></div>
   <div id="nozzles"></div>
@@ -169,7 +171,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 <div id="title" class="screen">
   <div class="logo"><b>SUPER <span>SPLASH</span><i>!</i></b><small>vs. Sir Sludgington</small></div>
   <button id="playBtn" class="btn green">▶ Play</button>
-  <div id="ver">v1.13</div>
+  <div id="ver">v1.14</div>
   <button id="titleSet" class="btn round" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
 </div>
 
@@ -222,6 +224,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
     <h2>Paused</h2>
     <button id="resumeBtn" class="btn green">▶ Keep playing</button>
     <button id="restartBtn" class="btn">↻ Start level again</button>
+    <button id="pauseShop" class="btn pink">🛒 Shop</button>
     <button id="pauseMap" class="btn blue">🗺️ Map</button>
     <button id="pauseSet" class="btn white">⚙️ Settings</button>
   </div>
