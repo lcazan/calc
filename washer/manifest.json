@@ -1,0 +1,16 @@
+{
+  "name": "Super Splash!",
+  "short_name": "Super Splash",
+  "description": "Pressure-wash the town clean and catch Sir Sludgington!",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#2a8fd4",
+  "theme_color": "#2a8fd4",
+  "categories": ["games", "kids"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

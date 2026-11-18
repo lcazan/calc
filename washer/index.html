@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#2a8fd4">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Super Splash">
+<title>Super Splash!</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root { --ink: #2a2140; --teal: #5cc8c0; --teal-d: #2f9a92; --f: "Baloo 2", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif; --u: min(1vh, 0.56vw); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #2a8fd4; font-family: var(--f); color: var(--ink); touch-action: none; overscroll-behavior: none; }
+#cv { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: pointer; border: 0; padding: 0; background: none; touch-action: none; }
+.hidden { display: none !important; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+#hud > * { pointer-events: auto; position: absolute; }
+#card { top: calc(2 * var(--u)); left: calc(2.5 * var(--u) + env(safe-area-inset-left)); width: calc(15 * var(--u)); background: #ffb627; border: calc(.5 * var(--u)) solid var(--ink); border-radius: calc(2.5 * var(--u)); padding: calc(.6 * var(--u)); box-shadow: 0 calc(.6 * var(--u)) 0 rgba(0,0,0,.25); }
+#face { width: 100%; aspect-ratio: 1; border-radius: calc(1.6 * var(--u)); border: calc(.4 * var(--u)) solid var(--ink); display: block; background: #8fd8ff; }
+#hearts { display: flex; justify-content: center; gap: calc(.6 * var(--u)); padding-top: calc(.5 * var(--u)); }
+.heart { width: calc(3.6 * var(--u)); height: calc(3.2 * var(--u)); background: #ef3a4c; clip-path: polygon(50% 95%, 8% 52%, 0 28%, 10% 6%, 30% 0, 50% 16%, 70% 0, 90% 6%, 100% 28%, 92% 52%); filter: drop-shadow(0 0 1px var(--ink)); }
+.heart.off { background: rgba(42,33,64,.35); }
+#coins { top: calc(2.5 * var(--u)); left: calc(20 * var(--u) + env(safe-area-inset-left)); display: flex; align-items: center; gap: calc(.8 * var(--u)); background: rgba(255,255,255,.92); border: calc(.5 * var(--u)) solid var(--ink); border-radius: 99px; padding: calc(.3 * var(--u)) calc(2 * var(--u)) calc(.3 * var(--u)) calc(.6 * var(--u)); font-size: calc(4.4 * var(--u)); line-height: 1; }
+#coins.pop { animation: pop .25s; }
+@keyframes pop { 50% { transform: scale(1.15); } }
+.coin { display: inline-block; width: 1em; height: 1em; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6b0 0 18%, #ffd23f 20% 55%, #f0a800 57%); border: 2px solid var(--ink); vertical-align: middle; }
+#prog { top: calc(2.4 * var(--u)); left: 50%; transform: translateX(-50%); width: 36vw; height: calc(6 * var(--u)); background: #6b4a2a; border: calc(.5 * var(--u)) solid var(--ink); border-radius: 99px; overflow: hidden; box-shadow: inset 0 calc(.6 * var(--u)) 0 rgba(0,0,0,.3); }
+#progFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: repeating-linear-gradient(-45deg, #7fe0ff 0 12px, #4fc3f7 12px 24px); transition: width .25s; border-radius: 99px; }
+#prog.boss #progFill { background: repeating-linear-gradient(-45deg, #d6c8ff 0 12px, #b8a4f2 12px 24px); }
+#progTxt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: calc(3.6 * var(--u)); color: #fff; text-shadow: 0 0 3px var(--ink), 0 0 3px var(--ink), 0 0 3px var(--ink); }
+#gear { top: calc(2 * var(--u)); right: calc(2.5 * var(--u) + env(safe-area-inset-right)); width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: #ef3a4c; border: calc(.5 * var(--u)) solid var(--ink); box-shadow: 0 calc(.6 * var(--u)) 0 rgba(0,0,0,.25); display: grid; place-items: center; }
+#gear svg { width: 62%; height: 62%; fill: #fff; }
+#tank { top: calc(16 * var(--u)); right: calc(4 * var(--u) + env(safe-area-inset-right)); width: calc(5.4 * var(--u)); height: calc(40 * var(--u)); background: #5a4a6a; border: calc(.5 * var(--u)) solid var(--ink); border-radius: 99px; overflow: hidden; box-shadow: 0 0 0 calc(.5 * var(--u)) #ffb627; }
+#tankFill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; background: linear-gradient(90deg, #3a9cf0, #8fd8ff 60%, #3a9cf0); transition: height .15s; }
+#tank span { position: absolute; left: 0; right: 0; bottom: -1px; text-align: center; font-size: calc(3 * var(--u)); }
+#tank.low { animation: blink .5s infinite; }
+@keyframes blink { 50% { box-shadow: 0 0 0 calc(.8 * var(--u)) #ef3a4c; } }
+#nozzles { top: calc(30 * var(--u)); left: calc(2.5 * var(--u) + env(safe-area-inset-left)); display: flex; flex-direction: column; gap: calc(1.2 * var(--u)); }
+.noz { width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: rgba(255,255,255,.85); border: calc(.5 * var(--u)) solid var(--ink); display: grid; place-items: center; opacity: .75; }
+.noz canvas { width: 80% !important; height: 80% !important; }
+.noz.sel { opacity: 1; background: #fff6b0; box-shadow: 0 0 0 calc(.6 * var(--u)) #ffb627; }
+.big { border: calc(.6 * var(--u)) solid var(--ink); box-shadow: 0 calc(1 * var(--u)) 0 rgba(0,0,0,.3); display: grid; place-items: center; transition: transform .05s; }
+.big.on { transform: translateY(calc(.8 * var(--u))) scale(.96); box-shadow: 0 calc(.2 * var(--u)) 0 rgba(0,0,0,.3); filter: brightness(1.1); }
+.big svg { width: 60%; height: 60%; }
+#pad { left: calc(3 * var(--u) + env(safe-area-inset-left)); bottom: calc(4 * var(--u) + env(safe-area-inset-bottom)); display: flex; gap: calc(1.4 * var(--u)); position: absolute; }
+#bL, #bR { position: relative; width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: calc(3 * var(--u)); background: var(--teal); }
+#bJump { right: calc(32 * var(--u) + env(safe-area-inset-right)); bottom: calc(4 * var(--u) + env(safe-area-inset-bottom)); width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: var(--teal); }
+#bSpray { right: calc(4 * var(--u) + env(safe-area-inset-right)); bottom: calc(4 * var(--u) + env(safe-area-inset-bottom)); width: calc(25 * var(--u)); height: calc(25 * var(--u)); border-radius: 50%; background: radial-gradient(circle at 40% 35%, #8fd8ff, #3a8cf0 70%); }
+#banner { position: fixed; left: 50%; top: 28%; transform: translate(-50%, -50%) scale(0); font-size: calc(9 * var(--u)); color: #fff; white-space: nowrap; pointer-events: none; text-shadow: 0 calc(.6 * var(--u)) 0 var(--ink), 0 0 calc(.8 * var(--u)) var(--ink), 0 0 calc(.8 * var(--u)) var(--ink), 0 0 calc(.8 * var(--u)) var(--ink); opacity: 0; }
+#banner.go { animation: banner 2.4s ease-out; }
+@keyframes banner { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 0; } 12% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 20%, 80% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -80%) scale(1); opacity: 0; } }
+
+/* ---------- screens ---------- */
+.screen { position: fixed; inset: 0; display: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.screen.show { display: block; }
+.btn { white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: .3em; font-size: calc(5 * var(--u)); padding: calc(1.4 * var(--u)) calc(4 * var(--u)); border-radius: 99px; background: #ffd23f; border: calc(.6 * var(--u)) solid var(--ink); box-shadow: 0 calc(1 * var(--u)) 0 var(--ink); }
+.btn:active { transform: translateY(calc(.8 * var(--u))); box-shadow: 0 calc(.2 * var(--u)) 0 var(--ink); }
+.btn.blue { background: #7fd3ff; } .btn.green { background: #7ee08a; } .btn.pink { background: #ffa3c8; } .btn.white { background: #fff; }
+.round { width: calc(11 * var(--u)); height: calc(11 * var(--u)); padding: 0; border-radius: 50%; }
+.round svg { width: 60%; height: 60%; fill: var(--ink); }
+.panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #fff8e6; border: calc(.7 * var(--u)) solid var(--ink); border-radius: calc(4 * var(--u)); box-shadow: 0 calc(1.4 * var(--u)) 0 rgba(0,0,0,.3); padding: calc(3 * var(--u)) calc(4 * var(--u)); text-align: center; }
+.panel h2 { margin: 0 0 calc(2 * var(--u)); font-size: calc(8 * var(--u)); line-height: 1; }
+.dim { background: rgba(20,30,60,.45); }
+
+#title .logo { position: absolute; left: 50%; top: 8%; transform: translateX(-50%) rotate(-3deg); text-align: center; line-height: .82; pointer-events: none; }
+#title .logo b { display: block; font-size: calc(19 * var(--u)); color: #fff; letter-spacing: .02em; -webkit-text-stroke: calc(1 * var(--u)) var(--ink); paint-order: stroke fill; text-shadow: 0 calc(1.4 * var(--u)) 0 var(--ink); }
+#title .logo b span { color: #7fd3ff; } #title .logo b i { font-style: normal; color: #ffd23f; }
+#title .logo small { display: inline-block; margin-top: calc(2 * var(--u)); font-size: calc(5 * var(--u)); background: #6f9a2a; color: #fff; padding: calc(.4 * var(--u)) calc(3 * var(--u)); border-radius: 99px; border: calc(.5 * var(--u)) solid var(--ink); transform: rotate(3deg); }
+#playBtn { position: absolute; right: 12%; bottom: 14%; font-size: calc(10 * var(--u)); padding: calc(1.6 * var(--u)) calc(7 * var(--u)); animation: bob 1.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(calc(-1.2 * var(--u))) scale(1.04); } }
+#titleSet { position: absolute; right: calc(3 * var(--u)); top: calc(3 * var(--u)); background: #fff; }
+
+#map .bar { position: absolute; top: calc(2 * var(--u)); left: calc(3 * var(--u)); right: calc(3 * var(--u)); display: flex; align-items: center; gap: calc(2 * var(--u)); }
+#map .bar .sp { flex: 1; }
+.pill { display: inline-flex; align-items: center; gap: .3em; font-size: calc(5 * var(--u)); background: #fff; border: calc(.5 * var(--u)) solid var(--ink); border-radius: 99px; padding: calc(.4 * var(--u)) calc(2.4 * var(--u)) calc(.4 * var(--u)) calc(1 * var(--u)); }
+#mapNodes { position: absolute; inset: 0; }
+.node { position: absolute; transform: translate(-50%, -50%); width: calc(14 * var(--u)); height: calc(14 * var(--u)); border-radius: 50%; background: #ffd23f; border: calc(.7 * var(--u)) solid var(--ink); box-shadow: 0 calc(1 * var(--u)) 0 var(--ink); display: grid; place-items: center; }
+.node .num { font-size: calc(7 * var(--u)); line-height: 1; display: grid; place-items: center; }
+.node .lbl { position: absolute; top: 105%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: calc(3.6 * var(--u)); background: rgba(255,255,255,.9); border: calc(.4 * var(--u)) solid var(--ink); border-radius: 99px; padding: 0 calc(1.6 * var(--u)); }
+.node.boss { background: #b8a4f2; }
+.node .bossic { width: calc(12 * var(--u)); height: calc(12 * var(--u)); }
+.node.done::after { content: '★'; position: absolute; top: -32%; right: -22%; font-size: calc(6 * var(--u)); color: #ffd23f; -webkit-text-stroke: calc(.4 * var(--u)) var(--ink); }
+.node.locked { background: #b9bec8; filter: saturate(.3); }
+.node.locked .num::before { content: '🔒'; font-size: calc(5 * var(--u)); }
+.node.next { animation: bob 1.2s ease-in-out infinite; }
+
+#shop .panel { width: min(96vw, calc(170 * var(--u))); height: 92vh; display: flex; gap: calc(3 * var(--u)); padding: calc(2.5 * var(--u)); text-align: left; }
+#shop .side { width: calc(40 * var(--u)); flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); }
+#shop .side h2 { font-size: calc(6.5 * var(--u)); text-align: center; }
+#shopKid { width: calc(32 * var(--u)); height: calc(40 * var(--u)); background: radial-gradient(circle, #d8f3ff, #8fd8ff); border-radius: calc(3 * var(--u)); border: calc(.5 * var(--u)) solid var(--ink); }
+#shopItems { flex: 1; overflow-y: auto; touch-action: pan-y; padding-right: calc(1 * var(--u)); }
+#shopItems h3 { margin: calc(1 * var(--u)) 0; font-size: calc(5 * var(--u)); }
+#shopItems .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(30 * var(--u)), 1fr)); gap: calc(1.6 * var(--u)); }
+.item { background: #fff; border: calc(.5 * var(--u)) solid var(--ink); border-radius: calc(2.4 * var(--u)); padding: calc(1.2 * var(--u)); display: flex; flex-direction: column; align-items: center; text-align: center; gap: calc(.4 * var(--u)); }
+.item b { font-size: calc(3.8 * var(--u)); line-height: 1.1; } .item small { font-size: calc(2.8 * var(--u)); line-height: 1.1; min-height: 1.1em; }
+.item button { font-size: calc(3.6 * var(--u)); padding: calc(.4 * var(--u)) calc(2.4 * var(--u)); border-radius: 99px; background: #ffd23f; border: calc(.4 * var(--u)) solid var(--ink); display: inline-flex; align-items: center; gap: .3em; }
+.item.using { background: #e6ffe9; } .item.using button { background: #7ee08a; } .item.owned button { background: #7fd3ff; } .item.max button { background: #ddd; }
+.shake { animation: shake .35s; } @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+#settings .panel { width: min(94vw, calc(150 * var(--u))); }
+.gpick { display: flex; gap: calc(3 * var(--u)); justify-content: center; }
+.gpick button { background: #fff; border: calc(.6 * var(--u)) solid var(--ink); border-radius: calc(3 * var(--u)); padding: calc(1 * var(--u)); font-size: calc(4.6 * var(--u)); width: calc(28 * var(--u)); }
+.gpick button.sel { background: #ffe680; box-shadow: 0 0 0 calc(.8 * var(--u)) #ffb627; }
+.gpick canvas { width: 100%; aspect-ratio: 1; display: block; }
+.row { display: flex; align-items: center; justify-content: center; gap: calc(2 * var(--u)); margin-top: calc(2 * var(--u)); font-size: calc(4.4 * var(--u)); flex-wrap: wrap; }
+.sw { width: calc(8 * var(--u)); height: calc(8 * var(--u)); border-radius: 50%; border: calc(.5 * var(--u)) solid var(--ink); }
+.sw.sel { box-shadow: 0 0 0 calc(.7 * var(--u)) #ffb627; }
+.tg { font-size: calc(4.2 * var(--u)); padding: calc(.8 * var(--u)) calc(2.6 * var(--u)); border-radius: 99px; border: calc(.5 * var(--u)) solid var(--ink); background: #ddd; }
+.tg.on { background: #7ee08a; }
+.tg::after { content: ' OFF'; } .tg.on::after { content: ' ON'; }
+#resetBtn { font-size: calc(3.4 * var(--u)); padding: calc(.6 * var(--u)) calc(2.6 * var(--u)); border-radius: 99px; border: calc(.4 * var(--u)) solid var(--ink); background: #fff; }
+#resetBtn.warn { background: #ef3a4c; color: #fff; }
+
+#pause .panel { display: flex; flex-direction: column; gap: calc(2.4 * var(--u)); min-width: calc(60 * var(--u)); }
+#complete .panel { display: flex; gap: calc(3 * var(--u)); align-items: center; }
+#cmpKid { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
+#complete .got { font-size: calc(7 * var(--u)); display: flex; align-items: center; justify-content: center; gap: .3em; }
+#complete .tot { font-size: calc(4 * var(--u)); opacity: .8; margin-bottom: calc(2 * var(--u)); }
+#complete .btns { display: flex; gap: calc(2 * var(--u)); justify-content: center; }
+
+#story .box { position: absolute; left: 4%; right: 4%; bottom: 4%; background: rgba(255,248,230,.96); border: calc(.7 * var(--u)) solid var(--ink); border-radius: calc(4 * var(--u)); padding: calc(2 * var(--u)) calc(3 * var(--u)); display: flex; align-items: center; gap: calc(3 * var(--u)); }
+#storyText { flex: 1; margin: 0; font-size: calc(5.4 * var(--u)); line-height: 1.15; }
+#storySkip { position: absolute; top: calc(3 * var(--u)); right: calc(3 * var(--u)); font-size: calc(3.6 * var(--u)); padding: calc(.6 * var(--u)) calc(2.4 * var(--u)); }
+
+#rotate { position: fixed; inset: 0; z-index: 99; display: none; background: #2a8fd4; color: #fff; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 7vw; gap: 4vw; }
+#rotate .ph { width: 22vw; height: 38vw; border: 2vw solid #fff; border-radius: 4vw; animation: rot 2s ease-in-out infinite; }
+@keyframes rot { 0%, 20% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+@media (orientation: portrait) and (max-width: 900px) { #rotate { display: flex; } }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="card"><canvas id="face" width="112" height="112"></canvas><div id="hearts"></div></div>
+  <div id="coins"><span class="coin"></span><b id="coinN">0</b></div>
+  <div id="prog"><div id="progFill"></div><div id="progTxt"></div></div>
+  <button id="gear" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
+  <div id="tank"><div id="tankFill"></div><span>💧</span></div>
+  <div id="nozzles"></div>
+  <div id="pad">
+    <button id="bL" class="big" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M14 4 6 12l8 8v-5h6V9h-6z" fill="#fff" stroke="#2a2140" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+    <button id="bR" class="big" aria-label="Right"><svg viewBox="0 0 24 24"><path d="M10 4l8 8-8 8v-5H4V9h6z" fill="#fff" stroke="#2a2140" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+  </div>
+  <button id="bJump" class="big" aria-label="Jump"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2" fill="#fff"/><path d="M7 11l3-3h4l2 4 3 1M10 8l-1 6-4 4M9 14l4 2 1 5"/></svg></button>
+  <button id="bSpray" class="big" aria-label="Spray"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15h7l2-2h3" stroke="#2a2140" stroke-width="3.4"/><path d="M3 15h7l2-2h3" stroke="#fff" stroke-width="1.8"/><path d="M5 15v4" stroke="#2a2140" stroke-width="3.4"/><path d="M5 15v4" stroke="#fff" stroke-width="1.8"/><path d="M17 13l4-4M17 13h5M17 13l4 4" stroke="#fff" stroke-width="1.8" stroke-dasharray="2 1.6"/></svg></button>
+</div>
+<div id="banner"></div>
+
+<div id="title" class="screen">
+  <div class="logo"><b>SUPER <span>SPLASH</span><i>!</i></b><small>vs. Sir Sludgington</small></div>
+  <button id="playBtn" class="btn green">▶ Play</button>
+  <button id="titleSet" class="btn round" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
+</div>
+
+<div id="map" class="screen">
+  <div id="mapNodes"></div>
+  <div class="bar">
+    <button id="mapHome" class="btn round white" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg></button>
+    <span class="pill"><span class="coin"></span><b id="mapCoins">0</b></span>
+    <span class="sp"></span>
+    <button id="mapShop" class="btn pink">🛒 Shop</button>
+    <button id="mapSet" class="btn round white" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
+  </div>
+</div>
+
+<div id="shop" class="screen dim">
+  <div class="panel">
+    <div class="side">
+      <h2>Washer Shop</h2>
+      <canvas id="shopKid" width="240" height="300"></canvas>
+      <span class="pill"><span class="coin"></span><b id="shopCoins">0</b></span>
+      <button id="shopBack" class="btn blue">◀ Back</button>
+    </div>
+    <div id="shopItems"></div>
+  </div>
+</div>
+
+<div id="settings" class="screen dim">
+  <div class="panel">
+    <h2>Settings</h2>
+    <div class="gpick">
+      <button id="pickBoy"><canvas id="pick_boy" width="200" height="200"></canvas>Boy</button>
+      <button id="pickGirl"><canvas id="pick_girl" width="200" height="200"></canvas>Girl</button>
+    </div>
+    <div class="row">Skin <span id="skinSw" class="row" style="margin:0"></span> &nbsp; Hair <span id="hairSw" class="row" style="margin:0"></span></div>
+    <div class="row"><button id="tg_sound" class="tg">🔊 Sounds</button><button id="tg_music" class="tg">🎵 Music</button><button id="tg_voice" class="tg">🗣️ Read aloud</button></div>
+    <div class="row"><button id="setBack" class="btn green">✔ Done</button><button id="resetBtn">Start over</button></div>
+  </div>
+</div>
+
+<div id="pause" class="screen dim">
+  <div class="panel">
+    <h2>Paused</h2>
+    <button id="resumeBtn" class="btn green">▶ Keep playing</button>
+    <button id="restartBtn" class="btn">↻ Start level again</button>
+    <button id="pauseMap" class="btn blue">🗺️ Map</button>
+    <button id="pauseSet" class="btn white">⚙️ Settings</button>
+  </div>
+</div>
+
+<div id="complete" class="screen dim">
+  <div class="panel">
+    <canvas id="cmpKid" width="200" height="200"></canvas>
+    <div>
+      <h2 id="cmpTitle">Squeaky Clean!</h2>
+      <div class="got"><span class="coin"></span><b id="cmpCoins">+0</b></div>
+      <div class="tot">You have <b id="cmpTotal">0</b> coins</div>
+      <div class="btns"><button id="cmpMap" class="btn blue">🗺️ Map</button><button id="cmpShop" class="btn pink">🛒 Shop</button><button id="cmpNext" class="btn green">Next ▶</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="story" class="screen">
+  <button id="storySkip" class="btn white">Skip ⏭</button>
+  <div class="box"><p id="storyText"></p><button id="storyNext" class="btn green">Next ▶</button></div>
+</div>
+
+<div id="rotate"><div class="ph"></div>Turn your device sideways to play!</div>
+
+<script src="js/data.js"></script>
+<script src="js/art.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
