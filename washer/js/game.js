@@ -108,7 +108,7 @@ function newPlayer(x) {
   return { x, y: GROUND, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, jbuf: 0, walk: 0, hearts: 3, inv: 0, hurtT: 0,
     tank: tankMax(), gy: GROUND, on: null, spraying: false, hitting: false, aimA: 0.35, blinkT: 2.5, blink: 0, lock: false, sputT: 0, glugT: 0, lowSaid: false };
 }
-function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 1, r: 26, hop: Math.random() * 3, flash: 0, spd: 45 }; }
+function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 4, hp0: 4, r: 26, hop: Math.random() * 3, flash: 0, spd: 45, shootT: 2 + Math.random() * 2 }; }
 function startLevel(L, idx, demo) {
   G = { L, idx, demo: !!demo, theme: L.theme, t: 0, objs: [], plats: [], solids: [], hydrants: [], enemies: [], balls: [], coins: [], parts: [], texts: [], puddles: [],
     cam: { x: 0, shake: 0 }, aim: { x: 0, y: 0 }, tgt: null, retarget: 0, lvlCoins: 0, cleaned: 0,
@@ -188,7 +188,7 @@ function updPlayer(dt) {
   if (G.respawnT > 0) {
     const before = G.respawnT; G.respawnT -= dt;
     if (before > 0.7 && G.respawnT <= 0.7) {
-      P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.hearts = 3; P.inv = 2; G.balls.length = 0;
+      P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.tank = tankMax(); P.hearts = 3; P.inv = 2; G.balls.length = 0;
       G.cam.x = clamp(P.x - view.W * 0.4, 0, Math.max(0, G.L.len - view.W)); if (G.arena && G.arena.started) G.cam.x = G.arena.L;
     }
     if (G.respawnT <= 0) P.lock = false;
@@ -242,22 +242,21 @@ function nozzleWorld() {
 function updSpray(dt) {
   const P = G.p, noz = curNozzle(), pr = curPressure();
   const want = (In.spray || G.demo) && !P.lock && G.respawnT <= 0;
-  if (P.tank <= 0 && !P.refill) { P.refill = true; Sfx.sputter(); if (!P.lowSaid) { P.lowSaid = true; kidSay('Out of water! Refilling... Red hydrants fill you up fast!', true); } }
-  if (P.refill) {
-    P.tank = Math.min(tankMax(), P.tank + 22 * dt); if (P.tank >= tankMax() * 0.35) P.refill = false;
-    P.sputT -= dt; if (want && P.sputT <= 0) { Sfx.sputter(); P.sputT = 0.5; }
+  // water only comes from red hydrants
+  if (want && P.tank <= 0) {
+    P.sputT -= dt; if (P.sputT <= 0) { Sfx.sputter(); P.sputT = 0.5; }
+    if (G.t > (G.waterSayT || 0)) { G.waterSayT = G.t + 8; kidSay('Out of water! Go back to a red hydrant!', true); }
   }
-  P.spraying = want && !P.refill && P.tank > 0;
+  P.spraying = want && P.tank > 0;
   const hx = P.x + P.face * 10, hy = P.y - 40, R = MAX_REACH * noz.range;
   const ok = (x, y) => { const dx = (x - hx) * P.face, dy = y - hy; if (dx < 16 || dx * dx + dy * dy > R * R) return false; const a = Math.atan2(dy, dx); return a > -1.25 && a < 1.1; };
   if (!P.spraying) {
     P.hitting = false; Sfx.spray(false, false, 0);
-    if (!want && !P.refill) P.tank = Math.min(tankMax(), P.tank + 9 * dt);
     G.aim.x = hx + P.face * R * 0.5; G.aim.y = hy + 30; G.tgt = null;
     P.aimA = approach(P.aimA, 0.35, dt * 3);
     return;
   }
-  P.tank = Math.max(0, P.tank - 7 * dt);
+  if (!G.demo) P.tank = Math.max(0, P.tank - 7 * dt);
   // never spray behind the kid: after turning around (or a respawn) restart the stream in front
   if ((G.aim.x - hx) * P.face < 16) { G.aim.x = hx + P.face * 40; G.aim.y = hy + 10; G.tgt = null; }
   // choose a target
@@ -385,6 +384,15 @@ function updEnemies(dt) {
       e.hop += dt * 6; e.x += e.dir * e.spd * dt;
       if (e.x < e.minX) { e.x = e.minX; e.dir = 1; } if (e.x > e.maxX) { e.x = e.maxX; e.dir = -1; }
       const dx = P.x - e.x;
+      if (Math.abs(dx) < 420 && Math.abs(dx) > 70 && G.respawnT <= 0 && !G.demo) {
+        e.shootT -= dt;
+        if (e.shootT <= 0) {
+          e.shootT = Math.max(2.4, 4.5 - G.idx * 0.07) * (0.8 + Math.random() * 0.4);
+          const T = 1.1, x0 = e.x, y0 = e.y - e.r * 1.3;
+          G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T, vy: (GROUND - 30 - y0 - 0.5 * 900 * T * T) / T, r: 11, hp: 0.3, hp0: 0.3, slime: swamp });
+          e.dir = Math.sign(dx) || 1; e.hop = 0; Sfx.throw();
+        }
+      }
       if (Math.abs(dx) < e.r + 14 && P.y > e.y - e.r * 1.6 && P.y - 86 < e.y) {
         if (P.vy > 150 && P.y < e.y - e.r * 0.7) { e.hp = 0; P.vy = -560; Sfx.jump(); }
         else hurtPlayer(e.x);
@@ -428,7 +436,7 @@ function updWaves(dt) {
   const blocked = x0 < 100 || x0 > G.L.len - 50 || G.solids.some(s => s.x + s.w > lo && s.x < hi) || (G.wall && !G.wall.open && G.wall.x > lo && G.wall.x < hi);
   if (blocked) { G.waveT = 3; return; }
   G.waveT = G.L.waveEvery * (0.8 + Math.random() * 0.5);
-  G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 5, hp0: 5, r: 46, size: 1, flash: 0, t: 0 });
+  G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 50, hp0: 50, r: 46, size: 1, flash: 0, t: 0 });
   Sfx.whoosh();
   if (!G.waveSaid) { G.waveSaid = true; kidSay('A slime wave! Spray it, or jump over it when it gets small!', true); }
 }
@@ -536,7 +544,7 @@ function updBoss(dt) {
     b.waveT -= dt;
     if (b.waveT <= 0 && b.ground && G.enemies.filter(e => e.kind === 'wave').length < 2) {
       b.waveT = [0, 7, 5.5, 4.5][diff] * (0.85 + Math.random() * 0.3);
-      G.enemies.push({ kind: 'wave', x: b.x + b.face * 90, y: GROUND, dir: b.face, spd: 75 + diff * 12, hp: 3 + diff, hp0: 3 + diff, r: 46, size: 1, flash: 0, t: 0 });
+      G.enemies.push({ kind: 'wave', x: b.x + b.face * 90, y: GROUND, dir: b.face, spd: 75 + diff * 12, hp: 30 + 10 * diff, hp0: 30 + 10 * diff, r: 46, size: 1, flash: 0, t: 0 });
       Sfx.whoosh(); b.mood = 'laugh'; b.moodT = 1; if (Math.random() < 0.5) bossSay(pick(['Slime wave, GO!', 'Surf the slime!', 'Wash THAT, little washer!']));
     }
     b.sprayedT = b.hitT > 0 ? b.sprayedT + dt : Math.max(0, b.sprayedT - dt * 0.5);
@@ -639,7 +647,7 @@ function render() {
   if (G.kidSay) bubble(c, G.p.x, G.p.y - 120, G.kidSay.s, false);
   if (G.boss && G.boss.sayT > 0) bubble(c, G.boss.x, G.boss.y - 250, G.boss.say, true);
   c.restore();
-  if (!G.demo) edgeArrow(c, W);
+  if (!G.demo) { edgeArrow(c, W); if (G.p.tank < tankMax() * 0.2) waterArrow(c, W); }
   if (G.respawnT > 0) {
     const a = G.respawnT > 0.7 ? (1.4 - G.respawnT) / 0.7 : G.respawnT / 0.7;
     c.fillStyle = `rgba(255,255,255,${clamp(a, 0, 1)})`; c.fillRect(0, 0, W, 540);
@@ -718,6 +726,21 @@ function bubble(c, x, y, s, villain) {
   c.beginPath(); c.moveTo(clamp(x, bx + 20, bx + w - 20) - 10, by + h - 1); c.lineTo(clamp(x, bx + 20, bx + w - 20), by + h + 16); c.lineTo(clamp(x, bx + 20, bx + w - 20) + 10, by + h - 1); paint(c, villain ? '#e6f5c8' : '#fff', 0);
   lines.forEach((l, i) => txt(c, l, bx + w / 2, by + 21 + i * 24, 20, villain ? '#3c5a10' : OUT));
 }
+function waterArrow(c, W) {
+  const P = G.p, cx = G.cam.x, bob = Math.sin(G.t * 6) * 6;
+  let best = null, bd = 1e9;
+  for (const h of G.hydrants) { const d = Math.abs(h.x - P.x); if (d < bd) { bd = d; best = h; } }
+  if (!best) return;
+  if (best.x > cx - 10 && best.x < cx + W + 10) {
+    const x = best.x - cx, y = GROUND - VIEW_OY - 120 + bob;
+    poly(c, [x - 16, y, x + 16, y, x, y + 22]); paint(c, '#3a8cf0', 3); dropShape(c, x, y - 20, 9); paint(c, '#8fd8ff', 2.5);
+    return;
+  }
+  const left = best.x < cx, x = left ? 46 : W - 110, y = 200 + bob, d = left ? -1 : 1;
+  rrect(c, x - 34, y - 30, 68, 60, 18); paint(c, 'rgba(255,255,255,.95)', 3);
+  c.beginPath(); c.moveTo(x - 4 * d, y - 14); c.lineTo(x + 22 * d, y); c.lineTo(x - 4 * d, y + 14); c.closePath(); paint(c, '#3a8cf0', 3);
+  dropShape(c, x - 14 * d, y, 8); paint(c, '#8fd8ff', 2.5);
+}
 function edgeArrow(c, W) {
   if (!G.left || G.boss) return;
   const cx = G.cam.x;
@@ -742,7 +765,7 @@ function hud() {
   hudSet('hearts', 'h', P.hearts, (el, v) => { el.innerHTML = [0, 1, 2].map(i => `<span class="heart${i < v ? '' : ' off'}"></span>`).join(''); });
   hudSet('coinN', 'c', SAVE.coins, (el, v) => { el.textContent = v; el.parentNode.classList.remove('pop'); void el.offsetWidth; el.parentNode.classList.add('pop'); });
   const tankPct = Math.round(P.tank / tankMax() * 100);
-  hudSet('tankFill', 't', tankPct + (P.refill ? 'r' : ''), (el, v) => { el.style.height = parseInt(v) + '%'; el.parentNode.classList.toggle('low', parseInt(v) < 20 || !!P.refill); });
+  hudSet('tankFill', 't', tankPct + '', (el, v) => { el.style.height = parseInt(v) + '%'; el.parentNode.classList.toggle('low', parseInt(v) < 20); });
   let prog, label;
   if (G.boss && G.boss.st !== 'enter') { prog = Math.min(1, G.boss.clean / G.boss.target); label = 'boss'; }
   else { let s = 0; for (const o of G.objs) if (o.count && o.grid) s += 1 - o.rem; prog = G.total ? s / G.total : 1; label = `${G.total - G.left}/${G.total}`; }

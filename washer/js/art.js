@@ -687,7 +687,7 @@ function drawCoin(c, x, y, t) {
   c.fillStyle = 'rgba(255,255,255,.8)'; ell(c, -3, -4, 2.5, 4, 0.5); c.fill(); c.restore();
 }
 function drawBlob(c, e, t, swamp) {
-  const r = e.r * (0.45 + 0.55 * Math.max(0, e.hp)), x = e.x, y = e.y;
+  const r = e.r * (0.45 + 0.55 * Math.max(0, e.hp) / (e.hp0 || 1)), x = e.x, y = e.y;
   const sq = Math.abs(Math.sin(e.hop)) * 0.15;
   c.save(); c.translate(x, y - Math.abs(Math.sin(e.hop)) * 8);
   c.beginPath(); c.moveTo(-r * 1.15, 0);
