@@ -111,7 +111,8 @@ function curNozzle() { return NOZZLES[SAVE.noz] || NOZZLES.fan; }
 function curPressure() { return PRESSURE[SAVE.up.pressure] || PRESSURE[0]; }
 const DIFFS = { easy: 5, medium: 4, hard: 3, ultra: 1 };
 function maxHearts() { return DIFFS[SAVE.diff] || 4; }
-function tankMax() { return TANK[SAVE.up.tank] || TANK[0]; }
+function tankMul() { return ({ easy: 1.25, medium: 1, hard: 0.75, ultra: 0.5 })[SAVE.diff] || 1; }
+function tankMax() { return (TANK[SAVE.up.tank] || TANK[0]) * tankMul(); }
 function newPlayer(x) {
   return { x, y: GROUND, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, jbuf: 0, walk: 0, hearts: maxHearts(), inv: 0, hurtT: 0,
     tank: tankMax(), gy: GROUND, on: null, spraying: false, hitting: false, aimA: 0.35, blinkT: 2.5, blink: 0, lock: false, sputT: 0, glugT: 0, lowSaid: false };

@@ -161,7 +161,7 @@ const UI = (() => {
     const pl = SAVE.up.pressure;
     item(g, iconCanvas(44, (c, s) => gaugeIcon(c, s, pl / (PRESSURE.length - 1))), 'Pressure', `${PRESSURE[pl].psi} PSI ${pips(pl, PRESSURE.length)}`, pl >= PRESSURE.length - 1 ? 'max' : 'buy', PRESSURE_COST[pl], () => { SAVE.up.pressure++; });
     const tl = SAVE.up.tank;
-    item(g, iconCanvas(44, (c, s) => tankIcon(c, s, (tl + 1) / TANK.length)), 'Water tank', `Holds ${TANK[tl]} ${pips(tl, TANK.length)}`, tl >= TANK.length - 1 ? 'max' : 'buy', TANK_COST[tl], () => { SAVE.up.tank++; });
+    item(g, iconCanvas(44, (c, s) => tankIcon(c, s, (tl + 1) / TANK.length)), 'Water tank', `Holds ${Math.round(TANK[tl] * tankMul())} ${pips(tl, TANK.length)}`, tl >= TANK.length - 1 ? 'max' : 'buy', TANK_COST[tl], () => { SAVE.up.tank++; });
     g = sec('Hats');
     for (const id in HATS) {
       const own = SAVE.hats.includes(id);
@@ -311,7 +311,7 @@ const UI = (() => {
     on('pickBoy', () => { click(); SAVE.gender = 'boy'; persist(); renderSettings(); });
     on('pickGirl', () => { click(); SAVE.gender = 'girl'; persist(); renderSettings(); });
     for (const k of ['sound', 'music', 'voice']) on('tg_' + k, () => toggle(k));
-    for (const k in DIFFS) on('df_' + k, () => { click(); SAVE.diff = k; persist(); if (G && G.p) { G.p.hearts = Math.min(G.p.hearts, maxHearts()); hudReset(); } renderSettings(); });
+    for (const k in DIFFS) on('df_' + k, () => { click(); SAVE.diff = k; persist(); if (G && G.p) { G.p.hearts = Math.min(G.p.hearts, maxHearts()); G.p.tank = Math.min(G.p.tank, tankMax()); hudReset(); } renderSettings(); });
     on('resetBtn', reset);
     on('storyNext', storyNext);
     on('storySkip', () => { click(); story.i = story.pages.length - 1; storyNext(); });
