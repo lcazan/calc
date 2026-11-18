@@ -124,11 +124,16 @@ function startLevel(L, idx, demo) {
   for (const [type, x, v, by] of L.objs) G.objs.push(makeObj(type, x, by || GROUND, v || 0, L.dirt, seed++));
   for (const [x, y, w, style, top] of (L.plats || [])) G.plats.push({ x, y, w, style, y0: y, y1: top || y, wait: 0 });
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
+  for (const [x, w, lo, hi] of (L.toggles || [])) G.solids.push({ kind: 'tog', x, y: GROUND - lo, w, h: lo, tog: { lo, hi, up: false } });
+  G.holes = (L.holes || []).map(([x, w]) => ({ x, w }));
+  G.pipes = (L.pipes || []).map(x => ({ x, w: 90, h: 120, open: true, hp: 1.6, spawnT: 1.5, n: 0, ang: 0, turnT: 0 }));
+  for (const pp of G.pipes) G.solids.push({ kind: 'pipe', x: pp.x, y: GROUND - pp.h, w: pp.w, h: pp.h, pipe: pp });
+  G.blobT = 6;
   G.hydrants = (L.hydrants || []).map(x => ({ x, active: false }));
   for (const [x, range] of (L.blobs || [])) G.enemies.push(newBlob(x, range));
   for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', req: true, x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 2, r: 24, t: 0 });
   G.birdsReq = G.enemies.filter(e => e.req).length;
-  G.total = G.objs.filter(o => o.count && o.grid).length + G.birdsReq;
+  G.total = G.objs.filter(o => o.count && o.grid).length + G.birdsReq + G.pipes.length;
   if (L.boss) G.arena = { x: L.boss.x, fight: L.boss.fight, started: false, L: 0 };
   G.p = newPlayer(L.startX || 120);
   In.left = In.right = In.jump = In.spray = In.jp = false;
@@ -153,11 +158,14 @@ function update(dt) {
   G.t += dt;
   if (G.done) { updParts(dt); updCoins(dt); updCam(dt); return; }
   updLifts(dt);
+  updToggles(dt);
   updPlayer(dt);
   updSpray(dt);
   updEnemies(dt);
   updSpinners(dt);
   updWaves(dt);
+  updPipes(dt);
+  updTrickle(dt);
   updBoss(dt);
   updBalls(dt);
   updCoins(dt);
@@ -179,6 +187,44 @@ function updLifts(dt) {
     if (on) { P.y = p.y; P.gy = p.y; }
   }
 }
+// open sewer holes: feet over one (with a 10-unit grace at each edge) fall in
+function holeAt(x, pad) { pad = pad == null ? 10 : pad; for (const h of G.holes) if (x > h.x + pad && x < h.x + h.w - pad) return h; return null; }
+// free walking room around x: stops at blocks, pipes, holes and the closed slime wall
+function clipRange(x, range) {
+  let lo = x - range, hi = x + range;
+  for (const s of G.solids) { if (s.x + s.w <= x) lo = Math.max(lo, s.x + s.w + 30); else if (s.x >= x) hi = Math.min(hi, s.x - 30); }
+  for (const h of G.holes) { if (h.x + h.w <= x) lo = Math.max(lo, h.x + h.w + 30); else if (h.x >= x) hi = Math.min(hi, h.x - 30); }
+  if (G.wall && !G.wall.open && G.wall.x > x) hi = Math.min(hi, G.wall.x - 30);
+  lo = Math.max(lo, 40); hi = Math.min(hi, G.L.len - 40);
+  return lo <= hi ? [lo, hi] : [x, x];
+}
+// spray-lift blocks: rise/sink at 170 u/s, carrying the kid standing on them
+function updToggles(dt) {
+  const P = G.p;
+  for (const s of G.solids) {
+    if (!s.tog) continue;
+    const want = s.tog.up ? s.tog.hi : s.tog.lo;
+    if (s.h === want) continue;
+    s.h = approach(s.h, want, 170 * dt); s.y = GROUND - s.h;
+    if (s.h === want) Sfx.ding();
+    if (Math.random() < dt * 20) bubbles(s.x + s.w / 2, GROUND - 10, 1);
+    if (P.onS === s && G.respawnT <= 0) { P.y = s.y; P.gy = s.y; }
+  }
+}
+function flipToggle(s) {
+  s.tog.up = !s.tog.up; Sfx.whoosh();
+  floatText(s.x + s.w / 2, s.y - 110, s.tog.up ? 'Up!' : 'Down!', '#bfe9ff', 28);
+  splash(s.x + s.w / 2, s.y, '#d6f1ff', 10);
+}
+function holeFall() {
+  const P = G.p, h = P.inHole; P.inHole = null;
+  P.x = P.safeX < h.x ? h.x - 60 : h.x + h.w + 55; P.y = GROUND; P.gy = GROUND; P.vx = P.vy = 0; P.hurtT = 0.9;
+  if (G.demo || P.inv > 0) return;
+  P.hearts--; P.inv = 1.6;
+  Sfx.hurt(); shake(8); floatText(P.x, P.y - 110, 'Ouch!', '#ffd23f', 30);
+  kidSay(G.holeHurtSaid ? 'Jump over the open sewer!' : 'Yuck! I fell in the sewer! Jump over the holes!', !G.holeHurtSaid); G.holeHurtSaid = true;
+  if (P.hearts <= 0) { G.respawnT = 1.4; P.lock = true; Sfx.say("Oops! Let's try again!"); }
+}
 function fallHurt(drop) {
   const P = G.p;
   if (P.inv > 0 || G.demo || G.done) return;
@@ -195,7 +241,7 @@ function updPlayer(dt) {
   if (G.respawnT > 0) {
     const before = G.respawnT; G.respawnT -= dt;
     if (before > 0.7 && G.respawnT <= 0.7) {
-      P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.tank = tankMax(); P.hearts = 3; P.inv = 2; G.balls.length = 0;
+      P.inHole = null; P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.tank = tankMax(); P.hearts = 3; P.inv = 2; G.balls.length = 0;
       G.cam.x = clamp(P.x - view.W * 0.4, 0, Math.max(0, G.L.len - view.W)); if (G.arena && G.arena.started) G.cam.x = G.arena.L;
     }
     if (G.respawnT <= 0) P.lock = false;
@@ -218,15 +264,20 @@ function updPlayer(dt) {
   if (G.wall && G.wall.melt < 0.6 && P.x > G.wall.x - 16 && P.x < G.wall.x + 60) { P.x = G.wall.x - 16; P.vx = Math.min(P.vx, 0); }
   let minX = 20, maxX = G.L.len - 20;
   if (G.arena && G.arena.started) minX = G.arena.L + 20;
+  if (P.inHole) P.x = clamp(P.x, P.inHole.x + 16, P.inHole.x + P.inHole.w - 16);
   P.x = clamp(P.x, minX, maxX);
   // y
   const prevY = P.y, wasGround = P.ground, vyBefore = P.vy;
-  P.y += P.vy * dt; P.ground = false; P.on = null;
-  if (P.y >= GROUND) { P.y = GROUND; P.vy = 0; P.ground = true; }
+  P.y += P.vy * dt; P.ground = false; P.on = null; P.onS = null;
+  if (P.inHole && P.y < GROUND - 2) P.inHole = null;
+  if (P.y >= GROUND - 1 && !P.inHole && prevY <= GROUND + 1) P.inHole = holeAt(P.x);
+  if (P.inHole) { if (P.y > GROUND + 120) { holeFall(); return; } }
+  else if (P.y >= GROUND) { P.y = GROUND; P.vy = 0; P.ground = true; }
   if (vyBefore >= 0) {
     for (const p of G.plats) if (prevY <= p.y + 1 && P.y >= p.y && P.x > p.x - 10 && P.x < p.x + p.w + 10) { P.y = p.y; P.vy = 0; P.ground = true; P.on = p; }
-    for (const s2 of G.solids) if (prevY <= s2.y + 1 && P.y >= s2.y && P.x + 14 > s2.x && P.x - 14 < s2.x + s2.w) { P.y = s2.y; P.vy = 0; P.ground = true; }
+    for (const s2 of G.solids) if (prevY <= s2.y + 1 && P.y >= s2.y && P.x + 14 > s2.x && P.x - 14 < s2.x + s2.w) { P.y = s2.y; P.vy = 0; P.ground = true; P.onS = s2; }
   }
+  if (P.ground && P.y === GROUND && !holeAt(P.x, -20)) P.safeX = P.x;
   if (P.ground && !wasGround && P.y - (P.gy == null ? P.y : P.gy) >= 130) fallHurt(P.y - P.gy);
   if (P.ground) P.gy = P.y;
   if (P.ground && !wasGround && vyBefore > 500) { Sfx.land(); for (let i = 0; i < 4; i++) part(P.x, P.y, (Math.random() - 0.5) * 160, -Math.random() * 80, 0.35, 4, 'rgba(255,255,255,.8)', 'm', 0); }
@@ -257,6 +308,9 @@ function updSpray(dt) {
   P.spraying = want && P.tank > 0;
   const hx = P.x + P.face * 10, hy = P.y - 40, R = MAX_REACH * noz.range;
   const ok = (x, y) => { const dx = (x - hx) * P.face, dy = y - hy; if (dx < 16 || dx * dx + dy * dy > R * R) return false; const a = Math.atan2(dy, dx); return a > -1.25 && a < 1.1; };
+  // spray-lift block: a fresh press while standing on it moves it (going down only when nothing up here needs washing)
+  const press = P.spraying && !G.prevSpray; G.prevSpray = P.spraying;
+  if (press && P.ground && P.onS && P.onS.tog && (!P.onS.tog.up || !findCell(hx, hy, R, ok))) flipToggle(P.onS);
   if (!P.spraying) {
     P.hitting = false; Sfx.spray(false, false, 0);
     G.aim.x = hx + P.face * R * 0.5; G.aim.y = hy + 30; G.tgt = null;
@@ -270,11 +324,13 @@ function updSpray(dt) {
   G.retarget -= dt;
   let t = G.tgt;
   const valid = t && (t.k === 'ball' ? G.balls.includes(t.ref) && ok(t.ref.x, t.ref.y)
+    : t.k === 'valve' ? t.ref.open && ok(...valvePos(t.ref))
     : t.k === 'en' ? t.ref.hp > 0 && ok(t.ref.x, t.ref.y - t.ref.r * 0.7)
     : t.o.grid[t.i] > 0.06 && !t.o.done && ok(t.o.x + t.cx, t.o.top + t.cy));
   if (!valid || G.retarget <= 0 || t.k === 'cell') {
     let threat = null, bs = 1e12;
     for (const b of G.balls) if (!b.mud && Math.abs(b.x - P.x) < 220 && ok(b.x, b.y)) { const s = (b.x - hx) ** 2 + (b.y - hy) ** 2; if (s < bs) { bs = s; threat = { k: 'ball', ref: b }; } }
+    if (!threat) for (const pp of G.pipes) if (pp.open && ok(...valvePos(pp))) { const [vx, vy] = valvePos(pp), s = (vx - hx) ** 2 + (vy - hy) ** 2; if (s < bs) { bs = s; threat = { k: 'valve', ref: pp }; } }
     if (!threat) for (const e of G.enemies) if (e.hp > 0 && ok(e.x, e.y - e.r * 0.7)) { const s = (e.x - hx) ** 2 + (e.y - hy) ** 2; if (s < bs) { bs = s; threat = { k: 'en', ref: e }; } }
     if (threat) t = threat;
     else if (!valid || G.retarget <= 0) {
@@ -287,6 +343,7 @@ function updSpray(dt) {
   let tx, ty, sp = 650;
   if (!t) { tx = hx + P.face * R * 0.6; ty = hy + 25; }
   else if (t.k === 'cell') { tx = t.o.x + t.cx; ty = t.o.top + t.cy; }
+  else if (t.k === 'valve') { [tx, ty] = valvePos(t.ref); sp = 1000; }
   else { tx = t.ref.x; ty = t.k === 'en' ? t.ref.y - t.ref.r * 0.7 : t.ref.y; sp = 1500; }
   const dx = tx - G.aim.x, dy = ty - G.aim.y, d = Math.hypot(dx, dy), stepD = sp * dt;
   if (d <= stepD) { G.aim.x = tx; G.aim.y = ty; } else { G.aim.x += dx / d * stepD; G.aim.y += dy / d * stepD; }
@@ -315,11 +372,21 @@ function updSpray(dt) {
   }
   for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt * gearMult() / (G.L.tough || 2); e.flash = 0.1; got += 0.01; }
   for (const b of G.balls) if (Math.hypot(b.x - G.aim.x, b.y - G.aim.y) < b.r + r) { b.hp -= amt; got += 0.01; }
+  for (const pp of G.pipes) { if (!pp.open) continue; const [vx, vy] = valvePos(pp); if (Math.hypot(vx - G.aim.x, vy - G.aim.y) < 30 + r) { pp.hp -= dt; pp.turnT = 0.15; got += 0.01; if (pp.hp <= 0) closeValve(pp); } }
   P.hitting = got > 0;
   // water spray particles
   if (Math.random() < 0.8) part(G.aim.x, G.aim.y, (Math.random() - 0.5) * 220 - P.face * 60, -Math.random() * 200, 0.4, 2 + Math.random() * 2.5, '#d6f1ff', 'c');
   if (Math.random() < 0.25) part(G.aim.x, G.aim.y, 0, -20, 0.5, r * 0.6, 'rgba(255,255,255,.5)', 'm', 0);
   Sfx.spray(true, P.hitting, SAVE.up.pressure);
+}
+function valvePos(pp) { return [pp.x + pp.w / 2, GROUND - pp.h - 34]; }
+function closeValve(pp) {
+  pp.open = false; G.cleaned++; G.tgt = null;
+  const [vx, vy] = valvePos(pp);
+  Sfx.ding(); setTimeout(() => Sfx.fanfare(), 200);
+  sparkleBurst(vx, vy, 24, 80); spawnCoins(vx, vy, 5);
+  floatText(vx, vy - 40, 'Valve closed!', '#fff', 30);
+  kidSay('Valve closed! No more monsters from that pipe!', true);
 }
 function tooLow(o) { return o.high && G.p.y > o.base + CLIMB_GAP; }
 // does a slime wave stand between the nozzle and this point? (waves block the jet)
@@ -383,21 +450,30 @@ function updEnemies(dt) {
       e.size = 0.35 + 0.65 * Math.max(0, e.hp) / e.hp0; e.r = 46 * e.size; e.t += dt;
       e.x += e.dir * e.spd * dt;
       if (Math.random() < dt * 12) part(e.x - e.dir * 40 * e.size, GROUND - 10 - Math.random() * 40 * e.size, -e.dir * 40, -40, 0.6, 3 + Math.random() * 4, '#7fb52e', 'c');
-      const hitSolid = G.solids.some(s => e.x > s.x - 10 && e.x < s.x + s.w + 10) || (G.wall && !G.wall.open && Math.abs(e.x - G.wall.x - 38) < 40);
+      const hitSolid = G.solids.some(s => e.x > s.x - 10 && e.x < s.x + s.w + 10) || G.holes.some(h => e.x > h.x - 10 && e.x < h.x + h.w + 10) || (G.wall && !G.wall.open && Math.abs(e.x - G.wall.x - 38) < 40);
       const lo = G.arena && G.arena.started ? G.arena.L + 40 : 40, hi = G.L.len - 40;
       if (hitSolid || e.x < lo || e.x > hi) { e.dir = e.x < lo ? 1 : e.x > hi ? -1 : -e.dir; e.x += e.dir * 14; Sfx.splat(); for (let k = 0; k < 6; k++) part(e.x, GROUND - 40 * e.size, e.dir * Math.random() * 200, -Math.random() * 200, 0.5, 4, '#7fb52e', 'c'); }
       else if (Math.abs(P.x - e.x) < 52 * e.size + 12 && P.y > GROUND - 88 * e.size) hurtPlayer(e.x);
     } else if (e.kind === 'blob') {
-      if (e.fall) { e.vy = (e.vy || 0) + 1500 * dt; e.y += e.vy * dt; if (e.y >= GROUND) { e.y = GROUND; e.fall = false; Sfx.splat(); splash(e.x, GROUND - 6, swamp ? '#6f9a2a' : '#7b5431', 8); } continue; }
+      if (e.fall) {
+        e.vy = (e.vy || 0) + 1500 * dt; e.y += e.vy * dt; e.x += (e.vx || 0) * dt;
+        if (e.vx && G.solids.some(s => e.x > s.x - 20 && e.x < s.x + s.w + 20 && e.y > s.y)) { e.x -= e.vx * dt; e.vx = 0; }
+        if (e.y >= GROUND) {
+          if (holeAt(e.x, 0)) { if (e.y > GROUND + 80) { e.hp = 0; e.gone = true; e.noCoin = true; } continue; }
+          e.y = GROUND; e.fall = false; e.vx = 0; Sfx.splat(); splash(e.x, GROUND - 6, swamp ? '#6f9a2a' : '#7b5431', 8);
+          if (e.auto) [e.minX, e.maxX] = clipRange(e.x, 130);
+        }
+        continue;
+      }
       e.hop += dt * 6; e.x += e.dir * e.spd * dt;
       if (e.x < e.minX) { e.x = e.minX; e.dir = 1; } if (e.x > e.maxX) { e.x = e.maxX; e.dir = -1; }
       const dx = P.x - e.x;
-      if (Math.abs(dx) < 420 && Math.abs(dx) > 70 && G.respawnT <= 0 && !G.demo) {
+      if (Math.abs(dx) < 480 && Math.abs(dx) > 70 && G.respawnT <= 0 && !G.demo) {
         e.shootT -= dt;
         if (e.shootT <= 0) {
-          e.shootT = Math.max(2.4, 4.5 - G.idx * 0.07) * (0.8 + Math.random() * 0.4);
+          e.shootT = Math.max(2, 3.6 - G.idx * 0.06) * (0.8 + Math.random() * 0.4);
           const T = 1.1, x0 = e.x, y0 = e.y - e.r * 1.3;
-          G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T, vy: (GROUND - 30 - y0 - 0.5 * 900 * T * T) / T, r: 11, hp: 0.3, hp0: 0.3, slime: swamp });
+          G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T, vy: (GROUND - 30 - y0 - 0.5 * 900 * T * T) / T, r: 11, hp: 0.3, hp0: 0.3, slime: swamp, temp: !!e.auto });
           e.dir = Math.sign(dx) || 1; e.hop = 0; Sfx.throw();
         }
       }
@@ -441,12 +517,51 @@ function updWaves(dt) {
   G.waveT -= dt; if (G.waveT > 0) return;
   const P = G.p, dir = -P.face, x0 = P.face > 0 ? G.cam.x + view.W + 80 : G.cam.x - 80;
   const lo = Math.min(x0, P.x), hi = Math.max(x0, P.x);
-  const blocked = x0 < 100 || x0 > G.L.len - 50 || G.solids.some(s => s.x + s.w > lo && s.x < hi) || (G.wall && !G.wall.open && G.wall.x > lo && G.wall.x < hi);
+  const blocked = x0 < 100 || x0 > G.L.len - 50 || G.solids.some(s => s.x + s.w > lo && s.x < hi) || G.holes.some(h => h.x + h.w > lo && h.x < hi) || (G.wall && !G.wall.open && G.wall.x > lo && G.wall.x < hi);
   if (blocked || G.enemies.filter(e => e.kind === 'wave').length >= 3) { G.waveT = 3; return; }
   G.waveT = G.L.waveEvery * (0.8 + Math.random() * 0.5);
   G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 1.5, hp0: 1.5, r: 46, size: 1, flash: 0, t: 0 });
   Sfx.whoosh();
   if (!G.waveSaid) { G.waveSaid = true; kidSay('A slime wave! Spray it, or jump over it when it gets small!', true); }
+}
+// sewer pipes spit mud monsters, mud and (later) slime waves until the valve is closed (v1.11)
+function updPipes(dt) {
+  const P = G.p, L = G.L;
+  for (const pp of G.pipes) {
+    pp.turnT = Math.max(0, pp.turnT - dt); pp.ang += dt * (pp.turnT > 0 ? 9 : 0);
+    const mx = pp.x - 4, my = GROUND - 66;
+    if (!pp.open) { if (Math.random() < dt * 6) part(mx, my + 10, -30 - Math.random() * 30, 0, 0.8, 3, '#bfe9ff', 'c'); continue; }
+    if (Math.random() < dt * 8) part(mx, my + 8, -40 - Math.random() * 60, 0, 0.8, 3 + Math.random() * 3, G.L.dirt === 'slime' ? '#7fb52e' : '#7b5431', 'c');
+    const near = Math.abs(P.x - pp.x) < 900;
+    if (!near || G.demo || G.respawnT > 0 || G.done) continue;
+    if (!G.pipeSaid && pp.x < G.cam.x + view.W) { G.pipeSaid = true; kidSay('Monsters are coming out of that sewer pipe! Spray the valve wheel on top to close it!', true); }
+    pp.spawnT -= dt; if (pp.spawnT > 0) continue;
+    pp.spawnT = (L.pipeEvery || 3) * (0.8 + Math.random() * 0.4); pp.n++;
+    const alive = G.enemies.filter(e => e.pipe === pp && e.kind === 'blob').length;
+    if (L.pipeWaves && pp.n % 4 === 0 && G.enemies.filter(e => e.kind === 'wave').length < 3) {
+      G.enemies.push({ kind: 'wave', x: pp.x - 60, y: GROUND, dir: -1, spd: 85 + G.idx * 1.5, hp: 1.5, hp0: 1.5, r: 46, size: 1, flash: 0, t: 0, pipe: pp }); Sfx.whoosh();
+    } else if (alive < (L.pipeMax || 3)) {
+      const e = newBlob(mx, 0); e.y = my + 20; e.fall = true; e.vy = -300 - Math.random() * 120; e.vx = -(110 + Math.random() * 170); e.auto = true; e.pipe = pp; e.dir = -1; e.shootT = 1.5 + Math.random();
+      G.enemies.push(e); Sfx.splat();
+    }
+    for (let k = 0; k < 2; k++) G.balls.push({ x: mx, y: my, vx: -(60 + Math.random() * 220), vy: -300 - Math.random() * 250, r: 11, hp: 0.3, hp0: 0.3, slime: G.L.dirt === 'slime', mud: true, temp: true });
+    Sfx.throw();
+  }
+}
+// a steady trickle of mud monsters dropping in ahead of the kid while the slime wall is still shut
+function updTrickle(dt) {
+  const L = G.L, P = G.p;
+  if (!L.blobEvery || G.demo || G.done || G.respawnT > 0 || (G.arena && G.arena.started) || (G.wall && G.wall.open)) return;
+  G.blobT -= dt; if (G.blobT > 0) return;
+  if (G.enemies.filter(e => e.trickle).length >= L.blobMax) { G.blobT = 2; return; }
+  const lim = G.wall ? G.wall.x - 60 : L.len - 200;
+  const okX = x => x > 120 && x < lim && !holeAt(x, -40) && !G.solids.some(s => x > s.x - 40 && x < s.x + s.w + 40) && !G.pipes.some(pp => Math.abs(x - pp.x) < 200);
+  let x = null;
+  for (let k = 0; k < 6 && x == null; k++) { const c = P.x + (k % 2 ? -P.face : P.face) * (240 + Math.random() * 220); if (okX(c)) x = c; }
+  if (x == null) { G.blobT = 2; return; }
+  G.blobT = L.blobEvery * (0.8 + Math.random() * 0.4);
+  const e = newBlob(x, 0); e.y = -60; e.fall = true; e.auto = true; e.trickle = true; e.shootT = 1.5 + Math.random();
+  G.enemies.push(e);
 }
 // monster mud that hits the ground stays as a dirty puddle you must wash (outside boss arenas)
 function addPuddle(x) {
@@ -467,7 +582,8 @@ function updBalls(dt) {
       for (const o of G.objs) if (o.type !== 'spinner' && o.grid && b.x > o.x && b.x < o.x + o.w && b.y > o.top && b.y < o.y && dirtyAt(o, b.x, b.y, 26) > 0) { hit = true; break; }
       if (hit) { b.dead = true; Sfx.splat(); splash(b.x, b.y, b.slime ? '#6f9a2a' : '#7b5431', 6); continue; }
     }
-    if (b.y >= GROUND - 4) { b.dead = true; Sfx.splat(); splash(b.x, GROUND - 4, b.slime ? '#6f9a2a' : '#7b5431', 10); if (arena) G.puddles.push({ x: b.x, w: 40, life: 3, slime: b.slime }); else addPuddle(b.x); continue; }
+    if (b.y >= GROUND - 4 && holeAt(b.x, 0)) { if (b.y > GROUND + 60) b.dead = true; continue; }
+    if (b.y >= GROUND - 4) { b.dead = true; Sfx.splat(); splash(b.x, GROUND - 4, b.slime ? '#6f9a2a' : '#7b5431', 10); if (arena || b.temp) G.puddles.push({ x: b.x, w: 40, life: 3, slime: b.slime }); else addPuddle(b.x); continue; }
     if (b.x > P.x - 18 - b.r && b.x < P.x + 18 + b.r && b.y > P.y - 88 - b.r && b.y < P.y + b.r) { b.dead = true; hurtPlayer(b.x); }
   }
   G.balls = G.balls.filter(b => !b.dead);
@@ -497,8 +613,9 @@ function updParts(dt) {
 function updProgress(dt) {
   const P = G.p;
   const birds = G.enemies.filter(e => e.req && e.hp > 0).length;
-  const left = G.objs.filter(o => o.count && o.grid && !o.done).length + birds;
-  G.left = left; G.birdsLeft = birds;
+  const valves = G.pipes.filter(pp => pp.open).length;
+  const left = G.objs.filter(o => o.count && o.grid && !o.done).length + birds + valves;
+  G.left = left; G.birdsLeft = birds; G.valvesLeft = valves;
   if (G.demo) { if (!left) { G.demoT += dt; if (G.demoT > 2.5) UI.restartDemo(); } return; }
   const w = G.wall;
   if (w && !w.open && !left) {
@@ -508,8 +625,10 @@ function updProgress(dt) {
   if (w && w.open) w.melt = Math.min(1, w.melt + dt * 0.8);
   if (w && !w.open && P.x > w.x - 150) {
     G.nagT -= dt;
-    if (G.nagT <= 0) { G.nagT = 8; kidSay(birds && birds === left ? (birds === 1 ? 'One more bird to wash!' : `${birds} more birds to wash!`) : left === 1 ? 'One more dirty thing to wash!' : `${left} more dirty things to wash!`, true); }
+    if (G.nagT <= 0) { G.nagT = 8; kidSay(valves && valves === left ? 'Close the valve on the sewer pipe!' : birds && birds === left ? (birds === 1 ? 'One more bird to wash!' : `${birds} more birds to wash!`) : left === 1 ? 'One more dirty thing to wash!' : `${left} more dirty things to wash!`, true); }
   }
+  if (!G.holeSaid && G.holes.some(h => (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 320)) { G.holeSaid = true; kidSay('An open sewer! Jump over it!', true); }
+  if (!G.togSaid && G.solids.some(s => s.tog && Math.abs(s.x - P.x) < 300)) { G.togSaid = true; kidSay('A lift block! Stand on it and spray to make it go up!', true); }
   if (G.arena && !G.arena.started && P.x > G.arena.x + 120) startBoss();
   if (!G.arena && G.finish && w && w.open && P.x > G.finish - 20) {
     if (!left) completeLevel();
@@ -666,6 +785,7 @@ function render() {
   c.lineJoin = 'round'; c.lineCap = 'round';
   drawGround(c, G.theme, cx, W);
   const vis = (x, w) => x + w > cx - 50 && x < cx + W + 50;
+  for (const h of G.holes) if (vis(h.x, h.w)) drawSewerHole(c, h, G.t);
   for (const [x, k] of (G.L.signs || [])) if (vis(x, 130)) drawSign(c, x, k, G.t);
   for (const p of G.plats) if (vis(p.x, p.w)) drawPlat(c, p, G.theme, G.t);
   for (const p of G.puddles) { c.globalAlpha = Math.min(1, p.life); ell(c, p.x, GROUND + 4, p.w, 7); c.fillStyle = p.slime ? '#6f9a2a' : '#6b4526'; c.fill(); c.globalAlpha = 1; }
@@ -682,7 +802,7 @@ function render() {
     if (o.grid && !o.done && o.count && o.type !== 'puddle') stink(c, o.x + o.w / 2, o.top + 4, G.t + o.x);
     else if (o.done && Math.random() < 0.02) part(o.x + Math.random() * o.w, o.top + Math.random() * o.h, 0, -10, 0.6, 6, '#fff', 's', 0);
   }
-  for (const s of G.solids) if (vis(s.x, s.w)) drawSolid(c, s);
+  for (const s of G.solids) if (vis(s.x - 40, s.w + 40)) { if (s.pipe) drawPipe(c, s.pipe, G.t); else if (s.tog) drawLiftBlock(c, s, G.t, G.p.onS === s); else drawSolid(c, s); }
   for (const h of G.hydrants) if (vis(h.x - 30, 90)) drawHydrant(c, h.x, h.active);
   if (G.wall && vis(G.wall.x, 80)) drawWall(c, G.wall.x, G.t, G.wall.melt, G.theme === 'swamp');
   if (G.finish && vis(G.finish - 10, 100)) drawFinish(c, G.finish, G.t, G.wall ? G.wall.open : true);
@@ -691,7 +811,8 @@ function render() {
   for (const e of G.enemies) { if (e.kind === 'blob') drawBlob(c, e, G.t, G.theme === 'swamp'); else if (e.kind === 'wave') drawWave(c, e, G.t); else drawBird(c, e, G.t); }
   if (G.boss) drawBoss(c);
   for (const b of G.balls) drawBall(c, b, G.t, G.theme === 'swamp');
-  drawPlayer(c);
+  if (G.p.y > GROUND + 1 && G.p.inHole) { const h = G.p.inHole; c.save(); c.beginPath(); c.rect(cx - 100, -400, W + 200, GROUND + 400); c.rect(h.x, GROUND, h.w, 300); c.clip(); drawPlayer(c); c.restore(); }
+  else drawPlayer(c);
   drawStream(c);
   drawParts(c);
   for (const t of G.texts) { c.globalAlpha = Math.min(1, t.life * 1.5); outlinedText(c, t.s, t.x, t.y, t.size, t.col); c.globalAlpha = 1; }
@@ -798,6 +919,7 @@ function edgeArrow(c, W) {
   let best = null, bd = 1e9;
   for (const o of G.objs) if (o.count && o.grid && !o.done) { const ox = o.x + o.w / 2, d = Math.abs(ox - G.p.x); if (d < bd) { bd = d; best = { x: ox }; } }
   for (const e of G.enemies) if (e.req && e.hp > 0) { const d = Math.abs(e.x - G.p.x); if (d < bd) { bd = d; best = { x: e.x }; } }
+  for (const pp of G.pipes) if (pp.open) { const d = Math.abs(pp.x - G.p.x); if (d < bd) { bd = d; best = { x: pp.x + pp.w / 2 }; } }
   if (!best) return;
   const ox = best.x;
   if (ox > cx - 20 && ox < cx + W + 20) return;
@@ -820,7 +942,7 @@ function hud() {
   hudSet('tankFill', 't', tankPct + '', (el, v) => { el.style.height = parseInt(v) + '%'; el.parentNode.classList.toggle('low', parseInt(v) < 20); });
   let prog, label;
   if (G.boss && G.boss.st !== 'enter') { prog = Math.min(1, G.boss.clean / G.boss.target); label = 'boss'; }
-  else { let s = (G.birdsReq || 0) - (G.birdsLeft || 0); for (const o of G.objs) if (o.count && o.grid) s += 1 - o.rem; prog = G.total ? s / G.total : 1; label = `${G.total - G.left}/${G.total}`; }
+  else { let s = (G.birdsReq || 0) - (G.birdsLeft || 0) + G.pipes.length - (G.valvesLeft || 0); for (const o of G.objs) if (o.count && o.grid) s += 1 - o.rem; prog = G.total ? s / G.total : 1; label = `${G.total - G.left}/${G.total}`; }
   hudSet('progFill', 'p', Math.round(prog * 200), (el, v) => { el.style.width = (v / 2) + '%'; });
   hudSet('progTxt', 'pl', label, (el, v) => { el.textContent = v === 'boss' ? 'Sir Sludgington' : v; document.getElementById('prog').classList.toggle('boss', v === 'boss'); });
   hudSet('nozzles', 'n', SAVE.noz + SAVE.nozzles.join(), UI.drawNozzles);

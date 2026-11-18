@@ -713,6 +713,63 @@ function drawSolid(c, s) {
     paint(c, s.theme === 'swamp' ? '#6a6478' : '#a8a6b0'); ell(c, x + w * 0.35, y + 16, 12, 5); c.fillStyle = 'rgba(255,255,255,.3)'; c.fill();
   }
 }
+// open sewer hole in the ground (v1.11)
+function drawSewerHole(c, h, t) {
+  const x = h.x, w = h.w, y = GROUND;
+  c.fillStyle = '#1d1826'; c.fillRect(x, y - 2, w, 200);
+  const g = c.createLinearGradient(0, y, 0, y + 90); g.addColorStop(0, '#3a3348'); g.addColorStop(1, '#14101c');
+  c.fillStyle = g; c.fillRect(x + 6, y + 4, w - 12, 196);
+  for (let yy = y + 14; yy < y + 120; yy += 22) line(c, x + 10, yy, x + w - 10, yy, 'rgba(255,255,255,.08)', 2);
+  c.globalAlpha = 0.7 + Math.sin(t * 3) * 0.2; ell(c, x + w / 2, y + 70, w * 0.32, 6); c.fillStyle = '#7fb52e'; c.fill(); c.globalAlpha = 1;
+  rrect(c, x - 6, y - 4, 12, 16, 3); paint(c, '#77738a', 2.5); rrect(c, x + w - 6, y - 4, 12, 16, 3); paint(c, '#77738a', 2.5);
+  // manhole cover leaning to the side
+  c.save(); c.translate(x + w + 26, y - 4); c.rotate(-0.25); ell(c, 0, 0, 22, 7); paint(c, '#6d7c88', 2.5); line(c, -12, 0, 12, 0, '#4b5560', 2); c.restore();
+  // little warning stripes
+  for (const sx of [x - 22, x + w + 10]) { rrect(c, sx, y - 26, 12, 26, 2); paint(c, '#ffd23f', 2); line(c, sx + 1, y - 18, sx + 11, y - 24, OUT, 2); line(c, sx + 1, y - 6, sx + 11, y - 12, OUT, 2); }
+}
+// sewer pipe with its valve wheel on top (v1.11)
+function drawPipe(c, pp, t) {
+  const x = pp.x, w = pp.w, top = GROUND - pp.h, open = pp.open;
+  rrect(c, x, top, w, pp.h + 4, 10); paint(c, '#7f9a8a');
+  for (let yy = top + 30; yy < GROUND - 10; yy += 34) { rrect(c, x - 4, yy, w + 8, 10, 4); paint(c, '#6b8576', 2.5); }
+  c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(x + 10, top + 6, 10, pp.h - 10);
+  // mouth facing left
+  rrect(c, x - 16, GROUND - 98, 30, 64, 10); paint(c, '#6b8576');
+  ell(c, x - 14, GROUND - 66, 12, 26); paint(c, '#1d1826', 2.5);
+  if (open) { ell(c, x - 16, GROUND - 50, 8, 10); c.fillStyle = G && G.L.dirt === 'slime' ? '#7fb52e' : '#7b5431'; c.fill(); }
+  // valve stem and wheel
+  const [vx, vy] = [x + w / 2, top - 34];
+  rrect(c, vx - 6, vy, 12, 36, 3); paint(c, '#9aa0ab', 2.5);
+  c.save(); c.translate(vx, vy); c.rotate(pp.ang);
+  circ(c, 0, 0, 24); c.lineWidth = 9; c.strokeStyle = OUT; c.stroke(); c.lineWidth = 5; c.strokeStyle = open ? '#e8443a' : '#43c46b'; c.stroke();
+  for (let k = 0; k < 3; k++) { const a = k * TAU / 3; line(c, 0, 0, Math.cos(a) * 22, Math.sin(a) * 22, OUT, 5); }
+  circ(c, 0, 0, 6); paint(c, open ? '#c0302a' : '#2f9a50', 2);
+  c.restore();
+  if (open) {
+    // progress ring while it is being turned
+    const f = 1 - pp.hp / 1.6;
+    if (f > 0) { c.beginPath(); c.arc(vx, vy, 33, -Math.PI / 2, -Math.PI / 2 + f * TAU); c.lineWidth = 6; c.strokeStyle = '#bfe9ff'; c.stroke(); }
+    const bob = Math.sin(t * 5) * 4; poly(c, [vx - 40, vy - 30 + bob, vx - 30, vy - 18 + bob, vx - 46, vy - 16 + bob]); c.fillStyle = 'rgba(255,255,255,.8)'; c.fill();
+  }
+}
+// spray-lift block: a yellow plate on a water piston (v1.11)
+function drawLiftBlock(c, s, t, on) {
+  const { x, y, w } = s, plate = 24;
+  if (s.h > plate) {
+    rrect(c, x + w / 2 - 18, y + plate - 4, 36, s.h - plate + 6, 4); paint(c, '#9aa0ab', 2.5);
+    for (let yy = y + plate + 14; yy < GROUND - 6; yy += 26) line(c, x + w / 2 - 14, yy, x + w / 2 + 14, yy, 'rgba(0,0,0,.2)', 2);
+    c.fillStyle = 'rgba(120,190,255,.35)'; c.fillRect(x + w / 2 - 6, y + plate, 12, s.h - plate);
+  }
+  rrect(c, x, y, w, plate, 6); paint(c, '#ffd23f');
+  c.save(); rrect(c, x, y, w, plate, 6); c.clip(); c.fillStyle = '#3a8cf0'; c.fillRect(x + 24, y, w - 48, plate); c.restore();
+  rrect(c, x, y, w, plate, 6); paint(c, null, 3);
+  // arrow shows which way it goes next
+  const cx = x + w / 2, cy = y + plate / 2, d = s.tog.up ? 1 : -1, pulse = on ? 1 + Math.sin(t * 8) * 0.15 : 1;
+  c.save(); c.translate(cx, cy); c.scale(pulse, pulse * d);
+  poly(c, [0, -9, -10, 4, -4, 4, -4, 9, 4, 9, 4, 4, 10, 4]); paint(c, '#fff', 2); c.restore();
+  // water drop hint
+  ell(c, x + 12, cy + 1, 5, 7); paint(c, '#bfe9ff', 1.5); ell(c, x + w - 12, cy + 1, 5, 7); paint(c, '#bfe9ff', 1.5);
+}
 function drawPlat(c, p, theme, t) {
   if (p.style === 'none') return;
   if (p.style === 'roof') {

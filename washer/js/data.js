@@ -80,7 +80,7 @@ const LEVEL_COUNT = AREAS.length * 3;
 function buildLevel(i) {
   const a = Math.floor(i / 3), k = i % 3, A = AREAS[a], SC = A.scenes[k], r = rng(i * 7919 + 13), boss = k === 2;
   const d = i / (LEVEL_COUNT - 1);
-  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [] };
+  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [] };
   const blk = A.block;
   let gc = Math.floor(r() * 7), hc = Math.floor(r() * 3), x = 300;
   const W = t => OBJ[t].w;
@@ -118,6 +118,18 @@ function buildLevel(i) {
     x = ex + 170 + pw + 110;
   };
   const hydrant = () => { L.hydrants.push(x - 40); x += 60; };
+  // spray-lift block next to a column too tall to jump: stand on it, spray, ride up (v1.11)
+  const tog = () => {
+    const [t, v] = high(), tw = 110, cw = Math.max(W(t) + 40, 150);
+    L.toggles.push([x, tw, 24, 180]);
+    const cx = x + tw;
+    L.solids.push([blk, cx, cw, 210]);
+    L.objs.push([t, cx + (cw - W(t)) / 2, v || 0, GROUND - 210]);
+    L.solids.push([blk, cx + cw, 70, 140], [blk, cx + cw + 70, 70, 70]);
+    x = cx + cw + 140 + 110;
+  };
+  const hole = () => { x += 50; const w = 80 + Math.floor(r() * 25); L.holes.push([x, w]); x += w + 70; };
+  const pipe = () => { x += 260; L.pipes.push(x); x += 90 + 130; };
   const spinner = () => { L.objs.push(['spinner', x, 0]); x += W('spinner') + 90; };
   let plan;
   if (i === 0) {
@@ -127,6 +139,7 @@ function buildLevel(i) {
     const climbs = ['s3'];
     if (i >= 2) climbs.push('lift');
     if (i >= 4) climbs.push('hops');
+    if (i >= 3) climbs.push('tog');
     const n = boss ? 5 : 8 + Math.round(d * 4);
     plan = ['g'];
     for (let s = 1; s < n; s++) plan.push(s % 2 ? climbs[Math.floor(r() * climbs.length)] : 'g');
@@ -134,6 +147,11 @@ function buildLevel(i) {
     if (i === 4) plan[1] = 'hops';
     plan.splice(2, 0, 'H'); if (plan.length > 6) plan.splice(6, 0, 'H'); if (plan.length > 10) plan.splice(10, 0, 'H');
     if (i >= 3 && !boss && (i === 3 || r() < 0.55)) plan.splice(1, 0, 'F', 'g');
+    if (i === 3) plan.splice(4, 0, 'tog');
+    if (i >= 4 && !boss && (i === 4 || r() < 0.6)) plan.splice(3 + Math.floor(r() * (plan.length - 3)), 0, 'P');
+    if (d > 0.5 && !boss && r() < 0.5) plan.splice(plan.length - 1, 0, 'P');
+    const nh = i === 1 ? 1 : 1 + Math.floor(r() * 2) + (d > 0.5 ? 1 : 0);
+    for (let h = 0; h < nh; h++) plan.splice(2 + Math.floor(r() * (plan.length - 2)), 0, 'O');
   }
   for (const p of plan) {
     if (p === 'g') ground();
@@ -148,15 +166,21 @@ function buildLevel(i) {
     else if (p === 's3') stairs(3);
     else if (p === 'lift') lift();
     else if (p === 'hops') hops();
+    else if (p === 'tog') tog();
+    else if (p === 'O') hole();
+    else if (p === 'P') pipe();
   }
   if (i === 3 && !L.signs.length) L.signs.push([120, 'nozzle']);
   // enemies on flat stretches only
-  const nb = i === 0 ? 2 : 3 + Math.floor(d * 6) + (r() < 0.5 ? 1 : 0);
+  const nb = i === 0 ? 2 : 4 + Math.floor(d * 7) + (r() < 0.5 ? 1 : 0);
   for (let j = 0; j < nb && flat.length; j++) { const [x0, x1] = flat[Math.floor(j * flat.length / nb)]; if (x0 > 500) L.blobs.push([Math.round((x0 + x1) / 2) + ((j * 37) % 60) - 30, Math.max(40, Math.min(130, (x1 - x0) / 2))]); }
   const nbird = i < 1 ? 0 : 1 + Math.floor(d * 5);
   for (let j = 0; j < nbird; j++) L.birds.push([Math.round(700 + (x - 900) * (j + 0.5) / nbird), 180, 190 + Math.floor(r() * 50)]);
   if (i > 0) L.hydrants.unshift(60);
   L.waveEvery = i >= 2 ? Math.round(30 - d * 14) : 0;
+  // mud monsters keep dropping in while the slime wall is shut (v1.11)
+  L.blobEvery = i === 0 ? 0 : Math.round(10 - d * 5.5); L.blobMax = 2 + Math.round(d * 3);
+  L.pipeEvery = Math.round((3.2 - 1.4 * d) * 10) / 10; L.pipeMax = 3 + (d > 0.5 ? 1 : 0); L.pipeWaves = i >= 9;
   L.wall = x + 40;
   if (boss) { L.boss = { fight: a + 1, x: L.wall + 120 }; L.len = L.boss.x + 1100; }
   else { L.finish = L.wall + 200; L.len = L.finish + 160; }
