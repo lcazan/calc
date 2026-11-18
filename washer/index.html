@@ -127,6 +127,8 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 .sw.sel { box-shadow: 0 0 0 calc(.7 * var(--u)) #ffb627; }
 .tg { font-size: calc(4.2 * var(--u)); padding: calc(.8 * var(--u)) calc(2.6 * var(--u)); border-radius: 99px; border: calc(.5 * var(--u)) solid var(--ink); background: #ddd; }
 .tg.on { background: #7ee08a; }
+.df { font-size: calc(4 * var(--u)); padding: calc(.8 * var(--u)) calc(2.2 * var(--u)); border-radius: 99px; border: calc(.5 * var(--u)) solid var(--ink); background: #ddd; }
+.df.sel { background: #ffd23f; }
 .tg::after { content: ' OFF'; } .tg.on::after { content: ' ON'; }
 #resetBtn { font-size: calc(3.4 * var(--u)); padding: calc(.6 * var(--u)) calc(2.6 * var(--u)); border-radius: 99px; border: calc(.4 * var(--u)) solid var(--ink); background: #fff; }
 #resetBtn.warn { background: #ef3a4c; color: #fff; }
@@ -171,7 +173,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 <div id="title" class="screen">
   <div class="logo"><b>SUPER <span>SPLASH</span><i>!</i></b><small>vs. Sir Sludgington</small></div>
   <button id="playBtn" class="btn green">▶ Play</button>
-  <div id="ver">v1.19</div>
+  <div id="ver">v1.20</div>
   <button id="titleSet" class="btn round" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
 </div>
 
@@ -215,6 +217,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
     </div>
     <div class="row">Skin <span id="skinSw" class="row" style="margin:0"></span> &nbsp; Hair <span id="hairSw" class="row" style="margin:0"></span></div>
     <div class="row"><button id="tg_sound" class="tg">🔊 Sounds</button><button id="tg_music" class="tg">🎵 Music</button><button id="tg_voice" class="tg">🗣️ Read aloud</button></div>
+    <div class="row">Difficulty <button id="df_easy" class="df">Easy</button><button id="df_medium" class="df">Medium</button><button id="df_hard" class="df">Hard</button><button id="df_ultra" class="df">Ultra hard</button></div>
     <div class="row"><button id="setBack" class="btn green">✔ Done</button><button id="resetBtn">Start over</button></div>
   </div>
 </div>
@@ -249,10 +252,10 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 
 <div id="rotate"><div class="ph"></div>Turn your device sideways to play!</div>
 
-<script src="js/data.js?v=1.19"></script>
-<script src="js/art.js?v=1.19"></script>
-<script src="js/audio.js?v=1.19"></script>
-<script src="js/game.js?v=1.19"></script>
-<script src="js/ui.js?v=1.19"></script>
+<script src="js/data.js?v=1.20"></script>
+<script src="js/art.js?v=1.20"></script>
+<script src="js/audio.js?v=1.20"></script>
+<script src="js/game.js?v=1.20"></script>
+<script src="js/ui.js?v=1.20"></script>
 </body>
 </html>

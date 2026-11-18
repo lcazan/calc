@@ -109,9 +109,11 @@ function gearMult() {
 }
 function curNozzle() { return NOZZLES[SAVE.noz] || NOZZLES.fan; }
 function curPressure() { return PRESSURE[SAVE.up.pressure] || PRESSURE[0]; }
+const DIFFS = { easy: 5, medium: 4, hard: 3, ultra: 1 };
+function maxHearts() { return DIFFS[SAVE.diff] || 4; }
 function tankMax() { return TANK[SAVE.up.tank] || TANK[0]; }
 function newPlayer(x) {
-  return { x, y: GROUND, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, jbuf: 0, walk: 0, hearts: 3, inv: 0, hurtT: 0,
+  return { x, y: GROUND, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, jbuf: 0, walk: 0, hearts: maxHearts(), inv: 0, hurtT: 0,
     tank: tankMax(), gy: GROUND, on: null, spraying: false, hitting: false, aimA: 0.35, blinkT: 2.5, blink: 0, lock: false, sputT: 0, glugT: 0, lowSaid: false };
 }
 function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 1, hp0: 1, r: 26, hop: Math.random() * 3, flash: 0, spd: 45, shootT: 2 + Math.random() * 2 }; }
@@ -258,7 +260,7 @@ function updPlayer(dt) {
   if (G.respawnT > 0) {
     const before = G.respawnT; G.respawnT -= dt;
     if (before > 0.7 && G.respawnT <= 0.7) {
-      P.inHole = null; P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.tank = tankMax(); P.hearts = 3; P.inv = 2; G.balls.length = 0;
+      P.inHole = null; P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.tank = tankMax(); P.hearts = maxHearts(); P.inv = 2; G.balls.length = 0;
       G.cam.x = clamp(P.x - view.W * 0.4, 0, Math.max(0, G.L.len - view.W)); if (G.arena && G.arena.started) G.cam.x = G.arena.L;
     }
     if (G.respawnT <= 0) P.lock = false;
@@ -1014,7 +1016,7 @@ function hudReset() { for (const k in hudCache) delete hudCache[k]; }
 function hudSet(id, key, val, fn) { if (hudCache[key] === val) return; hudCache[key] = val; fn(document.getElementById(id), val); }
 function hud() {
   const P = G.p;
-  hudSet('hearts', 'h', P.hearts, (el, v) => { el.innerHTML = [0, 1, 2].map(i => `<span class="heart${i < v ? '' : ' off'}"></span>`).join(''); });
+  hudSet('hearts', 'h', P.hearts, (el, v) => { el.innerHTML = Array.from({ length: maxHearts() }, (_, i) => i).map(i => `<span class="heart${i < v ? '' : ' off'}"></span>`).join(''); });
   hudSet('coinN', 'c', SAVE.coins, (el, v) => { el.textContent = v; el.parentNode.classList.remove('pop'); void el.offsetWidth; el.parentNode.classList.add('pop'); });
   const tankPct = Math.round(P.tank / tankMax() * 100);
   hudSet('tankFill', 't', tankPct + '', (el, v) => { el.style.height = parseInt(v) + '%'; el.parentNode.classList.toggle('low', parseInt(v) < 20); });

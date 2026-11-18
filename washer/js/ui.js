@@ -1,7 +1,7 @@
 'use strict';
 // Super Splash: menus, saving, input and the main loop
 const SAVE_KEY = 'supersplash-v1';
-const SAVE_DEF = { gender: 'boy', skin: 0, hair: 0, sound: true, music: true, voice: true, coins: 0, unlocked: 1, done: [],
+const SAVE_DEF = { gender: 'boy', skin: 0, hair: 0, sound: true, music: true, voice: true, diff: 'medium', coins: 0, unlocked: 1, done: [],
   up: { pressure: 0, tank: 0 }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
 function loadSave() {
   const d = JSON.parse(JSON.stringify(SAVE_DEF));
@@ -199,13 +199,14 @@ const UI = (() => {
     const sw = (id, list, key) => { const box = $(id); box.innerHTML = ''; list.forEach((col, i) => { const b = document.createElement('button'); b.className = 'sw' + (SAVE[key] === i ? ' sel' : ''); b.style.background = col; b.onclick = () => { click(); SAVE[key] = i; persist(); renderSettings(); }; box.appendChild(b); }); };
     sw('skinSw', SKINS, 'skin'); sw('hairSw', HAIRS, 'hair');
     for (const k of ['sound', 'music', 'voice']) $('tg_' + k).classList.toggle('on', !!SAVE[k]);
+    for (const k in DIFFS) $('df_' + k).classList.toggle('sel', SAVE.diff === k);
     $('resetBtn').textContent = 'Start over'; $('resetBtn').classList.remove('warn');
   }
   function toggle(k) { SAVE[k] = !SAVE[k]; persist(); Sfx.init(); Sfx.apply(); if (k === 'voice' && SAVE.voice) Sfx.say('I will read to you!'); if (k !== 'voice' || !SAVE.voice) Sfx.click(); if (!SAVE.voice) Sfx.hush(); renderSettings(); }
   function reset() {
     const b = $('resetBtn');
     if (!b.classList.contains('warn')) { b.classList.add('warn'); b.textContent = 'Tap again to erase everything'; return; }
-    const keep = { gender: SAVE.gender, skin: SAVE.skin, hair: SAVE.hair, sound: SAVE.sound, music: SAVE.music, voice: SAVE.voice };
+    const keep = { gender: SAVE.gender, skin: SAVE.skin, hair: SAVE.hair, sound: SAVE.sound, music: SAVE.music, voice: SAVE.voice, diff: SAVE.diff };
     SAVE = Object.assign(JSON.parse(JSON.stringify(SAVE_DEF)), keep); persist(); renderSettings(); Sfx.nope();
   }
   function settingsClose() {
@@ -310,6 +311,7 @@ const UI = (() => {
     on('pickBoy', () => { click(); SAVE.gender = 'boy'; persist(); renderSettings(); });
     on('pickGirl', () => { click(); SAVE.gender = 'girl'; persist(); renderSettings(); });
     for (const k of ['sound', 'music', 'voice']) on('tg_' + k, () => toggle(k));
+    for (const k in DIFFS) on('df_' + k, () => { click(); SAVE.diff = k; persist(); if (G && G.p) { G.p.hearts = Math.min(G.p.hearts, maxHearts()); hudReset(); } renderSettings(); });
     on('resetBtn', reset);
     on('storyNext', storyNext);
     on('storySkip', () => { click(); story.i = story.pages.length - 1; storyNext(); });
