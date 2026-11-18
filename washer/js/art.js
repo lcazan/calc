@@ -3,7 +3,7 @@
 const TAU = Math.PI * 2, OUT = '#2a2140';
 const FONT = '"Baloo 2", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif';
 const SKINS = ['#ffdcbf', '#f0b98d', '#c68a5c', '#8a5a3c'];
-const HAIRS = ['#7a4a26', '#e0a84a', '#2a1d16', '#b5482a'];
+const HAIRS = ['#5a3418', '#e0a84a', '#2a1d16', '#b5482a'];
 
 function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w)); c.height = Math.max(1, Math.ceil(h)); return c; }
 function rrect(c, x, y, w, h, r) {
@@ -65,70 +65,46 @@ function kidHat(c, hat) {
   }
 }
 function kidHead(c, k) {
-  // styled after the owner's reference sprites: spiky mop, goggles on top, big front eyes, big ear
-  const skin = SKINS[k.skin || 0], hair = HAIRS[k.hair || 0], girl = k.g === 'girl', hat = k.hat && k.hat !== 'none';
+  const skin = SKINS[k.skin || 0], hair = HAIRS[k.hair || 0], girl = k.g === 'girl';
   if (girl) {
     c.save(); c.translate(-15, -6); c.rotate(-0.4 + Math.sin((k.t || 0) * 9) * (k.moving ? 0.25 : 0.06));
     ell(c, -9, 8, 9, 15, 0.35); paint(c, hair, 2.5); circ(c, -1, -1, 4); paint(c, '#ff5fa2', 2); c.restore();
   }
-  ell(c, 1, 1, 20, 19.5); paint(c, skin, 3);
-  // hair: spikes up and back (boy, no hat), jagged fringe over the forehead
-  c.beginPath(); c.moveTo(-16, 12); c.quadraticCurveTo(-22, 3, -21, -5);
-  if (!girl && !hat) {
-    c.quadraticCurveTo(-24, -8, -28, -13); c.quadraticCurveTo(-23, -13, -20, -15);
-    c.quadraticCurveTo(-24, -20, -23, -26); c.quadraticCurveTo(-18, -21, -13, -21);
-    c.quadraticCurveTo(-13, -27, -8, -31); c.quadraticCurveTo(-6, -25, -3, -22);
-    c.quadraticCurveTo(0, -27, 5, -28); c.quadraticCurveTo(4, -23, 6, -20);
-  } else { c.quadraticCurveTo(-21, -21, -2, -21); }
-  c.quadraticCurveTo(17, -19, 20, -8);
-  if (girl) { c.quadraticCurveTo(12, -14, 5, -8); c.quadraticCurveTo(-2, -13, -8, -7); }
-  else { c.lineTo(15, -9); c.lineTo(13, -4); c.lineTo(9, -9); c.lineTo(5, -3); c.lineTo(1, -9); c.lineTo(-4, -2); c.lineTo(-8, -7); }
-  c.quadraticCurveTo(-12, 2, -11, 10); c.closePath(); paint(c, hair, 3);
-  // ear
-  ell(c, -8, 4, 4.8, 5.8); paint(c, skin, 2.8);
-  c.beginPath(); c.arc(-8, 4.5, 2.4, -1.2, 1.6); c.strokeStyle = OUT; c.lineWidth = 1.8; c.stroke();
-  // goggle strap + two big round lenses sitting on top of the head
-  c.beginPath(); c.moveTo(-21, -3); c.quadraticCurveTo(-8, -15, 5, -20); c.strokeStyle = OUT; c.lineWidth = 6.5; c.stroke();
-  c.strokeStyle = '#3a3a4a'; c.lineWidth = 3.5; c.stroke();
-  if (!hat) {
-    const lens = (x, y, r) => {
-      circ(c, x, y, r + 2.2); paint(c, '#3f9fdc', 3); circ(c, x, y, r); paint(c, '#a8ecff', 1.5);
-      c.beginPath(); c.arc(x, y, r * 0.62, Math.PI * 1.05, Math.PI * 1.6); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke();
-    };
-    lens(5, -22, 5.6); lens(16, -18.5, 5.2);
+  circ(c, -9, 2, 5); paint(c, skin, 2.5);
+  circ(c, 0, 0, 19); paint(c, skin, 3);
+  // hair
+  c.beginPath(); c.moveTo(-19, 4); c.quadraticCurveTo(-22, -22, 0, -21); c.quadraticCurveTo(20, -21, 19, -6);
+  if (girl) { c.quadraticCurveTo(12, -14, 4, -9); c.quadraticCurveTo(-4, -14, -10, -8); c.quadraticCurveTo(-14, 2, -19, 12); }
+  else { c.lineTo(14, -9); c.lineTo(10, -6); c.lineTo(6, -12); c.lineTo(1, -7); c.lineTo(-5, -12); c.lineTo(-11, -5); c.lineTo(-14, 3); }
+  c.closePath(); paint(c, hair, 2.5);
+  // goggles
+  c.beginPath(); c.moveTo(-19, -7); c.quadraticCurveTo(0, -15, 19, -11); c.strokeStyle = '#333'; c.lineWidth = 4; c.stroke();
+  rrect(c, 2, -18, 9, 8, 3); paint(c, '#8fe0ff', 2); rrect(c, 12, -18, 8, 8, 3); paint(c, '#8fe0ff', 2);
+  // face
+  if (k.blink) { line(c, 2, -1, 8, -1, OUT, 2.5); line(c, 11, -1, 16, -1, OUT, 2.5); }
+  else if (k.hurt) { line(c, 2, -4, 8, 0, OUT, 2.5); line(c, 2, 0, 8, -4, OUT, 2.5); line(c, 11, -4, 16, 0, OUT, 2.5); line(c, 11, 0, 16, -4, OUT, 2.5); }
+  else {
+    ell(c, 5, -1, 4, 5); paint(c, '#fff', 2); ell(c, 13.5, -1, 4, 5); paint(c, '#fff', 2);
+    circ(c, 6.5, 0, 2.2); paint(c, OUT, 0); circ(c, 15, 0, 2.2); paint(c, OUT, 0);
   }
-  // eyes: two big ovals at the front of the face, nearly touching
-  if (k.blink) {
-    c.strokeStyle = OUT; c.lineWidth = 2.8;
-    c.beginPath(); c.arc(8, 3, 4.5, Math.PI * 1.15, Math.PI * 1.85); c.stroke();
-    c.beginPath(); c.arc(18, 2, 4.2, Math.PI * 1.15, Math.PI * 1.85); c.stroke();
-  } else if (k.hurt) {
-    c.beginPath(); c.moveTo(4, -3); c.lineTo(10, 0.5); c.lineTo(4, 4); c.strokeStyle = OUT; c.lineWidth = 2.8; c.stroke();
-    c.beginPath(); c.moveTo(22, -4); c.lineTo(16, 0); c.lineTo(22, 3.5); c.stroke();
-  } else {
-    ell(c, 8, 0.5, 6, 7.6); paint(c, '#fff', 2.6); ell(c, 18.5, -0.5, 5.6, 7.2); paint(c, '#fff', 2.6);
-    ell(c, 10.4, 1.6, 3.3, 4.3); paint(c, OUT, 0); ell(c, 20.6, 0.6, 3.1, 4.1); paint(c, OUT, 0);
-    circ(c, 11.4, -0.2, 1.2); paint(c, '#fff', 0); circ(c, 21.5, -1.2, 1.1); paint(c, '#fff', 0);
-  }
-  // blush, mouth
-  c.globalAlpha = 0.5; ell(c, 1, 9.5, 4.2, 2.6); paint(c, '#ff7f95', 0); c.globalAlpha = 1;
-  if (k.hurt) { ell(c, 13, 13, 3.2, 3.8); paint(c, '#7a2030', 2.2); }
-  else { c.beginPath(); c.arc(13, 9.5, 4.5, 0.35, Math.PI - 0.7); c.strokeStyle = OUT; c.lineWidth = 2.6; c.stroke(); }
-  if (hat) kidHat(c, k.hat);
+  c.beginPath(); c.arc(18, 5, 3, -1.4, 1.4); c.strokeStyle = OUT; c.lineWidth = 2.2; c.stroke();
+  c.globalAlpha = 0.45; circ(c, 14, 8, 3.5); paint(c, '#ff6f8a', 0); c.globalAlpha = 1;
+  if (k.hurt) { ell(c, 10, 12, 3, 4); paint(c, '#7a2030', 2); }
+  else { c.beginPath(); c.arc(9, 9, 5, 0.25, Math.PI - 0.5); c.strokeStyle = OUT; c.lineWidth = 2.5; c.stroke(); }
+  if (k.hat && k.hat !== 'none') kidHat(c, k.hat);
 }
 function nozzleColor(id, t) { const n = NOZZLES[id] || NOZZLES.fan; return n.color === 'rainbow' ? rainbow(t || 0) : n.color; }
 // origin = feet center, facing right. k: {g,skin,hair,hat,wcol,walk,air,aim,t,blink,hurt,noz}
 function drawKid(c, k) {
   const girl = k.g === 'girl', skin = SKINS[k.skin || 0];
-  const shirt = girl ? '#ff7eb6' : '#e8443a', pants = girl ? '#7c5cd6' : '#3561c4';
+  const shirt = girl ? '#ff7eb6' : '#e8443a', pants = girl ? '#7c5cd6' : '#3f6fb5';
   const a = k.aim || 0.35, dx = Math.cos(a), dy = Math.sin(a);
   const sw = k.air ? 0 : Math.sin(k.walk || 0);
   c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
   // washer pack on the back
-  rrect(c, -30, -66, 20, 39, 7); paint(c, k.wcol || '#ffc928');
-  rrect(c, -26, -62, 3, 24, 1.5); paint(c, 'rgba(255,255,255,.4)', 0);
-  rrect(c, -27, -72, 14, 7, 3); paint(c, '#6a6a74', 2);
-  circ(c, -20, -50, 5.5); paint(c, '#fff', 2.2); line(c, -20, -50, -17.5, -53.5, '#e33', 1.6); circ(c, -20, -50, 1); paint(c, OUT, 0);
+  rrect(c, -29, -64, 18, 36, 6); paint(c, k.wcol || '#ffc928');
+  rrect(c, -27, -70, 14, 7, 3); paint(c, '#555', 2);
+  circ(c, -20, -50, 4.5); paint(c, '#fff', 2); line(c, -20, -50, -18, -53, '#e33', 1.5);
   // hose
   const gx = 10 - dx * 8, gy = -40 - dy * 8;
   c.beginPath(); c.moveTo(-20, -30); c.bezierCurveTo(-26, -4, gx - 24, -6, gx, gy); c.strokeStyle = '#2b2b33'; c.lineWidth = 4; c.stroke();
@@ -136,15 +112,14 @@ function drawKid(c, k) {
   const leg = (hx, ang) => {
     const fx = hx + Math.sin(ang) * 21, fy = -24 + Math.cos(ang) * 21;
     limb(c, hx, -26, fx, fy - 3, pants, 7);
-    rrect(c, fx - 7, fy - 9, 18, 10, 5); paint(c, '#ffd23f', 2.5); line(c, fx - 4, fy - 1.5, fx + 8, fy - 1.5, 'rgba(0,0,0,.18)', 1.5);
+    rrect(c, fx - 6, fy - 8, 15, 9, 4); paint(c, '#ffd23f', 2.5);
   };
   if (k.air) { leg(-4, -0.55); leg(5, 0.65); } else { leg(-4, -sw * 0.55); leg(5, sw * 0.55); }
   // torso
   rrect(c, -12, -58, 24, 34, 9); paint(c, shirt);
   if (girl) { poly(c, [-10, -46, 10, -46, 15, -20, -15, -20]); paint(c, pants, 2.5); }
   else { rrect(c, -10, -46, 20, 22, 4); paint(c, pants, 2.5); rrect(c, -4, -42, 8, 6, 2); paint(c, '#5b86c9', 1.5); }
-  limb(c, -7, -57, -7, -46, pants, 3); limb(c, 7, -57, 7, -46, pants, 3);
-  if (!girl) { circ(c, -7, -45, 1.8); paint(c, '#ffd23f', 1.2); circ(c, 7, -45, 1.8); paint(c, '#ffd23f', 1.2); }
+  line(c, -7, -56, -7, -46, pants, 3); line(c, 7, -56, 7, -46, pants, 3);
   // back arm to the support grip
   const sx = 10 + dx * 12, sy = -40 + dy * 12;
   limb(c, -4, -52, sx, sy, shirt, 6); circ(c, sx, sy, 4); paint(c, skin, 2);
@@ -156,7 +131,7 @@ function drawKid(c, k) {
   // front arm
   limb(c, 4, -52, 10, -40, shirt, 6); circ(c, 10, -40, 4.5); paint(c, skin, 2);
   // head
-  c.save(); c.translate(3, -75); c.scale(1.08, 1.08); kidHead(c, k); c.restore();
+  c.save(); c.translate(3, -74); kidHead(c, k); c.restore();
   c.restore();
 }
 function kidNozzleLocal(aim) { return [10 + Math.cos(aim) * 30, -40 + Math.sin(aim) * 30]; }
