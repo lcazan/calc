@@ -212,15 +212,17 @@ function buildLevel(i, seed) {
   }
   if (i === 3 && !L.signs.length) L.signs.push([120, 'nozzle']);
   // enemies on flat stretches only
-  const nb = i === 0 ? 2 : 4 + Math.floor(d * 7) + (r() < 0.5 ? 1 : 0);
+  // difficulty scales monster counts: easy ×0.5, medium ×0.75, hard ×1, ultra ×2 (v1.21)
+  const mm = i === 0 ? 1 : ({ easy: 0.5, medium: 0.75, hard: 1, ultra: 2 })[typeof SAVE !== 'undefined' && SAVE.diff] || 0.75;
+  const nb = i === 0 ? 2 : Math.max(1, Math.round((4 + Math.floor(d * 7) + (r() < 0.5 ? 1 : 0)) * mm));
   for (let j = 0; j < nb && flat.length; j++) { const [x0, x1] = flat[Math.floor(j * flat.length / nb)]; if (x0 > 500) L.blobs.push([Math.round((x0 + x1) / 2) + ((j * 37) % 60) - 30, Math.max(40, Math.min(130, (x1 - x0) / 2))]); }
-  const nbird = i < 1 ? 0 : 2 + Math.floor(d * 5);
+  const nbird = i < 1 ? 0 : Math.max(1, Math.round((2 + Math.floor(d * 5)) * mm));
   for (let j = 0; j < nbird; j++) L.birds.push([Math.round(700 + (x - 900) * (j + 0.5) / nbird), 180, 190 + Math.floor(r() * 50)]);
   if (i > 0) L.hydrants.unshift(60);
   L.waveEvery = i >= 1 ? Math.round(32 - d * 16) : 0;
   // mud monsters keep dropping in while the slime wall is shut (v1.11)
-  L.blobEvery = i === 0 ? 0 : Math.round(10 - d * 5.5); L.blobMax = 2 + Math.round(d * 3);
-  L.pipeEvery = Math.round((3.2 - 1.4 * d) * 10) / 10; L.pipeMax = 3 + (d > 0.5 ? 1 : 0); L.pipeWaves = i >= 9;
+  L.blobEvery = i === 0 ? 0 : Math.round((10 - d * 5.5) / mm * 10) / 10; L.blobMax = Math.max(1, Math.round((2 + Math.round(d * 3)) * mm));
+  L.pipeEvery = Math.round((3.2 - 1.4 * d) / mm * 10) / 10; L.pipeMax = Math.max(1, Math.round((3 + (d > 0.5 ? 1 : 0)) * mm)); L.pipeWaves = i >= 9;
   L.towerEvery = Math.round((3 - 1.4 * d) * 10) / 10;
   L.wall = x + 40;
   if (boss) { L.boss = { fight: a + 1, x: L.wall + 120 }; L.len = L.boss.x + 1100; }
