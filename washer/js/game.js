@@ -150,6 +150,13 @@ function bubbles(x, y, n) { for (let i = 0; i < n; i++) part(x + (Math.random() 
 function floatText(x, y, s, col, size) { G.texts.push({ x, y, s, col: col || '#fff', size: size || 26, life: 1.6, max: 1.6 }); }
 function shake(n) { G.cam.shake = Math.max(G.cam.shake, n); }
 function spawnCoins(x, y, n) { for (let i = 0; i < n; i++) G.coins.push({ x, y, vx: (Math.random() - 0.5) * 300, vy: -280 - Math.random() * 260, t: Math.random() }); }
+// first-time clue for an item type: said once ever (kept in SAVE.hints), never again after that
+function hintOnce(key, s) {
+  if (G.demo) return false;
+  const h = SAVE.hints || (SAVE.hints = {});
+  if (h[key]) return false;
+  h[key] = 1; persist(); kidSay(s, true); return true;
+}
 function kidSay(s, speak) { G.kidSay = { s, t: 3 }; if (speak) Sfx.say(s); }
 function bossSay(s) { if (!G.boss) return; G.boss.say = s; G.boss.sayT = 3; Sfx.say(s, true); }
 
@@ -222,7 +229,7 @@ function holeFall() {
   if (G.demo || P.inv > 0) return;
   P.hearts--; P.inv = 1.6;
   Sfx.hurt(); shake(8); floatText(P.x, P.y - 110, 'Ouch!', '#ffd23f', 30);
-  kidSay(G.holeHurtSaid ? 'Jump over the open sewer!' : 'Yuck! I fell in the sewer! Jump over the holes!', !G.holeHurtSaid); G.holeHurtSaid = true;
+  hintOnce('holeFall', 'Yuck! I fell in the sewer! Jump over the holes!');
   if (P.hearts <= 0) { G.respawnT = 1.4; P.lock = true; Sfx.say("Oops! Let's try again!"); }
 }
 function fallHurt(drop) {
@@ -231,7 +238,7 @@ function fallHurt(drop) {
   P.hearts--; P.inv = 1.4; P.hurtT = 0.35;
   Sfx.hurt(); shake(8); floatText(P.x, P.y - 110, 'Ouch!', '#ffd23f', 30);
   for (let i = 0; i < 6; i++) part(P.x, P.y - 95, (Math.random() - 0.5) * 200, -Math.random() * 120, 0.7, 7, '#fff27a', 's', 300);
-  if (!G.fallSaid) { G.fallSaid = true; kidSay('Ouch! Big falls hurt. Climb down carefully!', true); }
+  hintOnce('bigFall', 'Ouch! Big falls hurt. Climb down carefully!');
   if (P.hearts <= 0) { G.respawnT = 1.4; P.lock = true; Sfx.say("Oops! Let's try again!"); }
 }
 function updPlayer(dt) {
@@ -303,7 +310,7 @@ function updSpray(dt) {
   // water only comes from red hydrants
   if (want && P.tank <= 0) {
     P.sputT -= dt; if (P.sputT <= 0) { Sfx.sputter(); P.sputT = 0.5; }
-    if (G.t > (G.waterSayT || 0)) { G.waterSayT = G.t + 8; kidSay('Out of water! Go back to a red hydrant!', true); }
+    hintOnce('water', 'Out of water! Go back to a red hydrant!');
   }
   P.spraying = want && P.tank > 0;
   const hx = P.x + P.face * 10, hy = P.y - 40, R = MAX_REACH * noz.range;
@@ -335,7 +342,7 @@ function updSpray(dt) {
     if (threat) t = threat;
     else if (!valid || G.retarget <= 0) {
       G.needClimb = false; t = findCell(hx, hy, R, ok);
-      if (!t && G.needClimb && G.t > (G.climbSayT || 0)) { G.climbSayT = G.t + 10; kidSay('I need to climb up there to wash that!', true); }
+      if (!t && G.needClimb) hintOnce('climb', 'I need to climb up there to wash that!');
     }
     G.retarget = 0.25;
   }
@@ -386,7 +393,7 @@ function closeValve(pp) {
   Sfx.ding(); setTimeout(() => Sfx.fanfare(), 200);
   sparkleBurst(vx, vy, 24, 80); spawnCoins(vx, vy, 5);
   floatText(vx, vy - 40, 'Valve closed!', '#fff', 30);
-  kidSay('Valve closed! No more monsters from that pipe!', true);
+  hintOnce('valveClosed', 'Valve closed! No more monsters from that pipe!');
 }
 function tooLow(o) { return o.high && G.p.y > o.base + CLIMB_GAP; }
 // does a slime wave stand between the nozzle and this point? (waves block the jet)
@@ -507,7 +514,7 @@ function updSpinners(dt) {
     o.ang = (o.ang || 0) + dt * (o.done ? 1.2 : 7);
     if (o.done || G.demo) continue;
     const near = o.x + o.w > G.cam.x - 150 && o.x < G.cam.x + view.W + 150;
-    if (near && !G.spinSaid) { G.spinSaid = true; kidSay('That fountain is spraying mud everywhere! Wash it to make it stop!', true); }
+    if (near) hintOnce('fountain', 'That fountain is spraying mud everywhere! Wash it to make it stop!');
     o.spewT = (o.spewT == null ? 1.5 : o.spewT) - dt;
     if (o.spewT <= 0 && near) {
       o.spewT = 2.4 + Math.random() * 0.8;
@@ -527,7 +534,7 @@ function updWaves(dt) {
   G.waveT = G.L.waveEvery * (0.8 + Math.random() * 0.5);
   G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 1.5, hp0: 1.5, r: 46, size: 1, flash: 0, t: 0 });
   Sfx.whoosh();
-  if (!G.waveSaid) { G.waveSaid = true; kidSay('A slime wave! Spray it, or jump over it when it gets small!', true); }
+  hintOnce('wave', 'A slime wave! Spray it, or jump over it when it gets small!');
 }
 // sewer pipes spit mud monsters, mud and (later) slime waves until the valve is closed (v1.11)
 function updPipes(dt) {
@@ -539,7 +546,7 @@ function updPipes(dt) {
     if (Math.random() < dt * 8) part(mx, my + 8, -40 - Math.random() * 60, 0, 0.8, 3 + Math.random() * 3, G.L.dirt === 'slime' ? '#7fb52e' : '#7b5431', 'c');
     const near = Math.abs(P.x - pp.x) < 900;
     if (!near || G.demo || G.respawnT > 0 || G.done) continue;
-    if (!G.pipeSaid && pp.x < G.cam.x + view.W) { G.pipeSaid = true; kidSay('Monsters are coming out of that sewer pipe! Spray the valve wheel on top to close it!', true); }
+    if (pp.x < G.cam.x + view.W) hintOnce('pipe', 'Monsters are coming out of that sewer pipe! Spray the valve wheel on top to close it!');
     pp.spawnT -= dt; if (pp.spawnT > 0) continue;
     pp.spawnT = (L.pipeEvery || 3) * (0.8 + Math.random() * 0.4); pp.n++;
     const alive = G.enemies.filter(e => e.pipe === pp && e.kind === 'blob').length;
@@ -632,8 +639,8 @@ function updProgress(dt) {
     G.nagT -= dt;
     if (G.nagT <= 0) { G.nagT = 8; kidSay(valves && valves === left ? 'Close the valve on the sewer pipe!' : birds && birds === left ? (birds === 1 ? 'One more bird to wash!' : `${birds} more birds to wash!`) : left === 1 ? 'One more dirty thing to wash!' : `${left} more dirty things to wash!`, true); }
   }
-  if (!G.holeSaid && G.holes.some(h => (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 320)) { G.holeSaid = true; kidSay('An open sewer! Jump over it!', true); }
-  if (!G.togSaid && G.solids.some(s => s.tog && Math.abs(s.x - P.x) < 300)) { G.togSaid = true; kidSay('A lift block! Stand on it and spray to make it go up!', true); }
+  if (G.holes.some(h => (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 320)) hintOnce('hole', 'An open sewer! Jump over it!');
+  if (G.solids.some(s => s.tog && Math.abs(s.x - P.x) < 300)) hintOnce('lift', 'A lift block! Stand on it and spray to make it go up!');
   if (G.arena && !G.arena.started && P.x > G.arena.x + 120) startBoss();
   if (!G.arena && G.finish && w && w.open && P.x > G.finish - 20) {
     if (!left) completeLevel();
