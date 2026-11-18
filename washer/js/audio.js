@@ -73,6 +73,8 @@ const Sfx = (() => {
     horn() { tone(110, 1.0, 'sawtooth', 0.14, 0, null, null, ['lowpass', 600]); tone(165, 1.0, 'sawtooth', 0.1, 0, null, null, ['lowpass', 600]); },
     jingle() { [784, 988, 1175, 988, 784].forEach((f, i) => tone(f, 0.18, 'triangle', 0.12, i * 0.12)); },
     chime() { },
+    siren() { for (let i = 0; i < 3; i++) { tone(700, 0.22, 'square', 0.06, i * 0.44, 950, null, ['lowpass', 2000]); tone(950, 0.22, 'square', 0.06, i * 0.44 + 0.22, 700, null, ['lowpass', 2000]); } },
+    whistle() { tone(2400, 0.12, 'sine', 0.12, 0, 2600); tone(2400, 0.3, 'sine', 0.12, 0.16, 2200); },
     bell() { for (let i = 0; i < 4; i++) { tone(1320, 0.12, 'triangle', 0.12, i * 0.09); tone(1980, 0.1, 'sine', 0.05, i * 0.09); } },
     jet() { noise(1.0, 0.25, 900, 'bandpass', 0, 0.6); tone(300, 1.0, 'sawtooth', 0.05, 0, 900, null, ['lowpass', 1500]); },
     train() { tone(392, 0.5, 'sawtooth', 0.09, 0, null, null, ['lowpass', 1400]); tone(494, 0.5, 'sawtooth', 0.09, 0, null, null, ['lowpass', 1400]); tone(587, 0.5, 'sawtooth', 0.07, 0, null, null, ['lowpass', 1400]); },

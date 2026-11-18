@@ -32,44 +32,64 @@ const WCOLORS = { yellow: ['#ffc928', 0], red: ['#ef4a3c', 10], blue: ['#3a8cf0'
 // 10 areas x 3 levels. The 3rd level of each area ends with a Sir Sludgington fight.
 // ground: big things on the ground; high: smaller things put up high (on blocks, ledges, floating platforms)
 const AREAS = [
-  { name: 'Sunny Street', theme: 'street', dirt: 'mud', block: 'crate', icon: 'house',
-    ground: [['car', 0], ['house', 0], ['fence'], ['swing'], ['car', 1], ['house', 1], ['doghouse']], high: [['mailbox'], ['trash'], ['doghouse']] },
-  { name: 'Puddle Park', theme: 'park', dirt: 'mud', block: 'crate', icon: 'fountain',
-    ground: [['slide'], ['fountain'], ['statue'], ['swing'], ['picnic'], ['bench']], high: [['bench'], ['trash'], ['picnic']] },
-  { name: 'Big City', theme: 'city', dirt: 'soot', block: 'crate', icon: 'shop',
-    ground: [['shop', 0], ['bus', 0], ['car', 4], ['shop', 1], ['car', 2], ['bus', 1]], high: [['trash'], ['billboard'], ['mailbox']] },
-  { name: 'Sandy Beach', theme: 'beach', dirt: 'sand', block: 'stone', icon: 'lighthouse',
-    ground: [['boat', 0], ['hut', 0], ['icecream', 0], ['lighthouse'], ['boat', 1], ['icecream', 1]], high: [['sandcastle'], ['hut', 1], ['sandcastle']] },
-  { name: 'Happy Farm', theme: 'farm', dirt: 'mud', block: 'hay', icon: 'barn',
-    ground: [['barn', 0], ['tractor', 0], ['coop'], ['pig', 0], ['barn', 1], ['tractor', 1]], high: [['pig', 1], ['coop'], ['pig', 0]] },
-  { name: 'Sudsy School', theme: 'school', dirt: 'mud', block: 'crate', icon: 'school',
-    ground: [['school'], ['bus', 2], ['seesaw'], ['slide'], ['bike']], high: [['bike'], ['trash'], ['seesaw']] },
-  { name: 'Busy Airport', theme: 'airport', dirt: 'soot', block: 'crate', icon: 'plane',
-    ground: [['plane', 0], ['tower'], ['cart'], ['plane', 1]], high: [['suitcase'], ['cart'], ['suitcase', 1]] },
-  { name: 'Carnival', theme: 'carnival', dirt: 'slime', block: 'crate', icon: 'ferris',
-    ground: [['ferris'], ['carousel'], ['popcorn'], ['icecream', 0]], high: [['teacup'], ['popcorn'], ['teacup', 1]] },
-  { name: 'Train Station', theme: 'station', dirt: 'soot', block: 'crate', icon: 'train',
-    ground: [['train'], ['wagon', 0], ['clock'], ['bench'], ['wagon', 1]], high: [['suitcase'], ['bench'], ['suitcase', 1]] },
-  { name: 'Sludge Castle', theme: 'swamp', dirt: 'slime', block: 'stone', icon: 'gate',
-    ground: [['gate'], ['machine'], ['cauldron'], ['gargoyle']], high: [['gargoyle'], ['cauldron']] }
+  { name: 'Sunny Street', theme: 'street', dirt: 'mud', block: 'crate', icon: 'house', scenes: [
+    { name: 'Sunny Street', ground: [['house', 0], ['car', 0], ['fence'], ['doghouse'], ['house', 2], ['car', 3]], high: [['mailbox'], ['trash']] },
+    { name: 'Garage Lane', ground: [['garage'], ['van'], ['car', 1], ['garage'], ['van']], high: [['bike'], ['trash'], ['mailbox']] },
+    { name: 'Corner Market', ground: [['fruitstand'], ['shop', 0], ['car', 2], ['fruitstand']], high: [['trash'], ['bench']] } ] },
+  { name: 'Puddle Park', theme: 'park', dirt: 'mud', block: 'crate', icon: 'fountain', scenes: [
+    { name: 'Playground', ground: [['slide'], ['swing'], ['seesaw'], ['sandbox']], high: [['bench'], ['trash']] },
+    { name: 'Duck Pond', ground: [['fountain'], ['statue'], ['boat', 0], ['bench']], high: [['picnic'], ['bench']] },
+    { name: 'Flower Garden', ground: [['gazebo'], ['greenhouse'], ['picnic']], high: [['bench'], ['picnic']] } ] },
+  { name: 'Big City', theme: 'city', dirt: 'soot', block: 'crate', icon: 'shop', scenes: [
+    { name: 'Downtown', ground: [['shop', 1], ['bus', 0], ['car', 4], ['bus', 1]], high: [['billboard'], ['trash']] },
+    { name: 'Construction Site', ground: [['digger'], ['mixer'], ['cones']], high: [['cones'], ['trash']] },
+    { name: 'Fire Station', ground: [['firehouse'], ['firetruck'], ['car', 4]], high: [['trash'], ['mailbox']] } ] },
+  { name: 'Sandy Beach', theme: 'beach', dirt: 'sand', block: 'stone', icon: 'lighthouse', scenes: [
+    { name: 'Boardwalk', ground: [['hut', 0], ['icecream', 0], ['surfrack'], ['hut', 1]], high: [['sandcastle'], ['umbrella']] },
+    { name: 'Harbor', ground: [['boat', 0], ['lighthouse'], ['boat', 1]], high: [['hut', 1], ['sandcastle']] },
+    { name: 'Sand Dunes', ground: [['lifeguard'], ['umbrella'], ['icecream', 1]], high: [['sandcastle'], ['umbrella']] } ] },
+  { name: 'Happy Farm', theme: 'farm', dirt: 'mud', block: 'hay', icon: 'barn', scenes: [
+    { name: 'Barnyard', ground: [['barn', 0], ['coop'], ['pig', 0], ['barn', 1]], high: [['pig', 1], ['coop']] },
+    { name: 'Corn Fields', ground: [['tractor', 0], ['scarecrow'], ['haywagon'], ['tractor', 1]], high: [['pig', 0], ['coop']] },
+    { name: 'Orchard', ground: [['silo'], ['cow'], ['haywagon']], high: [['cow'], ['pig', 1]] } ] },
+  { name: 'Sudsy School', theme: 'school', dirt: 'mud', block: 'crate', icon: 'school', scenes: [
+    { name: 'Schoolyard', ground: [['school'], ['bus', 2], ['bike']], high: [['bike'], ['trash']] },
+    { name: 'Recess', ground: [['slide'], ['seesaw'], ['swing'], ['sandbox']], high: [['trash'], ['bike']] },
+    { name: 'Sports Field', ground: [['goal'], ['bleachers'], ['goal']], high: [['bike'], ['cones']] } ] },
+  { name: 'Busy Airport', theme: 'airport', dirt: 'soot', block: 'crate', icon: 'plane', scenes: [
+    { name: 'Runway', ground: [['plane', 0], ['tower'], ['plane', 1]], high: [['suitcase'], ['cart']] },
+    { name: 'Hangar', ground: [['helicopter'], ['fueltruck'], ['helicopter']], high: [['cart'], ['suitcase', 1]] },
+    { name: 'Terminal', ground: [['cart'], ['bus', 0], ['vending']], high: [['suitcase'], ['suitcase', 1]] } ] },
+  { name: 'Carnival', theme: 'carnival', dirt: 'slime', block: 'crate', icon: 'ferris', scenes: [
+    { name: 'Big Rides', ground: [['ferris'], ['carousel'], ['teacup', 0]], high: [['teacup', 1], ['popcorn']] },
+    { name: 'Game Alley', ground: [['popcorn'], ['balloonstand'], ['icecream', 0]], high: [['teacup'], ['popcorn']] },
+    { name: 'Big Top', ground: [['circustent'], ['cannon'], ['balloonstand']], high: [['popcorn'], ['teacup', 1]] } ] },
+  { name: 'Train Station', theme: 'station', dirt: 'soot', block: 'crate', icon: 'train', scenes: [
+    { name: 'Platform 9', ground: [['train'], ['wagon', 0], ['bench'], ['clock']], high: [['suitcase'], ['bench']] },
+    { name: 'Freight Yard', ground: [['freightcar', 0], ['freightcar', 1], ['wagon', 1]], high: [['suitcase', 1], ['cones']] },
+    { name: 'Ticket Hall', ground: [['ticketbooth'], ['vending'], ['clock']], high: [['bench'], ['suitcase']] } ] },
+  { name: 'Sludge Castle', theme: 'swamp', dirt: 'slime', block: 'stone', icon: 'gate', scenes: [
+    { name: 'Stinky Swamp', ground: [['swamphut'], ['cauldron'], ['gargoyle']], high: [['cauldron'], ['gargoyle']] },
+    { name: 'Castle Gate', ground: [['gate'], ['knight'], ['knight']], high: [['gargoyle'], ['cauldron']] },
+    { name: 'Throne Room', ground: [['machine'], ['throne'], ['knight']], high: [['gargoyle'], ['cauldron']] } ] }
 ];
 const LEVEL_COUNT = AREAS.length * 3;
 
 // Builds one level from the recipe. Needs OBJ (art.js) for object widths, so it runs after art.js has loaded.
 // Level shape: objs [type,x,variant,baseY], solids [kind,x,w,h], plats [x,y,w,style,(liftTopY)], blobs [x,range], birds [x,range,y]
 function buildLevel(i) {
-  const a = Math.floor(i / 3), k = i % 3, A = AREAS[a], r = rng(i * 7919 + 13), boss = k === 2;
+  const a = Math.floor(i / 3), k = i % 3, A = AREAS[a], SC = A.scenes[k], r = rng(i * 7919 + 13), boss = k === 2;
   const d = i / (LEVEL_COUNT - 1);
-  const L = { name: A.name + ' ' + (k + 1), area: a, step: k, theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [] };
+  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [] };
   const blk = A.block;
   let gc = Math.floor(r() * 7), hc = Math.floor(r() * 3), x = 300;
   const W = t => OBJ[t].w;
   const flat = [];
   const ground = () => {
     const n = d > 0.45 && r() < 0.6 ? 2 : 1;
-    for (let j = 0; j < n; j++) { const [t, v] = A.ground[gc++ % A.ground.length]; const x0 = x; L.objs.push([t, x, v || 0]); x += W(t) + 80 + Math.floor(r() * 60); flat.push([x0, x - 60]); }
+    for (let j = 0; j < n; j++) { const [t, v] = SC.ground[gc++ % SC.ground.length]; const x0 = x; L.objs.push([t, x, v || 0]); x += W(t) + 80 + Math.floor(r() * 60); flat.push([x0, x - 60]); }
   };
-  const high = () => A.high[hc++ % A.high.length];
+  const high = () => SC.high[hc++ % SC.high.length];
   const stairs = (steps) => {
     const [t, v] = high(), top = Math.max(W(t) + 40, 170), h = steps * 70;
     for (let s = 1; s < steps; s++) L.solids.push([blk, x + (s - 1) * 70, 70, s * 70]);
@@ -102,17 +122,17 @@ function buildLevel(i) {
   let plan;
   if (i === 0) {
     L.signs.push([70, 'move'], [240, 'spray']); x = 420;
-    plan = ['g', 'g', 'H', 'jump', 's2', 'g', 'g', 'H', 'g'];
+    plan = ['g', 'g', 'H', 'jump', 's2', 'g', 'g', 'H', 's2', 'g', 'g', 's3', 'g'];
   } else {
     const climbs = ['s3'];
     if (i >= 2) climbs.push('lift');
     if (i >= 4) climbs.push('hops');
-    const n = boss ? 3 : 5 + Math.round(d * 3);
+    const n = boss ? 5 : 8 + Math.round(d * 4);
     plan = ['g'];
     for (let s = 1; s < n; s++) plan.push(s % 2 ? climbs[Math.floor(r() * climbs.length)] : 'g');
     if (i === 2) plan[1] = 'lift';
     if (i === 4) plan[1] = 'hops';
-    plan.splice(2, 0, 'H'); if (plan.length > 6) plan.splice(6, 0, 'H');
+    plan.splice(2, 0, 'H'); if (plan.length > 6) plan.splice(6, 0, 'H'); if (plan.length > 10) plan.splice(10, 0, 'H');
     if (i >= 3 && !boss && (i === 3 || r() < 0.55)) plan.splice(1, 0, 'F', 'g');
   }
   for (const p of plan) {
@@ -131,9 +151,9 @@ function buildLevel(i) {
   }
   if (i === 3 && !L.signs.length) L.signs.push([120, 'nozzle']);
   // enemies on flat stretches only
-  const nb = i === 0 ? 1 : 2 + Math.floor(d * 4) + (r() < 0.5 ? 1 : 0);
-  for (let j = 0; j < nb && flat.length; j++) { const [x0, x1] = flat[(j * 2 + 1) % flat.length]; if (x0 > 500) L.blobs.push([Math.round((x0 + x1) / 2) + (j >= flat.length ? 40 : 0), Math.max(40, Math.min(130, (x1 - x0) / 2))]); }
-  const nbird = i < 2 ? 0 : 1 + Math.floor(d * 3);
+  const nb = i === 0 ? 2 : 3 + Math.floor(d * 6) + (r() < 0.5 ? 1 : 0);
+  for (let j = 0; j < nb && flat.length; j++) { const [x0, x1] = flat[Math.floor(j * flat.length / nb)]; if (x0 > 500) L.blobs.push([Math.round((x0 + x1) / 2) + ((j * 37) % 60) - 30, Math.max(40, Math.min(130, (x1 - x0) / 2))]); }
+  const nbird = i < 1 ? 0 : 1 + Math.floor(d * 5);
   for (let j = 0; j < nbird; j++) L.birds.push([Math.round(700 + (x - 900) * (j + 0.5) / nbird), 180, 190 + Math.floor(r() * 50)]);
   if (i > 0) L.hydrants.unshift(60);
   L.waveEvery = i >= 2 ? Math.round(30 - d * 14) : 0;
@@ -163,7 +183,7 @@ function fleeStory(a) {
   return [['flee:' + next.theme + ':' + bossTarget(a + 1).toFixed(2), FLEE_TEXT[a % FLEE_TEXT.length].replace('{n}', next.name)]];
 }
 // how clean he must get before he runs away (fight 1..10)
-function bossTarget(f) { return f >= AREAS.length ? 0.93 : 0.45 + 0.04 * (f - 1); }
+function bossTarget(f) { return f >= AREAS.length ? 0.93 : 0.55 + 0.035 * (f - 1); }
 function bossDiff(f) { return f <= 3 ? 1 : f <= 7 ? 2 : 3; }
 
 const BOSS_TAUNTS = ['Mwa-ha-ha! Mud is marvelous!', 'Slime time!', "You'll never clean me!", 'Catch this, little washer!', 'Dirt is delightful!', 'Messy is the best!'];

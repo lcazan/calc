@@ -101,6 +101,12 @@ function finishObj(o) {
 }
 
 // ---------------------------------------------------------------- level setup
+// Monster toughness: seconds of spraying = level toughness (2 s in level 1 → 7 s in the last) / gear (1 starter → 3.5 best).
+// hp 1 = blob, 1.5 = slime wave, 0.6 = bird.
+function gearMult() {
+  const pl = SAVE.up.pressure / (PRESSURE.length - 1), nz = { fan: 0, wide: 0.33, jet: 0.66, turbo: 1 }[SAVE.noz] || 0;
+  return 1 + 2.5 * (0.7 * pl + 0.3 * nz);
+}
 function curNozzle() { return NOZZLES[SAVE.noz] || NOZZLES.fan; }
 function curPressure() { return PRESSURE[SAVE.up.pressure] || PRESSURE[0]; }
 function tankMax() { return TANK[SAVE.up.tank] || TANK[0]; }
@@ -108,7 +114,7 @@ function newPlayer(x) {
   return { x, y: GROUND, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, jbuf: 0, walk: 0, hearts: 3, inv: 0, hurtT: 0,
     tank: tankMax(), gy: GROUND, on: null, spraying: false, hitting: false, aimA: 0.35, blinkT: 2.5, blink: 0, lock: false, sputT: 0, glugT: 0, lowSaid: false };
 }
-function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 3, hp0: 3, r: 26, hop: Math.random() * 3, flash: 0, spd: 45, shootT: 2 + Math.random() * 2 }; }
+function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 1, hp0: 1, r: 26, hop: Math.random() * 3, flash: 0, spd: 45, shootT: 2 + Math.random() * 2 }; }
 function startLevel(L, idx, demo) {
   G = { L, idx, demo: !!demo, theme: L.theme, t: 0, objs: [], plats: [], solids: [], hydrants: [], enemies: [], balls: [], coins: [], parts: [], texts: [], puddles: [],
     cam: { x: 0, shake: 0 }, aim: { x: 0, y: 0 }, tgt: null, retarget: 0, lvlCoins: 0, cleaned: 0,
@@ -121,7 +127,7 @@ function startLevel(L, idx, demo) {
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   G.hydrants = (L.hydrants || []).map(x => ({ x, active: false }));
   for (const [x, range] of (L.blobs || [])) G.enemies.push(newBlob(x, range));
-  for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.8, hp0: 0.8, flash: 0, dropT: 2, r: 24, t: 0 });
+  for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 2, r: 24, t: 0 });
   if (L.boss) G.arena = { x: L.boss.x, fight: L.boss.fight, started: false, L: 0 };
   G.p = newPlayer(L.startX || 120);
   In.left = In.right = In.jump = In.spray = In.jp = false;
@@ -294,7 +300,7 @@ function updSpray(dt) {
   const list = wb ? [] : G.boss && G.boss.st === 'fight' ? G.objs.concat([G.boss.o]) : G.objs;
   for (const o of list) {
     if (tooLow(o)) continue;
-    const g = cleanAt(o, G.aim.x, G.aim.y, r, amt);
+    const g = cleanAt(o, G.aim.x, G.aim.y, r, G.boss && o === G.boss.o ? amt * G.boss.armor : amt);
     if (g > 0) {
       got += g;
       if (Math.random() < 0.7) part(G.aim.x, G.aim.y, (Math.random() - 0.5) * 300 - P.face * 80, -Math.random() * 260, 0.5, 2.5 + Math.random() * 3, o.dirtCol, 'c');
@@ -306,7 +312,7 @@ function updSpray(dt) {
       }
     }
   }
-  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt; e.flash = 0.1; got += 0.01; } // enemy hp = seconds of spraying, same with every upgrade
+  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt * gearMult() / (G.L.tough || 2); e.flash = 0.1; got += 0.01; }
   for (const b of G.balls) if (Math.hypot(b.x - G.aim.x, b.y - G.aim.y) < b.r + r) { b.hp -= amt; got += 0.01; }
   P.hitting = got > 0;
   // water spray particles
@@ -381,6 +387,7 @@ function updEnemies(dt) {
       else if (e.x < G.cam.x - 300 || e.x > G.cam.x + view.W + 400) { e.hp = 0; e.gone = true; }
       else if (Math.abs(P.x - e.x) < 52 * e.size + 12 && P.y > GROUND - 88 * e.size) hurtPlayer(e.x);
     } else if (e.kind === 'blob') {
+      if (e.fall) { e.vy = (e.vy || 0) + 1500 * dt; e.y += e.vy * dt; if (e.y >= GROUND) { e.y = GROUND; e.fall = false; Sfx.splat(); splash(e.x, GROUND - 6, swamp ? '#6f9a2a' : '#7b5431', 8); } continue; }
       e.hop += dt * 6; e.x += e.dir * e.spd * dt;
       if (e.x < e.minX) { e.x = e.minX; e.dir = 1; } if (e.x > e.maxX) { e.x = e.maxX; e.dir = -1; }
       const dx = P.x - e.x;
@@ -436,7 +443,7 @@ function updWaves(dt) {
   const blocked = x0 < 100 || x0 > G.L.len - 50 || G.solids.some(s => s.x + s.w > lo && s.x < hi) || (G.wall && !G.wall.open && G.wall.x > lo && G.wall.x < hi);
   if (blocked) { G.waveT = 3; return; }
   G.waveT = G.L.waveEvery * (0.8 + Math.random() * 0.5);
-  G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 5, hp0: 5, r: 46, size: 1, flash: 0, t: 0 });
+  G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 1.5, hp0: 1.5, r: 46, size: 1, flash: 0, t: 0 });
   Sfx.whoosh();
   if (!G.waveSaid) { G.waveSaid = true; kidSay('A slime wave! Spray it, or jump over it when it gets small!', true); }
 }
@@ -511,9 +518,30 @@ function startBoss() {
   A.L = Math.max(0, G.L.len - view.W);
   const o = makeObj('boss', 0, GROUND, 0, 'slime', 999 + A.fight);
   G.boss = { o, x: G.L.len - 260, y: -260, vx: 0, vy: 0, face: -1, st: 'enter', t: 0, throwT: 2.5, jumpT: 6, blobT: 8, mood: 'angry', moodT: 0,
-    say: '', sayT: 0, hitT: 0, waveT: 3, sprayedT: 0, ground: false, clean: 0, target: bossTarget(A.fight), diff: bossDiff(A.fight), blinkT: 3, blink: 0, tx: 0 };
+    say: '', sayT: 0, hitT: 0, waveT: 3, sprayedT: 0, atkT: 5, spinT: 0, armor: 1 / (1 + 0.18 * (A.fight - 1)), ground: false, clean: 0, target: bossTarget(A.fight), diff: bossDiff(A.fight), blinkT: 3, blink: 0, tx: 0 };
   G.checkpoint = A.L + 90; G.hydrants.push({ x: A.L + 60, active: true });
   Sfx.music('boss');
+}
+function bossAttack(b, kind, L, R) {
+  const f = G.arena.fight;
+  b.mood = 'laugh'; b.moodT = 1.2; Sfx.laugh();
+  if (kind === 'blobs') {
+    const n = 2 + Math.floor(f / 3);
+    if (G.enemies.filter(e => e.kind === 'blob').length + n > 6) return;
+    bossSay(pick(['Mud monsters, ATTACK!', 'Come out, my muddy friends!', 'Get the washer, blobs!']));
+    for (let k = 0; k < n; k++) { const e = newBlob(L + 160 + Math.random() * (R - L - 300), 0); e.minX = L + 60; e.maxX = R - 60; e.y = -60 - k * 60; e.fall = true; G.enemies.push(e); }
+  } else if (kind === 'birds') {
+    const n = 3 + Math.floor(f / 3);
+    if (G.enemies.filter(e => e.kind === 'bird').length + n > 7) return;
+    bossSay(pick(['Birdies! Get them!', 'Here come my muddy birds!', 'Flock attack!']));
+    for (let k = 0; k < n; k++) { const left = k % 2 === 0; G.enemies.push({ kind: 'bird', x: left ? L - 40 - k * 50 : R + 40 + k * 50, y: 170 + Math.random() * 70, y0: 170 + Math.random() * 70, minX: L + 40, maxX: R - 40, dir: left ? 1 : -1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 1 + Math.random() * 2, r: 24, t: Math.random() * 5 }); }
+  } else if (kind === 'spin') {
+    bossSay(pick(['Sludge SPIN!', 'Spinny slimy time!', 'Wheee, slime everywhere!'])); b.spinT = 1.6; b.spinShot = 0;
+  } else {
+    bossSay(pick(['Slime bath! Ahhh!', 'A little more slime, please!', 'Ooh, fresh slime!']));
+    const o = b.o; for (let k = 0; k < 4 + f; k++) dirtyAt(o, o.x + 30 + Math.random() * (o.w - 60), o.top + 30 + Math.random() * (o.h - 60), 28);
+    splash(b.x, b.y - 100, '#6f9a2a', 30); Sfx.splat();
+  }
 }
 function throwBall(b, diff) {
   const P = G.p, n = diff === 3 ? 2 : 1;
@@ -544,7 +572,7 @@ function updBoss(dt) {
     b.waveT -= dt;
     if (b.waveT <= 0 && b.ground && G.enemies.filter(e => e.kind === 'wave').length < 2) {
       b.waveT = [0, 7, 5.5, 4.5][diff] * (0.85 + Math.random() * 0.3);
-      G.enemies.push({ kind: 'wave', x: b.x + b.face * 90, y: GROUND, dir: b.face, spd: 75 + diff * 12, hp: 5, hp0: 5, r: 46, size: 1, flash: 0, t: 0 });
+      G.enemies.push({ kind: 'wave', x: b.x + b.face * 90, y: GROUND, dir: b.face, spd: 75 + diff * 12, hp: 1.5, hp0: 1.5, r: 46, size: 1, flash: 0, t: 0 });
       Sfx.whoosh(); b.mood = 'laugh'; b.moodT = 1; if (Math.random() < 0.5) bossSay(pick(['Slime wave, GO!', 'Surf the slime!', 'Wash THAT, little washer!']));
     }
     b.sprayedT = b.hitT > 0 ? b.sprayedT + dt : Math.max(0, b.sprayedT - dt * 0.5);
@@ -553,11 +581,18 @@ function updBoss(dt) {
       b.vy = -820; b.ground = false; b.vx = clamp((dest - b.x) / 1.15, -460, 460); b.jumpT = Math.max(b.jumpT, 3);
       Sfx.throw(); bossSay(pick(['Missed me!', 'Too slow!', 'Wheee!'])); b.mood = 'laugh'; b.moodT = 1;
     }
-    b.throwT -= dt; if (b.throwT <= 0 && b.ground) { throwBall(b, diff); b.throwT = [0, 2.9, 2.4, 2.0][diff] * (0.8 + Math.random() * 0.4); }
+    b.throwT -= dt; if (b.throwT <= 0 && b.ground && b.spinT <= 0) { throwBall(b, diff); b.throwT = [0, 2.9, 2.4, 2.0][diff] * (0.8 + Math.random() * 0.4); }
     b.jumpT -= dt; if (b.jumpT <= 0 && b.ground) { b.vy = -760; b.ground = false; b.vx = clamp((P.x - b.x) / 1.1, -300, 300); b.jumpT = 6.5 + Math.random() * 2; Sfx.throw(); }
-    if (diff >= 2) {
-      b.blobT -= dt;
-      if (b.blobT <= 0) { b.blobT = 11; if (G.enemies.filter(e => e.kind === 'blob').length < 2) { const e = newBlob(b.x + b.face * 70, 0); e.minX = L + 60; e.maxX = R - 60; e.dir = b.face; G.enemies.push(e); Sfx.pop(); } }
+    b.atkT -= dt;
+    if (b.atkT <= 0 && b.ground && b.spinT <= 0) {
+      const f = A.fight, opts = ['blobs'];
+      if (f >= 2) opts.push('birds'); if (f >= 3) opts.push('spin'); if (f >= 4) opts.push('bath');
+      bossAttack(b, pick(opts), L, R);
+      b.atkT = Math.max(5, 10 - f * 0.5) * (0.85 + Math.random() * 0.3);
+    }
+    if (b.spinT > 0) {
+      b.spinT -= dt; b.vx = 0; b.spinShot -= dt;
+      if (b.spinShot <= 0) { b.spinShot = 0.12; const s = Math.random() < 0.5 ? -1 : 1; G.balls.push({ x: b.x + s * 60, y: b.y - 110, vx: s * (100 + Math.random() * 330), vy: -300 - Math.random() * 420, r: 12, hp: 0.3, hp0: 0.3, slime: true, mud: true }); }
     }
     if (b.hitT > 0 && b.sayT < -2.5 && Math.random() < 0.02) { bossSay(pick(BOSS_OUCH)); }
     else if (b.sayT < -6) { bossSay(pick(BOSS_TAUNTS)); if (Math.random() < 0.5) Sfx.laugh(); b.mood = 'laugh'; b.moodT = 1.2; }
@@ -612,7 +647,7 @@ function render() {
   const sh = G.cam.shake, sx = (Math.random() - 0.5) * sh, sy = (Math.random() - 0.5) * sh;
   const cx = Math.round(G.cam.x);
   c.save(); c.translate(0, -VIEW_OY);
-  drawBackdrop(c, G.theme, cx, W, G.t);
+  drawBackdrop(c, G.theme, cx, W, G.t, G.L.bgv || 0);
   c.translate(-cx + sx, sy);
   c.lineJoin = 'round'; c.lineCap = 'round';
   drawGround(c, G.theme, cx, W);
@@ -690,13 +725,13 @@ function drawBoss(c) {
   const b = G.boss, o = b.o;
   if (b.y < -300 || b.x > G.L.len + 300) return;
   if (o.need) recompose(o);
-  const sq = b.ground ? 1 + Math.sin(G.t * 5) * 0.02 : 1;
-  c.save(); c.translate(b.x, b.y + PAD); c.scale(1, sq); c.translate(-o.w / 2, -o.h);
+  const sq = b.ground ? 1 + Math.sin(G.t * 5) * 0.02 : 1, spx = b.spinT > 0 ? Math.max(0.25, Math.abs(Math.cos(G.t * 16))) : 1;
+  c.save(); c.translate(b.x, b.y + PAD); c.scale(spx, sq); c.translate(-o.w / 2, -o.h);
   c.drawImage(o.art, 0, 0, o.w, o.h);
   if (!o.done || o.need) c.drawImage(o.out, 0, 0, o.w, o.h);
   c.restore();
   const mood = b.st === 'defeat' && b.cleanedAll ? 'happy' : b.hitT > 0 ? 'hit' : b.moodT > 0 ? b.mood : (b.st === 'flee' ? 'hit' : 'angry');
-  c.save(); c.translate(b.x, b.y + PAD); c.scale(1, sq); c.translate(-o.w / 2, -o.h);
+  c.save(); c.translate(b.x, b.y + PAD); c.scale(spx, sq); c.translate(-o.w / 2, -o.h);
   drawBossFace(c, PAD, PAD, { clean: b.cleanedAll ? 1 : 1 - o.rem, mood, look: b.face, t: G.t, blink: b.blink > 0, hatHop: b.cleanedAll ? Math.sin(G.t * 6) * 0.1 : 0 });
   c.restore();
 }

@@ -57,7 +57,7 @@ const UI = (() => {
       const i = a * 3 + k, open = i < SAVE.unlocked, done = SAVE.done[i];
       const b = document.createElement('button');
       b.className = 'node lv' + (open ? '' : ' locked') + (done ? ' done' : '') + (k === 2 ? ' boss' : '') + (i === SAVE.unlocked - 1 ? ' next' : '');
-      b.innerHTML = `<span class="num">${open && k < 2 ? k + 1 : ''}</span><span class="lbl">${k === 2 ? 'Boss!' : 'Level ' + (k + 1)}</span>`;
+      b.innerHTML = `<span class="num">${open && k < 2 ? k + 1 : ''}</span><span class="lbl">${LEVELS[i].name}${k === 2 ? ' (Boss!)' : ''}</span>`;
       if (k === 2 && open) { const c = mkCanvas(80, 80); c.className = 'bossic'; drawBossIcon(c); b.querySelector('.num').appendChild(c); }
       b.onclick = () => { click(); if (!open) { Sfx.nope(); Sfx.say('Finish the level before this one first!'); return; } play(i); };
       box.appendChild(b);
@@ -73,8 +73,8 @@ const UI = (() => {
     goFull();
     setScene('game'); startLevel(LEVELS[i], i, false); show(null);
     const L = LEVELS[i];
-    Sfx.music('happy'); banner(L.boss ? AREAS[L.area].name + ': Boss!' : L.name);
-    Sfx.say(L.boss ? `${AREAS[L.area].name}. Find Sir Sludgington!` : `${L.name}!` + (i === 0 ? ' Hold the blue button to spray!' : ''));
+    Sfx.music('happy'); banner(L.name + (L.boss ? ': Boss!' : ''));
+    Sfx.say(L.boss ? `${L.name}. Find Sir Sludgington!` : `${L.name}!` + (i === 0 ? ' Hold the blue button to spray!' : ''));
   }
   function banner(s) { const b = $('banner'); b.textContent = s; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); }
 

@@ -521,6 +521,163 @@ const OBJ = {
     rrect(c, 62, 30, 28, 62, 5); paint(c, '#b0b8c8'); ell(c, 76, 30, 22, 8); paint(c, '#c8d0dc');
     for (let i = 0; i < 3; i++) line(c, 64, 46 + i * 14, 88, 46 + i * 14, '#8a93a5', 2.5);
   } },
+  garage: { w: 262, h: 202, snd: 'chime', draw(c) {
+    rrect(c, 10, 60, 242, 142, 3); paint(c, '#e8d8b8'); poly(c, [0, 66, 131, 4, 262, 66]); paint(c, '#7a6a8a');
+    rrect(c, 40, 92, 182, 110, 4); paint(c, '#c8ccd4'); for (let y = 104; y < 200; y += 16) line(c, 42, y, 220, y, '#9aa0ab', 3);
+    rrect(c, 116, 182, 30, 6, 2); paint(c, '#666', 1.5); circ(c, 131, 40, 12); paint(c, '#bfe7ff', 2.5);
+  } },
+  van: { w: 232, h: 122, snd: 'honk', draw(c) {
+    rrect(c, 4, 10, 224, 86, 14); paint(c, '#f6f2ea'); poly(c, [168, 14, 210, 14, 226, 50, 168, 50]); paint(c, '#bfe7ff', 2.5);
+    win(c, 20, 22, 60, 30); win(c, 92, 22, 60, 30); rrect(c, 4, 64, 224, 10, 2); paint(c, '#43c46b', 2);
+    txt(c, 'SUDSY', 80, 82, 14, '#2a8a4a'); wheel(c, 50, 100, 18); wheel(c, 184, 100, 18);
+  } },
+  fruitstand: { w: 202, h: 142, snd: 'chime', draw(c) {
+    for (const x of [10, 186]) { rrect(c, x, 20, 8, 122, 2); paint(c, '#8a5a2b'); }
+    for (let i = 0; i < 7; i++) { poly(c, [i * 29, 10, i * 29 + 29, 10, i * 29 + 29, 34, i * 29, 34]); paint(c, i % 2 ? '#fff' : '#43c46b', 2); }
+    rrect(c, 0, 84, 202, 58, 4); paint(c, '#c98a45');
+    [['#ef4a3c', 30], ['#ff9f1c', 80], ['#ffd23f', 130], ['#7ed957', 172]].forEach(([col, x]) => { for (let i = 0; i < 5; i++) { circ(c, x - 16 + (i % 3) * 14, 78 - Math.floor(i / 3) * 12, 8); paint(c, col, 2); } });
+  } },
+  sandbox: { w: 182, h: 62, snd: 'chime', draw(c) {
+    rrect(c, 0, 26, 182, 36, 4); paint(c, '#ef4a3c'); ell(c, 91, 28, 84, 10); paint(c, '#f6dc96', 2);
+    poly(c, [40, 28, 70, 0, 100, 28]); paint(c, '#f2d08a', 2); rrect(c, 130, 6, 22, 22, 4); paint(c, '#3a8cf0', 2); line(c, 152, 14, 166, 6, OUT, 3);
+  } },
+  gazebo: { w: 222, h: 222, snd: 'chime', draw(c) {
+    poly(c, [111, 0, 0, 70, 222, 70]); paint(c, '#7fd3ff'); circ(c, 111, 2, 7); paint(c, '#ffd23f', 2);
+    for (const x of [16, 70, 152, 200]) { rrect(c, x, 70, 10, 136, 2); paint(c, '#fff'); }
+    rrect(c, 0, 66, 222, 10, 3); paint(c, '#fff'); rrect(c, 0, 200, 222, 22, 4); paint(c, '#d8d0c0');
+    for (let x = 30; x < 200; x += 14) line(c, x, 160, x, 200, '#fff', 3); rrect(c, 20, 156, 182, 6, 2); paint(c, '#fff', 2);
+  } },
+  greenhouse: { w: 262, h: 182, snd: 'chime', draw(c) {
+    c.beginPath(); c.moveTo(0, 182); c.lineTo(0, 80); c.quadraticCurveTo(131, -20, 262, 80); c.lineTo(262, 182); c.closePath(); paint(c, 'rgba(190,240,230,.9)');
+    for (let x = 40; x < 262; x += 44) line(c, x, 182, x, 40 + Math.abs(131 - x) * 0.3, '#6aa', 3);
+    for (let i = 0; i < 9; i++) { circ(c, 22 + i * 28, 160, 12); paint(c, '#43a047', 2); circ(c, 22 + i * 28, 150, 5); paint(c, ['#ff5fa2', '#ffd23f', '#ef4a3c'][i % 3], 1.5); }
+  } },
+  digger: { w: 282, h: 192, snd: 'honk', draw(c) {
+    rrect(c, 40, 140, 170, 40, 18); paint(c, '#333'); for (let x = 60; x < 200; x += 30) { circ(c, x, 160, 10); paint(c, '#666', 2); }
+    rrect(c, 60, 80, 130, 64, 6); paint(c, '#ffb627'); rrect(c, 70, 40, 70, 48, 6); paint(c, '#ffb627'); win(c, 80, 48, 50, 34);
+    line(c, 180, 100, 240, 40, OUT, 16); line(c, 180, 100, 240, 40, '#ffb627', 11); line(c, 240, 40, 268, 120, OUT, 14); line(c, 240, 40, 268, 120, '#ffb627', 9);
+    poly(c, [250, 120, 282, 116, 276, 150, 248, 146]); paint(c, '#777');
+  } },
+  mixer: { w: 262, h: 162, snd: 'honk', draw(c) {
+    rrect(c, 170, 40, 88, 90, 8); paint(c, '#ef4a3c'); win(c, 196, 52, 50, 36); rrect(c, 0, 110, 262, 20, 4); paint(c, '#666');
+    c.save(); c.translate(90, 72); c.rotate(-0.15); ell(c, 0, 0, 86, 46); paint(c, '#d5d9e0'); for (let i = -60; i < 70; i += 30) { c.beginPath(); c.moveTo(i, -44); c.quadraticCurveTo(i + 30, 0, i, 44); c.strokeStyle = '#ef4a3c'; c.lineWidth = 6; c.stroke(); } ell(c, 0, 0, 86, 46); paint(c, null); c.restore();
+    for (const x of [40, 110, 210]) wheel(c, x, 140, 20);
+  } },
+  cones: { w: 122, h: 62, snd: 'chime', draw(c) {
+    for (const x of [20, 61, 102]) { poly(c, [x - 16, 56, x + 16, 56, x, 0]); paint(c, '#ff7a1c'); poly(c, [x - 9, 30, x + 9, 30, x + 6, 20, x - 6, 20]); paint(c, '#fff', 0); rrect(c, x - 20, 54, 40, 8, 2); paint(c, '#ff7a1c', 2); }
+  } },
+  firetruck: { w: 332, h: 152, snd: 'siren', draw(c) {
+    rrect(c, 2, 40, 328, 82, 10); paint(c, '#e8261c'); rrect(c, 236, 16, 90, 70, 8); paint(c, '#e8261c'); win(c, 250, 26, 64, 34);
+    rrect(c, 20, 20, 200, 12, 4); paint(c, '#d5d9e0'); for (let x = 30; x < 220; x += 20) line(c, x, 20, x, 32, OUT, 2);
+    rrect(c, 260, 6, 30, 12, 4); paint(c, '#4fc3f7', 2); rrect(c, 2, 92, 328, 10, 2); paint(c, '#fff', 2);
+    for (const x of [60, 150, 280]) wheel(c, x, 128, 22); circ(c, 120, 70, 18); paint(c, '#ffd23f', 2.5);
+  } },
+  firehouse: { w: 302, h: 262, snd: 'siren', draw(c) {
+    rrect(c, 0, 40, 302, 222, 3); paint(c, '#c0392b'); rrect(c, 0, 30, 302, 18, 3); paint(c, '#8a2a20');
+    rrect(c, 60, 56, 182, 34, 6); paint(c, '#fff3d6'); txt(c, 'FIRE STATION', 151, 74, 20, '#c0392b');
+    for (const x of [24, 162]) { c.beginPath(); c.moveTo(x, 262); c.lineTo(x, 140); c.arc(x + 58, 140, 58, Math.PI, 0); c.lineTo(x + 116, 262); c.closePath(); paint(c, '#f6f2ea'); for (let y = 150; y < 260; y += 22) line(c, x + 4, y, x + 112, y, '#c8ccd4', 3); }
+  } },
+  surfrack: { w: 162, h: 152, snd: 'chime', draw(c) {
+    rrect(c, 0, 132, 162, 20, 3); paint(c, '#b5895a'); rrect(c, 8, 70, 8, 70, 2); paint(c, '#8a6a44'); rrect(c, 146, 70, 8, 70, 2); paint(c, '#8a6a44');
+    ['#ef4a3c', '#ffd23f', '#3a8cf0', '#43c46b'].forEach((col, i) => { ell(c, 30 + i * 34, 76, 15, 72); paint(c, col); line(c, 30 + i * 34, 10, 30 + i * 34, 142, 'rgba(255,255,255,.7)', 3); });
+  } },
+  lifeguard: { w: 142, h: 232, snd: 'whistle', draw(c) {
+    for (const [a, b] of [[20, 50], [122, 92]]) { line(c, a, 232, b, 110, OUT, 9); line(c, a, 232, b, 110, '#fff', 5); }
+    rrect(c, 30, 40, 82, 74, 6); paint(c, '#ef4a3c'); win(c, 44, 52, 54, 34); poly(c, [20, 44, 71, 6, 122, 44]); paint(c, '#fff');
+    rrect(c, 20, 108, 102, 12, 3); paint(c, '#c98a45'); for (let y = 140; y < 230; y += 22) line(c, 56, y, 86, y, '#c98a45', 4);
+    circ(c, 71, 24, 9); paint(c, '#ef4a3c', 2); txt(c, '+', 71, 24, 14, '#fff');
+  } },
+  umbrella: { w: 182, h: 142, snd: 'chime', draw(c) {
+    line(c, 90, 30, 100, 142, OUT, 5); line(c, 90, 30, 100, 142, '#fff', 2);
+    c.beginPath(); c.moveTo(4, 56); c.quadraticCurveTo(90, -30, 176, 56); c.closePath(); paint(c, '#ff7eb6');
+    for (let i = 1; i < 6; i += 2) { c.beginPath(); c.moveTo(90, 12); c.lineTo(4 + i * 28.6, 56); c.lineTo(4 + (i + 1) * 28.6, 56); c.closePath(); paint(c, '#fff', 2); }
+    poly(c, [20, 140, 50, 100, 120, 100, 92, 140]); paint(c, '#3a8cf0'); for (let x = 30; x < 120; x += 14) line(c, x, 140, x + 26, 102, '#fff', 2);
+  } },
+  scarecrow: { w: 112, h: 202, snd: 'chime', draw(c) {
+    line(c, 56, 60, 56, 202, OUT, 9); line(c, 56, 60, 56, 202, '#8a5a2b', 5); line(c, 6, 84, 106, 84, OUT, 9); line(c, 6, 84, 106, 84, '#8a5a2b', 5);
+    poly(c, [26, 76, 86, 76, 92, 150, 20, 150]); paint(c, '#3a6fd8'); rrect(c, 40, 92, 14, 14, 2); paint(c, '#ef4a3c', 2);
+    circ(c, 56, 44, 24); paint(c, '#f0cc5a'); circ(c, 47, 40, 3); paint(c, OUT, 0); circ(c, 65, 40, 3); paint(c, OUT, 0); c.beginPath(); c.arc(56, 50, 8, 0.3, Math.PI - 0.3); c.strokeStyle = OUT; c.lineWidth = 2.5; c.stroke();
+    ell(c, 56, 22, 34, 6); paint(c, '#a0662f'); rrect(c, 40, 0, 32, 22, 6); paint(c, '#a0662f');
+  } },
+  haywagon: { w: 242, h: 132, snd: 'chime', draw(c) {
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 2 - (i % 2); j++) { rrect(c, 14 + i * 70 + j * 0, 30 - j * 30 + 10, 68, 40, 8); paint(c, '#f0cc5a'); line(c, 18 + i * 70, 50 - j * 30 + 10, 78 + i * 70, 50 - j * 30 + 10, '#d8a83a', 2); }
+    rrect(c, 0, 76, 242, 22, 3); paint(c, '#c0392b'); wheel(c, 50, 108, 22); wheel(c, 192, 108, 22);
+  } },
+  silo: { w: 122, h: 292, snd: 'moo', draw(c) {
+    rrect(c, 10, 60, 102, 232, 4); paint(c, '#d5d9e0'); for (let y = 80; y < 290; y += 26) line(c, 12, y, 110, y, '#aab', 2);
+    c.beginPath(); c.moveTo(6, 64); c.quadraticCurveTo(61, -20, 116, 64); c.closePath(); paint(c, '#c0392b'); rrect(c, 46, 120, 30, 40, 4); paint(c, '#7a4a2b', 2);
+  } },
+  cow: { w: 152, h: 112, snd: 'moo', draw(c) {
+    for (const x of [34, 54, 100, 120]) { rrect(c, x - 6, 66, 13, 46, 4); paint(c, '#fff', 2.5); }
+    ell(c, 76, 56, 58, 32); paint(c, '#fff'); ell(c, 60, 46, 16, 12); paint(c, OUT, 0); ell(c, 100, 64, 12, 9); paint(c, OUT, 0);
+    ell(c, 132, 38, 20, 22); paint(c, '#fff'); ell(c, 138, 52, 14, 9); paint(c, '#ffb0c6', 2.5); poly(c, [118, 20, 112, 6, 124, 16]); paint(c, '#e8d8a8', 2); poly(c, [142, 18, 150, 4, 148, 20]); paint(c, '#e8d8a8', 2);
+    circ(c, 132, 34, 3); paint(c, OUT, 0); line(c, 18, 50, 6, 74, OUT, 3);
+  } },
+  goal: { w: 242, h: 152, snd: 'whistle', draw(c) {
+    c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = 2; for (let x = 20; x < 230; x += 16) { c.beginPath(); c.moveTo(x, 10); c.lineTo(x + 8, 150); c.stroke(); } for (let y = 20; y < 150; y += 16) { c.beginPath(); c.moveTo(8, y); c.lineTo(234, y); c.stroke(); }
+    line(c, 8, 152, 8, 6, OUT, 12); line(c, 8, 152, 8, 6, '#fff', 7); line(c, 234, 152, 234, 6, OUT, 12); line(c, 234, 152, 234, 6, '#fff', 7); line(c, 8, 6, 234, 6, OUT, 12); line(c, 8, 6, 234, 6, '#fff', 7);
+    circ(c, 120, 136, 14); paint(c, '#fff'); poly(c, [120, 128, 127, 134, 124, 142, 116, 142, 113, 134]); paint(c, OUT, 0);
+  } },
+  bleachers: { w: 262, h: 142, snd: 'whistle', draw(c) {
+    for (let i = 0; i < 4; i++) { rrect(c, i * 20, 30 + i * 28, 262 - i * 40, 14, 3); paint(c, ['#3a8cf0', '#ffd23f', '#ef4a3c', '#43c46b'][i]); }
+    for (const x of [20, 130, 240]) line(c, x, 40, x, 142, '#888', 5); line(c, 0, 142, 262, 142, OUT, 4);
+  } },
+  helicopter: { w: 302, h: 142, snd: 'jet', draw(c) {
+    line(c, 20, 6, 280, 6, OUT, 8); line(c, 20, 6, 280, 6, '#888', 4); rrect(c, 140, 6, 16, 22, 3); paint(c, '#555');
+    rrect(c, 2, 56, 130, 18, 8); paint(c, '#ffb627'); poly(c, [0, 30, 14, 30, 22, 66, 6, 66]); paint(c, '#ffb627');
+    ell(c, 190, 74, 84, 48); paint(c, '#ffb627'); c.beginPath(); c.moveTo(212, 34); c.quadraticCurveTo(272, 40, 270, 80); c.lineTo(212, 80); c.closePath(); paint(c, '#bfe7ff', 2.5);
+    line(c, 140, 120, 140, 134, OUT, 4); line(c, 240, 120, 240, 134, OUT, 4); rrect(c, 110, 132, 160, 8, 4); paint(c, '#555');
+  } },
+  fueltruck: { w: 302, h: 142, snd: 'honk', draw(c) {
+    rrect(c, 0, 20, 220, 90, 40); paint(c, '#d5d9e0'); txt(c, 'FUEL', 110, 64, 26, '#ef4a3c'); rrect(c, 0, 82, 220, 8, 2); paint(c, '#ef4a3c', 2);
+    rrect(c, 226, 30, 72, 80, 8); paint(c, '#3a8cf0'); win(c, 240, 40, 46, 32); for (const x of [50, 160, 262]) wheel(c, x, 118, 20);
+  } },
+  balloonstand: { w: 152, h: 222, snd: 'pop', draw(c) {
+    rrect(c, 20, 150, 112, 72, 6); paint(c, '#9b5de5'); txt(c, 'BALLOONS', 76, 186, 15, '#fff');
+    const cols = ['#ef4a3c', '#ffd23f', '#3a8cf0', '#43c46b', '#ff7eb6', '#ff9f1c'];
+    for (let i = 0; i < 6; i++) { const bx = 26 + (i % 3) * 50, by = 40 + Math.floor(i / 3) * 52; line(c, bx, by + 22, 76, 150, '#555', 1.5); ell(c, bx, by, 20, 24); paint(c, cols[i]); c.fillStyle = 'rgba(255,255,255,.5)'; ell(c, bx - 7, by - 8, 4, 7); c.fill(); }
+  } },
+  circustent: { w: 322, h: 262, snd: 'jingle', draw(c) {
+    rrect(c, 20, 110, 282, 152, 3); paint(c, '#fff'); for (let x = 20; x < 300; x += 40) { c.fillStyle = '#ef4a3c'; c.fillRect(x, 112, 20, 148); } rrect(c, 20, 110, 282, 152, 3); paint(c, null);
+    for (let i = 0; i < 8; i++) { poly(c, [161, 10, 10 + i * 37.75, 116, 10 + (i + 1) * 37.75, 116]); paint(c, i % 2 ? '#fff' : '#ef4a3c', 2.5); }
+    line(c, 161, 10, 161, -10, OUT, 3); poly(c, [161, -10, 186, -2, 161, 6]); paint(c, '#ffd23f', 2);
+    c.beginPath(); c.moveTo(126, 262); c.lineTo(161, 170); c.lineTo(196, 262); c.closePath(); paint(c, '#2a2238');
+  } },
+  cannon: { w: 202, h: 132, snd: 'pop', draw(c) {
+    c.save(); c.translate(80, 70); c.rotate(-0.5); rrect(c, -20, -26, 150, 52, 20); paint(c, '#3a6fd8'); for (const x of [10, 60, 110]) { rrect(c, x, -28, 10, 56, 3); paint(c, '#ffd23f', 2); } c.restore();
+    rrect(c, 20, 90, 140, 24, 6); paint(c, '#ef4a3c'); wheel(c, 50, 112, 20); wheel(c, 130, 112, 20);
+  } },
+  freightcar: { w: 292, h: 142, snd: 'train', draw(c, w, h, v) {
+    rrect(c, 0, 0, 292, 110, 4); paint(c, v % 2 ? '#a0522d' : '#6d7c88'); for (let x = 20; x < 280; x += 24) line(c, x, 4, x, 106, 'rgba(0,0,0,.2)', 3);
+    rrect(c, 116, 20, 60, 86, 3); paint(c, 'rgba(0,0,0,.15)', 2.5); txt(c, 'SUDSY', 146, 14, 12, '#fff');
+    for (const x of [40, 80, 212, 252]) wheel(c, x, 122, 18);
+  } },
+  ticketbooth: { w: 162, h: 202, snd: 'bell', draw(c) {
+    rrect(c, 10, 50, 142, 152, 6); paint(c, '#2fb5a8'); poly(c, [0, 56, 81, 6, 162, 56]); paint(c, '#ffd23f');
+    win(c, 30, 70, 102, 60); rrect(c, 24, 136, 114, 14, 3); paint(c, '#c98a45'); rrect(c, 30, 160, 102, 30, 4); paint(c, '#fff3d6'); txt(c, 'TICKETS', 81, 176, 18, '#2a8a80');
+  } },
+  vending: { w: 92, h: 172, snd: 'pop', draw(c) {
+    rrect(c, 0, 0, 92, 172, 8); paint(c, '#ef4a3c'); rrect(c, 10, 14, 52, 110, 4); paint(c, '#bfe7ff', 2.5);
+    for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) { rrect(c, 16 + k * 15, 22 + r * 26, 10, 18, 3); paint(c, ['#ffd23f', '#43c46b', '#3a8cf0'][k], 1.5); }
+    rrect(c, 68, 20, 16, 40, 3); paint(c, '#333', 2); rrect(c, 14, 136, 64, 22, 4); paint(c, '#2a2238', 2);
+  } },
+  swamphut: { w: 222, h: 202, snd: 'chime', draw(c) {
+    for (const x of [30, 100, 180]) { rrect(c, x, 140, 10, 62, 2); paint(c, '#5a3a2a'); }
+    rrect(c, 16, 70, 190, 76, 3); paint(c, '#7a5a3a'); for (let y = 80; y < 146; y += 12) line(c, 18, y, 204, y, '#5a3a2a', 2);
+    poly(c, [0, 76, 111, 0, 222, 76]); paint(c, '#4e6b2e'); rrect(c, 90, 92, 40, 54, 4); paint(c, '#2a2238'); circ(c, 50, 106, 14); paint(c, '#ffe680', 2.5);
+  } },
+  knight: { w: 92, h: 202, snd: 'bell', draw(c) {
+    rrect(c, 6, 182, 80, 20, 4); paint(c, '#8e8a9c');
+    for (const x of [30, 60]) { rrect(c, x - 9, 120, 18, 64, 5); paint(c, '#c8ccd4'); }
+    rrect(c, 18, 60, 56, 66, 10); paint(c, '#c8ccd4'); rrect(c, 4, 64, 16, 50, 6); paint(c, '#c8ccd4'); rrect(c, 72, 64, 16, 50, 6); paint(c, '#c8ccd4');
+    rrect(c, 24, 10, 44, 52, 16); paint(c, '#c8ccd4'); rrect(c, 30, 30, 32, 6, 2); paint(c, '#2a2238', 0); poly(c, [46, 10, 56, -12, 44, -6]); paint(c, '#ef4a3c', 2);
+    line(c, 86, 40, 86, 190, OUT, 5); line(c, 86, 40, 86, 190, '#d5d9e0', 2);
+  } },
+  throne: { w: 142, h: 202, snd: 'bell', draw(c) {
+    rrect(c, 20, 0, 102, 140, 14); paint(c, '#9b5de5'); rrect(c, 34, 14, 74, 112, 10); paint(c, '#c8a8f0', 2.5);
+    rrect(c, 0, 110, 142, 40, 8); paint(c, '#ffd23f'); rrect(c, 10, 146, 20, 56, 4); paint(c, '#ffd23f'); rrect(c, 112, 146, 20, 56, 4); paint(c, '#ffd23f');
+    star(c, 71, 50, 14, 5); paint(c, '#ffd23f', 2);
+  } },
   boss: { w: 180, h: 192, count: false, draw(c) {
     ell(c, 60, 184, 24, 9); paint(c, '#4b2a6b'); ell(c, 120, 184, 24, 9); paint(c, '#4b2a6b');
     circ(c, 8, 118, 15); paint(c, '#fff'); circ(c, 172, 118, 15); paint(c, '#fff');
@@ -775,13 +932,14 @@ function themeInfo(theme) {
     station:{ sky: ['#9ab8e8', '#f0e6d8'], gTop: '#c4c8ce', gMid: '#7a6a5a', gFill: '#5a4e44', seam: '#ffd23f' }
   }[theme];
 }
-function getBg(theme) {
-  if (BG_CACHE[theme]) return BG_CACHE[theme];
+function getBg(theme, v) {
+  v = v || 0; const key = theme + v;
+  if (BG_CACHE[key]) return BG_CACHE[key];
   const S = 1.25, FW = 1200, MW = 1600, H = 470;
   const far = mkCanvas(FW * S, H * S), mid = mkCanvas(MW * S, H * S);
   const f = far.getContext('2d'), m = mid.getContext('2d'); f.scale(S, S); m.scale(S, S);
   for (const k of [f, m]) { k.lineJoin = 'round'; k.lineCap = 'round'; }
-  const r = rng(theme.length * 999 + 7);
+  const r = rng(theme.length * 999 + 7 + v * 131);
   const hills = (k, W, y0, amp, col, n) => { k.beginPath(); k.moveTo(0, H); for (let x = 0; x <= W; x += 20) k.lineTo(x, y0 - amp * (0.5 + 0.5 * Math.sin(x / W * TAU * n))); k.lineTo(W, H); k.closePath(); k.fillStyle = col; k.fill(); };
   const tree = (k, x, s, col) => { rrect(k, x - 6 * s, GROUND - 60 * s, 12 * s, 60 * s, 3); paint(k, '#8a5a2b', 2); for (const [dx, dy, rr] of [[0, -90, 34], [-24, -70, 26], [24, -70, 26]]) { circ(k, x + dx * s, GROUND + dy * s, rr * s); paint(k, col, 2.5); } };
   const house = (k, x, w, h, col, roof) => { rrect(k, x, GROUND - h, w, h, 2); paint(k, col, 2); poly(k, [x - 8, GROUND - h, x + w / 2, GROUND - h - w * 0.45, x + w + 8, GROUND - h]); paint(k, roof, 2); win(k, x + w * 0.2, GROUND - h * 0.7, w * 0.25, h * 0.3); rrect(k, x + w * 0.58, GROUND - h * 0.5, w * 0.22, h * 0.5, 2); paint(k, '#7a4a2b', 2); };
@@ -845,14 +1003,16 @@ function getBg(theme) {
     for (let x = 0; x < MW; x += 40 + r() * 40) { line(m, x, GROUND, x - 6 + r() * 12, GROUND - 40 - r() * 30, '#4f6b2a', 4); }
     for (let x = 150; x < MW; x += 330) { rrect(m, x - 4, GROUND - 22, 8, 22, 3); paint(m, '#eee', 2); ell(m, x, GROUND - 24, 16, 9); paint(m, '#c0392b', 2); }
   }
-  return (BG_CACHE[theme] = { far, mid, FW, MW, S, H, info: themeInfo(theme) });
+  return (BG_CACHE[key] = { far, mid, FW, MW, S, H, info: themeInfo(theme) });
 }
-function drawBackdrop(c, theme, camX, W, t) {
-  const bg = getBg(theme), info = bg.info;
-  const g = c.createLinearGradient(0, 0, 0, 470); g.addColorStop(0, info.sky[0]); g.addColorStop(1, info.sky[1]);
+// v = which of the 3 levels in the area: 0 morning, 1 afternoon, 2 sunset (boss level)
+function drawBackdrop(c, theme, camX, W, t, v) {
+  v = v || 0; const bg = getBg(theme, v), info = bg.info, swamp = theme === 'swamp';
+  const sky = v === 0 ? info.sky : v === 1 ? (swamp ? ['#2a3a5a', '#6a8a7a'] : [info.sky[0], '#ffe6b0']) : (swamp ? ['#2a1a40', '#9a5a7a'] : ['#ff8f7a', '#ffd38a']);
+  const g = c.createLinearGradient(0, 0, 0, 470); g.addColorStop(0, sky[0]); g.addColorStop(1, sky[1]);
   c.fillStyle = g; c.fillRect(0, 0, W, 540);
-  if (theme !== 'swamp') { circ(c, W - 120, 80, 40); c.fillStyle = '#ffe466'; c.fill(); c.globalAlpha = 0.25; circ(c, W - 120, 80, 56); c.fill(); c.globalAlpha = 1; }
-  c.fillStyle = theme === 'swamp' ? 'rgba(160,190,140,.35)' : 'rgba(255,255,255,.9)';
+  if (!swamp) { const sy = [80, 110, 170][v], sc = ['#ffe466', '#ffd040', '#ff8a3c'][v]; circ(c, W - 120, sy, v === 2 ? 50 : 40); c.fillStyle = sc; c.fill(); c.globalAlpha = 0.25; circ(c, W - 120, sy, 60); c.fill(); c.globalAlpha = 1; }
+  c.fillStyle = swamp ? 'rgba(160,190,140,.35)' : v === 2 ? 'rgba(255,200,210,.85)' : 'rgba(255,255,255,.9)';
   for (let i = 0; i < 5; i++) { const x = ((i * 330 - camX * 0.05 + t * 8) % (W + 300) + W + 300) % (W + 300) - 150, y = 60 + (i * 47) % 120; ell(c, x, y, 50, 18); c.fill(); ell(c, x + 30, y - 10, 32, 18); c.fill(); }
   const tile = (img, w, par) => { const off = -((camX * par) % w + w) % w; for (let x = off; x < W; x += w) c.drawImage(img, x, 0, w, bg.H); };
   tile(bg.far, bg.FW, 0.15); tile(bg.mid, bg.MW, 0.45);
