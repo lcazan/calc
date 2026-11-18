@@ -108,7 +108,7 @@ function newPlayer(x) {
   return { x, y: GROUND, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, jbuf: 0, walk: 0, hearts: 3, inv: 0, hurtT: 0,
     tank: tankMax(), gy: GROUND, on: null, spraying: false, hitting: false, aimA: 0.35, blinkT: 2.5, blink: 0, lock: false, sputT: 0, glugT: 0, lowSaid: false };
 }
-function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 4, hp0: 4, r: 26, hop: Math.random() * 3, flash: 0, spd: 45, shootT: 2 + Math.random() * 2 }; }
+function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 3, hp0: 3, r: 26, hop: Math.random() * 3, flash: 0, spd: 45, shootT: 2 + Math.random() * 2 }; }
 function startLevel(L, idx, demo) {
   G = { L, idx, demo: !!demo, theme: L.theme, t: 0, objs: [], plats: [], solids: [], hydrants: [], enemies: [], balls: [], coins: [], parts: [], texts: [], puddles: [],
     cam: { x: 0, shake: 0 }, aim: { x: 0, y: 0 }, tgt: null, retarget: 0, lvlCoins: 0, cleaned: 0,
@@ -121,7 +121,7 @@ function startLevel(L, idx, demo) {
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   G.hydrants = (L.hydrants || []).map(x => ({ x, active: false }));
   for (const [x, range] of (L.blobs || [])) G.enemies.push(newBlob(x, range));
-  for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 1, flash: 0, dropT: 2, r: 24, t: 0 });
+  for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.8, hp0: 0.8, flash: 0, dropT: 2, r: 24, t: 0 });
   if (L.boss) G.arena = { x: L.boss.x, fight: L.boss.fight, started: false, L: 0 };
   G.p = newPlayer(L.startX || 120);
   In.left = In.right = In.jump = In.spray = In.jp = false;
@@ -306,7 +306,7 @@ function updSpray(dt) {
       }
     }
   }
-  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= amt * 1.1; e.flash = 0.1; got += 0.01; }
+  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt; e.flash = 0.1; got += 0.01; } // enemy hp = seconds of spraying, same with every upgrade
   for (const b of G.balls) if (Math.hypot(b.x - G.aim.x, b.y - G.aim.y) < b.r + r) { b.hp -= amt; got += 0.01; }
   P.hitting = got > 0;
   // water spray particles
@@ -436,7 +436,7 @@ function updWaves(dt) {
   const blocked = x0 < 100 || x0 > G.L.len - 50 || G.solids.some(s => s.x + s.w > lo && s.x < hi) || (G.wall && !G.wall.open && G.wall.x > lo && G.wall.x < hi);
   if (blocked) { G.waveT = 3; return; }
   G.waveT = G.L.waveEvery * (0.8 + Math.random() * 0.5);
-  G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 50, hp0: 50, r: 46, size: 1, flash: 0, t: 0 });
+  G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 5, hp0: 5, r: 46, size: 1, flash: 0, t: 0 });
   Sfx.whoosh();
   if (!G.waveSaid) { G.waveSaid = true; kidSay('A slime wave! Spray it, or jump over it when it gets small!', true); }
 }
@@ -544,7 +544,7 @@ function updBoss(dt) {
     b.waveT -= dt;
     if (b.waveT <= 0 && b.ground && G.enemies.filter(e => e.kind === 'wave').length < 2) {
       b.waveT = [0, 7, 5.5, 4.5][diff] * (0.85 + Math.random() * 0.3);
-      G.enemies.push({ kind: 'wave', x: b.x + b.face * 90, y: GROUND, dir: b.face, spd: 75 + diff * 12, hp: 30 + 10 * diff, hp0: 30 + 10 * diff, r: 46, size: 1, flash: 0, t: 0 });
+      G.enemies.push({ kind: 'wave', x: b.x + b.face * 90, y: GROUND, dir: b.face, spd: 75 + diff * 12, hp: 5, hp0: 5, r: 46, size: 1, flash: 0, t: 0 });
       Sfx.whoosh(); b.mood = 'laugh'; b.moodT = 1; if (Math.random() < 0.5) bossSay(pick(['Slime wave, GO!', 'Surf the slime!', 'Wash THAT, little washer!']));
     }
     b.sprayedT = b.hitT > 0 ? b.sprayedT + dt : Math.max(0, b.sprayedT - dt * 0.5);
