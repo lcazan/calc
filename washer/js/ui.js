@@ -211,7 +211,9 @@ const UI = (() => {
   function toggle(k) { SAVE[k] = !SAVE[k]; persist(); Sfx.init(); Sfx.apply(); if (k === 'voice' && SAVE.voice) Sfx.say('I will read to you!'); if (k !== 'voice' || !SAVE.voice) Sfx.click(); if (!SAVE.voice) Sfx.hush(); renderSettings(); }
   function reset() {
     const b = $('resetBtn');
-    if (!b.classList.contains('warn')) { b.classList.add('warn'); b.textContent = 'Tap again to erase everything'; return; }
+    // grown-ups only (v1.26): kids can't type ERASE, so a curious tap can't wipe the progress
+    let ans = null; try { ans = window.prompt('Grown-ups only: this erases ALL progress, coins and items.\nType ERASE to confirm.'); } catch (e) { }
+    if (!ans || ans.trim().toUpperCase() !== 'ERASE') { b.classList.remove('warn'); b.textContent = 'Start over'; return; }
     const keep = { gender: SAVE.gender, skin: SAVE.skin, hair: SAVE.hair, sound: SAVE.sound, music: SAVE.music, voice: SAVE.voice, diff: SAVE.diff };
     SAVE = Object.assign(JSON.parse(JSON.stringify(SAVE_DEF)), keep); persist(); renderSettings(); Sfx.nope();
   }
