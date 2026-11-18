@@ -129,6 +129,7 @@ function startLevel(L, idx, demo) {
   G.pipes = (L.pipes || []).map(x => ({ x, w: 90, h: 120, open: true, hp: 1.6, spawnT: 1.5, n: 0, ang: 0, turnT: 0 }));
   for (const pp of G.pipes) G.solids.push({ kind: 'pipe', x: pp.x, y: GROUND - pp.h, w: pp.w, h: pp.h, pipe: pp });
   G.blobT = 6;
+  for (const [x, w, h] of (L.towers || [])) G.solids.push({ kind: 'tower', x, y: GROUND - h, w, h, tower: { off: false, t: 1.5 + Math.random() * 1.5, charge: 0 } });
   G.hydrants = (L.hydrants || []).map(x => ({ x, active: false }));
   for (const [x, range] of (L.blobs || [])) G.enemies.push(newBlob(x, range));
   for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', req: true, x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 2, r: 24, t: 0 });
@@ -172,6 +173,7 @@ function update(dt) {
   updSpinners(dt);
   updWaves(dt);
   updPipes(dt);
+  updTowers(dt);
   updTrickle(dt);
   updBoss(dt);
   updBalls(dt);
@@ -293,6 +295,7 @@ function updPlayer(dt) {
     for (const s2 of G.solids) if (prevY <= s2.y + 1 && P.y >= s2.y && P.x + 14 > s2.x && P.x - 14 < s2.x + s2.w) { P.y = s2.y; P.vy = 0; P.ground = true; P.onS = s2; }
   }
   if (P.ground && P.y === GROUND && !holeAt(P.x, -20)) P.safeX = P.x;
+  if (P.ground && P.onS && P.onS.tower && !P.onS.tower.off) plugTower(P.onS);
   if (P.ground && !wasGround && P.y - (P.gy == null ? P.y : P.gy) >= 130) fallHurt(P.y - P.gy);
   if (P.ground) P.gy = P.y;
   if (P.ground && !wasGround && vyBefore > 500) { Sfx.land(); for (let i = 0; i < 4; i++) part(P.x, P.y, (Math.random() - 0.5) * 160, -Math.random() * 80, 0.35, 4, 'rgba(255,255,255,.8)', 'm', 0); }
@@ -574,6 +577,30 @@ function updPipes(dt) {
     Sfx.throw();
   }
 }
+// slime towers fire a slime shot at kid height toward the kid; landing on top plugs them for good
+function updTowers(dt) {
+  const P = G.p;
+  for (const s of G.solids) {
+    const tw = s.tower; if (!tw || tw.off) continue;
+    const cx = s.x + s.w / 2, near = Math.abs(P.x - cx) < 650;
+    tw.charge = 0;
+    if (!near || G.demo || G.done || G.respawnT > 0) continue;
+    if (cx > G.cam.x && cx < G.cam.x + view.W) hintOnce('tower', 'A slime tower! Jump on top of it to plug it!');
+    tw.t -= dt; if (tw.t < 0.5) tw.charge = (0.5 - Math.max(0, tw.t)) / 0.5;
+    if (tw.t > 0) continue;
+    tw.t = (G.L.towerEvery || 2.6) * (0.85 + Math.random() * 0.3);
+    const d = P.x < cx ? -1 : 1;
+    G.balls.push({ x: d < 0 ? s.x - 16 : s.x + s.w + 16, y: GROUND - 55, vx: d * 240, vy: 0, r: 13, hp: 0.3, hp0: 0.3, slime: true, shot: true, temp: true, src: s });
+    Sfx.whoosh(); splash(d < 0 ? s.x - 12 : s.x + s.w + 12, GROUND - 55, '#7fb52e', 5);
+  }
+}
+function plugTower(s) {
+  s.tower.off = true; const P = G.p;
+  P.vy = -560; P.ground = false; Sfx.pop(); setTimeout(() => Sfx.ding(), 120);
+  sparkleBurst(s.x + s.w / 2, s.y, 18, 60); spawnCoins(s.x + s.w / 2, s.y - 20, 3);
+  floatText(s.x + s.w / 2, s.y - 60, 'Plugged!', '#fff', 30);
+  hintOnce('towerPlugged', 'I plugged the slime tower!');
+}
 // a steady trickle of mud monsters dropping in ahead of the kid while the slime wall is still shut
 function updTrickle(dt) {
   const L = G.L, P = G.p;
@@ -600,9 +627,16 @@ function addPuddle(x) {
 function updBalls(dt) {
   const P = G.p;
   for (const b of G.balls) {
-    b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    if (!b.shot) b.vy += 900 * dt;
+    b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.hp <= 0) { b.dead = true; for (let i = 0; i < 8; i++) part(b.x, b.y, (Math.random() - 0.5) * 240, (Math.random() - 0.5) * 240, 0.4, 3, '#d6f1ff', 'c'); Sfx.pop(); continue; }
     const arena = G.arena && G.arena.started;
+    if (b.shot) {
+      // tower shots fly straight until they hit a block, the shut slime wall, or get far away
+      if (Math.abs(b.x - P.x) > 1100 || G.solids.some(s => s !== b.src && b.x > s.x && b.x < s.x + s.w && b.y > s.y) || (G.wall && G.wall.melt < 0.6 && b.x > G.wall.x && b.x < G.wall.x + 76)) { b.dead = true; Sfx.splat(); splash(b.x, b.y, '#6f9a2a', 8); continue; }
+      if (b.x > P.x - 18 - b.r && b.x < P.x + 18 + b.r && b.y > P.y - 88 - b.r && b.y < P.y + b.r) { b.dead = true; hurtPlayer(b.x); }
+      continue;
+    }
     if (!arena) {
       let hit = false;
       for (const o of G.objs) if (o.type !== 'spinner' && o.grid && b.x > o.x && b.x < o.x + o.w && b.y > o.top && b.y < o.y && dirtyAt(o, b.x, b.y, 26) > 0) { hit = true; break; }
@@ -812,6 +846,7 @@ function render() {
   drawGround(c, G.theme, cx, W);
   const vis = (x, w) => x + w > cx - 50 && x < cx + W + 50;
   for (const h of G.holes) if (vis(h.x, h.w)) drawSewerHole(c, h, G.t);
+  drawScenery(c, cx, W);
   for (const [x, k] of (G.L.signs || [])) if (vis(x, 130)) drawSign(c, x, k, G.t);
   for (const p of G.plats) if (vis(p.x, p.w)) drawPlat(c, p, G.theme, G.t);
   for (const p of G.puddles) { c.globalAlpha = Math.min(1, p.life); ell(c, p.x, GROUND + 4, p.w, 7); c.fillStyle = p.slime ? '#6f9a2a' : '#6b4526'; c.fill(); c.globalAlpha = 1; }
@@ -820,6 +855,7 @@ function render() {
     const fade = o.type === 'puddle' && o.done ? 1 - (G.t - (o.goneAt || -9)) : 1;
     if (fade <= 0) continue;
     if (o.need) recompose(o);
+    if (o.type !== 'puddle' && fade === 1) { ell(c, o.x + o.w / 2, o.y + 2, o.w * 0.44, 6); c.fillStyle = 'rgba(0,0,0,.13)'; c.fill(); }
     const b = o.bounce > 0 ? Math.sin(o.bounce * 18) * o.bounce * 0.12 : 0;
     c.save(); c.globalAlpha = fade; c.translate(o.x + o.w / 2, o.y); c.scale(1 - b * 0.5, 1 + b); c.translate(-o.w / 2, -o.h);
     c.drawImage(o.art, 0, 0, o.w, o.h);
@@ -828,15 +864,17 @@ function render() {
     if (o.grid && !o.done && o.count && o.type !== 'puddle') stink(c, o.x + o.w / 2, o.top + 4, G.t + o.x);
     else if (o.done && Math.random() < 0.02) part(o.x + Math.random() * o.w, o.top + Math.random() * o.h, 0, -10, 0.6, 6, '#fff', 's', 0);
   }
-  for (const s of G.solids) if (vis(s.x - 40, s.w + 40)) { if (s.pipe) drawPipe(c, s.pipe, G.t); else if (s.tog) drawLiftBlock(c, s, G.t, G.p.onS === s); else drawSolid(c, s); }
+  for (const s of G.solids) if (vis(s.x - 40, s.w + 40)) { if (s.pipe) drawPipe(c, s.pipe, G.t); else if (s.tower) drawTower(c, s, G.t); else if (s.tog) drawLiftBlock(c, s, G.t, G.p.onS === s); else drawSolid(c, s); }
   for (const h of G.hydrants) if (vis(h.x - 30, 90)) drawHydrant(c, h.x, h.active);
   if (G.wall && vis(G.wall.x, 80)) drawWall(c, G.wall.x, G.t, G.wall.melt, G.theme === 'swamp');
   if (G.finish && vis(G.finish - 10, 100)) drawFinish(c, G.finish, G.t, G.wall ? G.wall.open : true);
   for (const k of G.coins) drawCoin(c, k.x, k.y, k.t);
   for (const o of G.objs) if (o.type === 'spinner' && vis(o.x, o.w)) drawSpinnerHead(c, o.x + o.w / 2, o.top + PAD + 30, o.ang || 0, o.done, G.t);
+  for (const e of G.enemies) if (e.kind === 'blob' && !e.fall) { ell(c, e.x, e.y + 2, e.r * 1.1, 5); c.fillStyle = 'rgba(0,0,0,.15)'; c.fill(); }
   for (const e of G.enemies) { if (e.kind === 'blob') drawBlob(c, e, G.t, G.theme === 'swamp'); else if (e.kind === 'wave') drawWave(c, e, G.t); else drawBird(c, e, G.t); }
   if (G.boss) drawBoss(c);
-  for (const b of G.balls) drawBall(c, b, G.t, G.theme === 'swamp');
+  for (const b of G.balls) if (b.shot) drawSlimeShot(c, b, G.t); else drawBall(c, b, G.t, G.theme === 'swamp');
+  if (G.p.ground && !G.p.inHole) { ell(c, G.p.x, G.p.y + 2, 24, 5); c.fillStyle = 'rgba(0,0,0,.16)'; c.fill(); }
   if (G.p.y > GROUND + 1 && G.p.inHole) { const h = G.p.inHole; c.save(); c.beginPath(); c.rect(cx - 100, -400, W + 200, GROUND + 400); c.rect(h.x, GROUND, h.w, 300); c.clip(); drawPlayer(c); c.restore(); }
   else drawPlayer(c);
   drawStream(c);
@@ -851,6 +889,19 @@ function render() {
     c.fillStyle = `rgba(255,255,255,${clamp(a, 0, 1)})`; c.fillRect(0, 0, W, 540);
     c.globalAlpha = clamp(a, 0, 1); outlinedText(c, 'Oops! Try again!', W / 2, 270, 54, '#3a8cf0'); c.globalAlpha = 1;
   }
+}
+// background props (seeded by slot + level, skipped near holes, hydrants, signs, the wall and the finish) and ambient life
+function drawScenery(c, cx, W) {
+  const list = PROPS[G.theme] || [], slot = 300;
+  for (let k = Math.floor((cx - 250) / slot); k * slot < cx + W + 100; k++) {
+    if (hsh(k * 3.1 + G.idx) < 0.3 || !list.length) continue;
+    const px = k * slot + 40 + hsh(k + 9.3) * 180;
+    if (px < 140 || px > G.L.len - 60) continue;
+    if (G.holes.some(h => px > h.x - 60 && px < h.x + h.w + 60) || G.hydrants.some(h => Math.abs(px - h.x) < 100)) continue;
+    if ((G.L.signs || []).some(([sx]) => px > sx - 50 && px < sx + 180) || (G.wall && Math.abs(px - G.wall.x - 38) < 90) || (G.finish && Math.abs(px - G.finish) < 90)) continue;
+    drawProp(c, list[Math.floor(hsh(k + 5.7) * list.length)], px, G.t, hsh(k + 2.2));
+  }
+  drawAmbient(c, G.theme, cx, W, G.t);
 }
 function stink(c, x, y, t) {
   c.strokeStyle = 'rgba(110,140,40,.55)'; c.lineWidth = 3;

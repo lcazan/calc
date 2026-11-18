@@ -81,7 +81,7 @@ const LEVEL_COUNT = AREAS.length * 3;
 function buildLevel(i, seed) {
   const a = Math.floor(i / 3), k = i % 3, A = AREAS[a], SC = A.scenes[k], r = rng(i === 0 || seed == null ? i * 7919 + 13 : seed), boss = k === 2;
   const d = i / (LEVEL_COUNT - 1);
-  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [] };
+  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [], towers: [] };
   const blk = A.block;
   let gc = Math.floor(r() * 7), hc = Math.floor(r() * 3), x = 300;
   const W = t => OBJ[t].w;
@@ -162,6 +162,8 @@ function buildLevel(i, seed) {
   };
   const hole = () => { x += 50; const w = 80 + Math.floor(r() * 25); L.holes.push([x, w]); x += w + 70; };
   const pipe = () => { x += 260; L.pipes.push(x); x += 90 + 130; };
+  // slime tower (v1.18): 100-150 tall, shoots slime both ways at kid height; stomp its top to plug it
+  const tower = () => { x += 90; L.towers.push([x, 70, 100 + Math.round(r() * 50)]); x += 70 + 150; };
   const spinner = () => { L.objs.push(['spinner', x, 0]); x += W('spinner') + 90; };
   let plan;
   if (i === 0) {
@@ -170,12 +172,12 @@ function buildLevel(i, seed) {
   } else {
     // the level's ingredients (v1.12): every gadget from level 2 on, more of them later
     const feats = boss
-      ? ['O', 'tog', 'M', ['s3', 'lift', 'hops'][Math.floor(r() * 3)]].concat(i >= 5 ? ['P'] : [])
-      : ['F', 'P', 'tog', 'M'];
+      ? ['O', 'tog', 'M', 'K', ['s3', 'lift', 'hops'][Math.floor(r() * 3)]].concat(i >= 5 ? ['P'] : [])
+      : ['F', 'P', 'tog', 'M', 'K'];
     if (!boss) {
       for (let h = 0, nh = 2 + Math.round(d * 1.4); h < nh; h++) feats.push('O');
       if (d > 0.5) feats.push('tog'); if (d > 0.6) feats.push('P');
-      if (d > 0.4) feats.push('M'); if (d > 0.2) feats.push('E');
+      if (d > 0.4) feats.push('M'); if (d > 0.2) feats.push('E'); if (d > 0.3) feats.push('K'); if (d > 0.65) feats.push('K');
       const climbs = ['s3', 'lift', 'hops'];
       for (let c = 0, nc = 1 + Math.round(d * 2); c < nc; c++) feats.push(climbs[Math.floor(r() * 3)]);
     }
@@ -203,6 +205,7 @@ function buildLevel(i, seed) {
     else if (p === 'P') pipe();
     else if (p === 'M') movers();
     else if (p === 'E') elev();
+    else if (p === 'K') tower();
   }
   if (i === 3 && !L.signs.length) L.signs.push([120, 'nozzle']);
   // enemies on flat stretches only
@@ -215,6 +218,7 @@ function buildLevel(i, seed) {
   // mud monsters keep dropping in while the slime wall is shut (v1.11)
   L.blobEvery = i === 0 ? 0 : Math.round(10 - d * 5.5); L.blobMax = 2 + Math.round(d * 3);
   L.pipeEvery = Math.round((3.2 - 1.4 * d) * 10) / 10; L.pipeMax = 3 + (d > 0.5 ? 1 : 0); L.pipeWaves = i >= 9;
+  L.towerEvery = Math.round((3 - 1.4 * d) * 10) / 10;
   L.wall = x + 40;
   if (boss) { L.boss = { fight: a + 1, x: L.wall + 120 }; L.len = L.boss.x + 1100; }
   else { L.finish = L.wall + 200; L.len = L.finish + 160; }
