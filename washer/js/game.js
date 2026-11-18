@@ -688,6 +688,7 @@ function updProgress(dt) {
     if (G.nagT <= 0) { G.nagT = 8; kidSay(valves && valves === left ? 'Close the valve on the sewer pipe!' : birds && birds === left ? (birds === 1 ? 'One more bird to wash!' : `${birds} more birds to wash!`) : left === 1 ? 'One more dirty thing to wash!' : `${left} more dirty things to wash!`, true); }
   }
   if (G.holes.some(h => (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 320)) hintOnce('hole', 'An open sewer! Jump over it!');
+  if (G.solids.some(s => s.kind === 'hurdle' && (s.x - P.x) * P.face > 0 && s.x - P.x < 300 && s.x > P.x)) hintOnce('hurdle', 'Construction barriers! Jump over them!');
   if (G.solids.some(s => s.tog && Math.abs(s.x - P.x) < 300)) hintOnce('lift', 'A lift block! Stand on it and spray to make it go up!');
   if (G.arena && !G.arena.started && P.x > G.arena.x + 120) startBoss();
   if (!G.arena && G.finish && w && w.open && P.x > G.finish - 20) {

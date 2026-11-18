@@ -164,6 +164,8 @@ function buildLevel(i, seed) {
   const pipe = () => { x += 260; L.pipes.push(x); x += 90 + 130; };
   // slime tower (v1.18): 100-150 tall, shoots slime both ways at kid height; stomp its top to plug it
   const tower = () => { x += 90; L.towers.push([x, 70, 100 + Math.round(r() * 50)]); x += 70 + 150; };
+  // construction barriers in a row, like hurdles: jump over them (v1.19)
+  const hurdles = () => { x += 60; for (let j = 0, n = 2 + (d > 0.5 ? 1 : 0) + (r() < 0.3 ? 1 : 0); j < n; j++) { L.solids.push(['hurdle', x, 64, 50 + Math.round(r() * 20)]); x += 64 + 170 + Math.round(r() * 60); } x += 20; };
   const spinner = () => { L.objs.push(['spinner', x, 0]); x += W('spinner') + 90; };
   let plan;
   if (i === 0) {
@@ -172,12 +174,12 @@ function buildLevel(i, seed) {
   } else {
     // the level's ingredients (v1.12): every gadget from level 2 on, more of them later
     const feats = boss
-      ? ['O', 'tog', 'M', 'K', ['s3', 'lift', 'hops'][Math.floor(r() * 3)]].concat(i >= 5 ? ['P'] : [])
-      : ['F', 'P', 'tog', 'M', 'K'];
+      ? ['O', 'tog', 'M', 'K', 'B', ['s3', 'lift', 'hops'][Math.floor(r() * 3)]].concat(i >= 5 ? ['P'] : [])
+      : ['F', 'P', 'tog', 'M', 'K', 'B'];
     if (!boss) {
       for (let h = 0, nh = 2 + Math.round(d * 1.4); h < nh; h++) feats.push('O');
       if (d > 0.5) feats.push('tog'); if (d > 0.6) feats.push('P');
-      if (d > 0.4) feats.push('M'); if (d > 0.2) feats.push('E'); if (d > 0.3) feats.push('K'); if (d > 0.65) feats.push('K');
+      if (d > 0.4) feats.push('M'); if (d > 0.2) feats.push('E'); if (d > 0.3) feats.push('K'); if (d > 0.65) feats.push('K'); if (d > 0.35) feats.push('B');
       const climbs = ['s3', 'lift', 'hops'];
       for (let c = 0, nc = 1 + Math.round(d * 2); c < nc; c++) feats.push(climbs[Math.floor(r() * 3)]);
     }
@@ -206,6 +208,7 @@ function buildLevel(i, seed) {
     else if (p === 'M') movers();
     else if (p === 'E') elev();
     else if (p === 'K') tower();
+    else if (p === 'B') hurdles();
   }
   if (i === 3 && !L.signs.length) L.signs.push([120, 'nozzle']);
   // enemies on flat stretches only

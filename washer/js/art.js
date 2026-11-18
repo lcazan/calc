@@ -703,6 +703,7 @@ function drawSolid(c, s) {
 }
 function drawSolidBase(c, s) {
   const { x, y, w, h, kind } = s;
+  if (kind === 'hurdle') { drawHurdle(c, s); return; }
   if (kind === 'crate') {
     for (let yy = y; yy < y + h - 1; yy += 70) {
       rrect(c, x, yy, w, 70, 3); paint(c, '#c98a45'); rrect(c, x + 6, yy + 6, w - 12, 58, 2); paint(c, null, 2.5);
@@ -1186,6 +1187,22 @@ function drawAmbient(c, theme, cx, W, t) {
   } else if (theme === 'carnival') {
     for (let i = 0; i < 14; i++) { const fx = cx - 150 + ((i * 173 + Math.sin(t + i) * 30) % span), fy = ((i * 97 + t * (30 + i % 4 * 8)) % 500) - 10; c.save(); c.translate(fx, fy); c.rotate(t * 3 + i); c.fillStyle = ['#ff6fa8', '#4fc3f7', '#ffd23f', '#7ed957'][i % 4]; c.fillRect(-4, -2, 8, 4); c.restore(); }
   }
+}
+// construction barrier hurdle: striped board on two A-frame legs, blinking light on top
+function drawHurdle(c, s) {
+  const { x, y, w, h } = s, t = (typeof G !== 'undefined' && G) ? G.t : 0;
+  for (const lx of [x + 10, x + w - 10]) { line(c, lx - 8, GROUND, lx, y + 10, OUT, 7); line(c, lx - 8, GROUND, lx, y + 10, '#e0e4ea', 4); line(c, lx + 8, GROUND, lx, y + 10, OUT, 7); line(c, lx + 8, GROUND, lx, y + 10, '#e0e4ea', 4); }
+  for (const by of [y + 4, y + h * 0.55]) {
+    const bh = by === y + 4 ? 18 : 12;
+    rrect(c, x - 4, by, w + 8, bh, 3); c.fillStyle = '#fff'; c.fill();
+    c.save(); rrect(c, x - 4, by, w + 8, bh, 3); c.clip(); c.fillStyle = '#ff7a1a';
+    for (let q = x - 30; q < x + w + 20; q += 20) { poly(c, [q, by + bh, q + 10, by + bh, q + 10 + bh, by, q + bh, by]); c.fill(); }
+    c.restore(); rrect(c, x - 4, by, w + 8, bh, 3); paint(c, null, 2.5);
+  }
+  const on = Math.floor(t * 2.5 + x * 0.01) % 2 === 0;
+  rrect(c, x + w / 2 - 5, y - 6, 10, 10, 3); paint(c, '#3a3a3a', 2);
+  circ(c, x + w / 2, y - 10, 6); paint(c, on ? '#ffd23f' : '#b58a1a', 2);
+  if (on) { c.globalAlpha = 0.35; circ(c, x + w / 2, y - 10, 13); c.fillStyle = '#fff27a'; c.fill(); c.globalAlpha = 1; }
 }
 // slime tower: shoots slime blobs straight ahead; stomping its top plugs it (v1.18)
 function drawTower(c, s, t) {
