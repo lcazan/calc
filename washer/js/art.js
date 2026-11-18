@@ -725,6 +725,15 @@ function drawSolidBase(c, s) {
 // open sewer hole in the ground (v1.11)
 function drawSewerHole(c, h, t) {
   const x = h.x, w = h.w, y = GROUND;
+  if (h.pit) {
+    // slime pit inside the sewer: a gap in the walkway down to bubbling slime
+    c.fillStyle = '#151b22'; c.fillRect(x, y - 2, w, 200);
+    c.fillStyle = '#4f9a24'; c.fillRect(x + 4, y + 60, w - 8, 140);
+    for (let k = 0; k < 3; k++) { const bx = x + 14 + ((k * 37 + t * 20) % (w - 28)), by = y + 60 - Math.abs(Math.sin(t * 3 + k)) * 6; circ(c, bx, by, 5); paint(c, '#9be05a', 2); }
+    line(c, x + 4, y + 60, x + w - 4, y + 60, OUT, 3);
+    for (const sx of [x - 6, x + w - 6]) { rrect(c, sx, y - 4, 12, 34, 3); paint(c, '#6e7a86', 2.5); }
+    return;
+  }
   c.fillStyle = '#1d1826'; c.fillRect(x, y - 2, w, 200);
   const g = c.createLinearGradient(0, y, 0, y + 90); g.addColorStop(0, '#3a3348'); g.addColorStop(1, '#14101c');
   c.fillStyle = g; c.fillRect(x + 6, y + 4, w - 12, 196);
@@ -735,6 +744,16 @@ function drawSewerHole(c, h, t) {
   c.save(); c.translate(x + w + 26, y - 4); c.rotate(-0.25); ell(c, 0, 0, 22, 7); paint(c, '#6d7c88', 2.5); line(c, -12, 0, 12, 0, '#4b5560', 2); c.restore();
   // little warning stripes
   for (const sx of [x - 22, x + w + 10]) { rrect(c, sx, y - 26, 12, 26, 2); paint(c, '#ffd23f', 2); line(c, sx + 1, y - 18, sx + 11, y - 24, OUT, 2); line(c, sx + 1, y - 6, sx + 11, y - 12, OUT, 2); }
+  if (h.sewer) {
+    // sewer entrance (v1.23): striped rim, ladder going down, a big bouncing down arrow
+    c.save(); rrect(c, x - 4, y - 6, w + 8, 10, 3); c.clip(); c.fillStyle = '#ffd23f'; c.fillRect(x - 4, y - 6, w + 8, 10); c.fillStyle = OUT; for (let xx = x - 10; xx < x + w + 8; xx += 18) { poly(c, [xx, y + 4, xx + 9, y - 6, xx + 17, y - 6, xx + 8, y + 4]); c.fill(); } c.restore();
+    rrect(c, x - 4, y - 6, w + 8, 10, 3); paint(c, null, 2.5);
+    for (const lx of [x + 18, x + 42]) line(c, lx, y + 4, lx, y + 120, '#9aa0ab', 3);
+    for (let yy = y + 16; yy < y + 120; yy += 18) line(c, x + 18, yy, x + 42, yy, '#9aa0ab', 3);
+    const b = Math.abs(Math.sin(t * 4)) * 14, ax = x + w / 2, ay = y - 150 + b;
+    c.globalAlpha = 0.25 + 0.15 * Math.sin(t * 4); ell(c, ax, y + 30, w * 0.4, 14); c.fillStyle = '#b2ff6a'; c.fill(); c.globalAlpha = 1;
+    poly(c, [ax - 16, ay, ax + 16, ay, ax + 16, ay + 36, ax + 34, ay + 36, ax, ay + 72, ax - 34, ay + 36, ax - 16, ay + 36]); paint(c, '#ffd23f', 4);
+  }
 }
 // sewer pipe with its valve wheel on top (v1.11)
 function drawPipe(c, pp, t) {
@@ -836,6 +855,14 @@ function drawSign(c, x, kind, t) {
   rrect(c, x, y - 150, 128, 88, 6); paint(c, '#a0662f'); rrect(c, x + 7, y - 143, 114, 74, 3); paint(c, '#2f6b4f', 2);
   const cx = x + 64, cy = y - 106; c.strokeStyle = '#f3f3e8'; c.fillStyle = '#f3f3e8'; c.lineWidth = 3; c.lineCap = 'round'; c.lineJoin = 'round';
   const arrowBox = (bx, dir) => { rrect(c, bx - 14, cy - 13, 28, 26, 4); c.stroke(); c.beginPath(); c.moveTo(bx - 7 * dir, cy); c.lineTo(bx + 7 * dir, cy); c.moveTo(bx + 1 * dir, cy - 6); c.lineTo(bx + 7 * dir, cy); c.lineTo(bx + 1 * dir, cy + 6); c.stroke(); };
+  if (kind === 'sewer') {
+    rrect(c, x, y - 150, 128, 88, 6); paint(c, '#ffd23f'); rrect(c, x + 6, y - 144, 116, 76, 4); paint(c, null, 2.5);
+    txt(c, 'SEWER', cx - 14, y - 126, 21, OUT); txt(c, 'ENTRANCE', cx - 14, y - 102, 15, OUT);
+    const b = Math.abs(Math.sin(t * 4)) * 5; c.fillStyle = '#e8443a';
+    poly(c, [x + 102, y - 136 + b, x + 116, y - 136 + b, x + 116, y - 108 + b, x + 122, y - 108 + b, x + 109, y - 88 + b, x + 96, y - 108 + b, x + 102, y - 108 + b]); paint(c, '#e8443a', 2);
+    rrect(c, x + 22, y - 84, 84, 12, 3); paint(c, '#77738a', 2); txt(c, 'v v v', cx, y - 78, 11, '#ffd23f');
+    return;
+  }
   if (kind === 'move') { arrowBox(cx - 34, -1); arrowBox(cx - 2, 1); stick(c, cx + 34, cy + 16, Math.sin(t * 6)); }
   else if (kind === 'jump') { circ(c, cx - 26, cy, 16); c.stroke(); c.beginPath(); c.moveTo(cx - 26, cy + 7); c.lineTo(cx - 26, cy - 7); c.moveTo(cx - 32, cy - 2); c.lineTo(cx - 26, cy - 8); c.lineTo(cx - 20, cy - 2); c.stroke(); stick(c, cx + 26, cy + 14 - Math.abs(Math.sin(t * 3)) * 16, 0.6); }
   else if (kind === 'spray') {
@@ -1301,4 +1328,77 @@ function storyObj(type, v, dirtFrac) {
   if (o.grid && dirtFrac < 1) { const r = rng(5); for (let i = 0; i < o.grid.length; i++) if (Math.floor(i / o.gw) / o.gh + (r() - 0.5) * 0.15 > dirtFrac) o.grid[i] = 0; recompose(o); }
   else if (o.grid) recompose(o);
   return (STORY_OBJ[key] = o);
+}
+
+// ---------------------------------------------------------------- sewer underground (v1.23)
+function drawSewerBack(c, camX, W, t) {
+  c.fillStyle = '#26303a'; c.fillRect(0, 0, W, 600);
+  // far brick wall (slow parallax)
+  const off = -((camX * 0.4) % 80 + 80) % 80;
+  c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 2;
+  for (let y = 60, row = 0; y < 470; y += 34, row++) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); for (let x = off + (row % 2) * 40; x < W + 80; x += 80) { c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 34); c.stroke(); } }
+  // arches with dark tunnels
+  const aoff = -((camX * 0.4) % 420 + 420) % 420;
+  for (let x = aoff; x < W + 420; x += 420) {
+    c.fillStyle = '#151b22'; c.beginPath(); c.moveTo(x + 60, 470); c.lineTo(x + 60, 300); c.arc(x + 170, 300, 110, Math.PI, 0); c.lineTo(x + 280, 470); c.fill();
+    c.strokeStyle = '#3a4652'; c.lineWidth = 10; c.beginPath(); c.moveTo(x + 60, 470); c.lineTo(x + 60, 300); c.arc(x + 170, 300, 110, Math.PI, 0); c.lineTo(x + 280, 470); c.stroke();
+    // dripping pipe
+    rrect(c, x + 320, 70, 26, 150, 6); paint(c, '#5d6b78', 3); rrect(c, x + 314, 214, 38, 14, 4); paint(c, '#4b5763', 3);
+    const dy = ((t * 160 + x) % 240); c.globalAlpha = 1 - dy / 240; ell(c, x + 333, 232 + dy, 4, 6); c.fillStyle = '#9be05a'; c.fill(); c.globalAlpha = 1;
+  }
+  // ceiling with grates letting light in
+  c.fillStyle = '#1b2229'; c.fillRect(0, 0, W, 64); c.fillStyle = '#3a4652'; c.fillRect(0, 60, W, 8);
+  const goff = -((camX * 0.4) % 600 + 600) % 600;
+  for (let x = goff; x < W + 600; x += 600) {
+    c.globalAlpha = 0.12 + 0.04 * Math.sin(t * 2 + x); c.fillStyle = '#fff6c0'; poly(c, [x + 120, 64, x + 200, 64, x + 260, 470, x + 70, 470]); c.fill(); c.globalAlpha = 1;
+    rrect(c, x + 112, 52, 96, 14, 3); paint(c, '#77738a', 2); for (let k = 0; k < 6; k++) line(c, x + 124 + k * 15, 54, x + 124 + k * 15, 64, OUT, 2);
+  }
+}
+function drawSewerFloor(c, x0, W) {
+  // stone walkway and a slime channel in front
+  c.fillStyle = '#56616c'; c.fillRect(x0 - 60, GROUND, W + 120, 30);
+  c.fillStyle = '#6e7a86'; c.fillRect(x0 - 60, GROUND, W + 120, 6);
+  for (let x = Math.floor((x0 - 60) / 60) * 60; x < x0 + W + 60; x += 60) line(c, x, GROUND + 6, x, GROUND + 30, 'rgba(0,0,0,.25)', 2);
+  c.fillStyle = '#3f7a1e'; c.fillRect(x0 - 60, GROUND + 30, W + 120, 120);
+  const t = performance.now() / 1000; c.fillStyle = '#6fb52e';
+  for (let x = Math.floor((x0 - 60) / 90) * 90; x < x0 + W + 90; x += 90) { ell(c, x + ((t * 20) % 90), GROUND + 44 + (x % 180 ? 6 : 0), 22, 4); c.fill(); }
+  line(c, x0 - 60, GROUND + 30, x0 + W + 60, GROUND + 30, OUT, 3); line(c, x0 - 60, GROUND, x0 + W + 60, GROUND, OUT, 3);
+}
+function drawWorm(c, e, t) {
+  // slime worm: 5 bumpy segments, rears up before spitting; faces e.dir
+  const dir = e.dir || 1, rear = e.rear > 0 ? Math.sin((0.5 - e.rear) / 0.5 * Math.PI) : 0;
+  c.save(); c.translate(e.x, e.y); c.scale(dir, 1);
+  if (e.flash > 0) c.globalAlpha = 0.75;
+  for (let k = 4; k >= 0; k--) {
+    const bx = -k * 15, hump = Math.max(0, Math.sin(e.t * 5 - k * 0.9)) * 8, by = -12 - hump - (k === 0 ? rear * 30 : k === 1 ? rear * 14 : 0);
+    circ(c, bx, by, k === 0 ? 15 : 13 - k); paint(c, k % 2 ? '#7cc23a' : '#8fd448', 3);
+    if (k > 0) { c.globalAlpha = 0.5; circ(c, bx - 3, by - 5, 3); c.fillStyle = '#d8ff9a'; c.fill(); c.globalAlpha = e.flash > 0 ? 0.75 : 1; }
+  }
+  const hy = -12 - Math.max(0, Math.sin(e.t * 5)) * 8 - rear * 30;
+  ell(c, 4, hy - 4, 5, 6); paint(c, '#fff', 2); circ(c, 6, hy - 3, 2.4); paint(c, OUT, 0);
+  line(c, -2, hy - 16, -6, hy - 26, OUT, 2.5); circ(c, -6, hy - 27, 3); paint(c, '#ffd23f', 2);
+  c.beginPath(); c.arc(9, hy + 5, rear > 0.3 ? 5 : 3, 0, Math.PI); paint(c, '#3c6416', 2);
+  c.restore();
+}
+function heartPath(c, x, y, s) {
+  c.beginPath(); c.moveTo(x, y + s * 0.9);
+  c.bezierCurveTo(x - s * 1.4, y + s * 0.1, x - s * 0.9, y - s * 1.1, x, y - s * 0.35);
+  c.bezierCurveTo(x + s * 0.9, y - s * 1.1, x + s * 1.4, y + s * 0.1, x, y + s * 0.9); c.closePath();
+}
+function drawSkyHeart(c, x, y, t, land) {
+  const pul = 1 + Math.sin(t * 6) * 0.08;
+  if (!land) {
+    // little parachute
+    c.beginPath(); c.arc(x, y - 50, 30, Math.PI, 0); c.closePath(); paint(c, '#fff', 3);
+    for (const k of [-1, 0, 1]) { c.beginPath(); c.arc(x + k * 20, y - 50, 10, Math.PI, 0); c.fillStyle = k ? '#ff9fc0' : '#bfe9ff'; c.fill(); }
+    for (const k of [-28, 0, 28]) line(c, x + k, y - 50, x, y - 12, OUT, 1.5);
+  } else { ell(c, x, y + 22, 18, 4); c.fillStyle = 'rgba(0,0,0,.18)'; c.fill(); }
+  c.globalAlpha = 0.3 + Math.sin(t * 6) * 0.15; circ(c, x, y, 30 * pul); c.fillStyle = '#ffd0dc'; c.fill(); c.globalAlpha = 1;
+  heartPath(c, x, y, 20 * pul); paint(c, '#ef3a4c', 3);
+  c.globalAlpha = 0.7; ell(c, x - 8, y - 6, 4, 6); c.fillStyle = '#fff'; c.fill(); c.globalAlpha = 1;
+}
+function drawExitLight(c, p, t) {
+  // light from the manhole above the exit lift, and a bobbing UP arrow
+  c.globalAlpha = 0.18 + 0.05 * Math.sin(t * 3); c.fillStyle = '#fff6c0'; poly(c, [p.x + 10, 40, p.x + p.w - 10, 40, p.x + p.w + 20, GROUND, p.x - 20, GROUND]); c.fill(); c.globalAlpha = 1;
+  if (p.y > p.y1 + 4) { const ax = p.x + p.w / 2, ay = p.y - 120 + Math.sin(t * 4) * 8; poly(c, [ax, ay, ax + 30, ay + 34, ax + 13, ay + 34, ax + 13, ay + 64, ax - 13, ay + 64, ax - 13, ay + 34, ax - 30, ay + 34]); paint(c, '#43c46b', 4); txt(c, 'UP', ax, ay + 50, 15, '#fff'); }
 }

@@ -128,13 +128,15 @@ function startLevel(L, idx, demo) {
   for (const [x, y, w, style, top, mx, my, mv, ph] of (L.plats || [])) G.plats.push({ x, y, w, style, y0: y, y1: top || y, wait: 0, x0: x, mx: mx || 0, my: my || 0, mv: mv || 0, ph: ph || 0 });
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   for (const [x, w, lo, hi] of (L.toggles || [])) G.solids.push({ kind: 'tog', x, y: GROUND - lo, w, h: lo, tog: { lo, hi, up: false } });
-  G.holes = (L.holes || []).map(([x, w]) => ({ x, w }));
+  G.holes = (L.holes || []).map(([x, w, sw]) => ({ x, w, sewer: !!sw, pit: !!L.sewer }));
+  if (L.lift) G.plats.push({ x: L.lift[0], y: GROUND, w: L.lift[1], style: 'lift', y0: GROUND, y1: 90, wait: 0, x0: L.lift[0], mx: 0, my: 0, mv: 0, ph: 0, exit: true });
   G.pipes = (L.pipes || []).map(x => ({ x, w: 90, h: 120, open: true, hp: 1.6, spawnT: 1.5, n: 0, ang: 0, turnT: 0 }));
   for (const pp of G.pipes) G.solids.push({ kind: 'pipe', x: pp.x, y: GROUND - pp.h, w: pp.w, h: pp.h, pipe: pp });
   G.blobT = 6;
   for (const [x, w, h] of (L.towers || [])) G.solids.push({ kind: 'tower', x, y: GROUND - h, w, h, tower: { off: false, t: 1.5 + Math.random() * 1.5, charge: 0 } });
   G.hydrants = (L.hydrants || []).map(x => ({ x, active: false }));
   for (const [x, range] of (L.blobs || [])) G.enemies.push(newBlob(x, range));
+  for (const [x, range] of (L.worms || [])) { const [a, b] = clipRange(x, range); G.enemies.push({ kind: 'worm', x, y: GROUND, minX: a, maxX: b, dir: Math.random() < 0.5 ? 1 : -1, hp: 0.8, hp0: 0.8, r: 22, t: Math.random() * 3, flash: 0, spitT: 2 + Math.random() * 2, rear: 0 }); }
   for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', req: true, x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 2, r: 24, t: 0 });
   G.birdsReq = G.enemies.filter(e => e.req).length;
   G.total = G.objs.filter(o => o.count && o.grid).length + G.birdsReq + G.pipes.length;
@@ -168,6 +170,8 @@ function bossSay(s) { if (!G.boss) return; G.boss.say = s; G.boss.sayT = 3; Sfx.
 function update(dt) {
   G.t += dt;
   if (G.done) { updParts(dt); updCoins(dt); updCam(dt); return; }
+  if (G.fade > 0) G.fade = Math.max(0, G.fade - dt * 1.6);
+  if (G.exitT > 0) { G.exitT += dt * 1.8; if (G.exitT >= 1) { exitSewer(); return; } }
   updLifts(dt);
   updToggles(dt);
   updPlayer(dt);
@@ -181,6 +185,7 @@ function update(dt) {
   updBoss(dt);
   updBalls(dt);
   updCoins(dt);
+  updHeart(dt);
   updParts(dt);
   updProgress(dt);
   updCam(dt);
@@ -201,7 +206,7 @@ function updLifts(dt) {
     if (p.style !== 'lift') continue;
     const on = P.on === p && P.ground && G.respawnT <= 0;
     if (on) {
-      if (p.y > p.y1) { p.y = Math.max(p.y1, p.y - 100 * dt); if (p.y === p.y1) Sfx.ding(); }
+      if (p.y > p.y1) { p.y = Math.max(p.y1, p.y - (p.exit ? 160 : 100) * dt); if (p.y === p.y1) { Sfx.ding(); if (p.exit && !G.exitT) G.exitT = 0.01; } }
       p.wait = 1.5;
     } else { p.wait -= dt; if (p.wait <= 0 && p.y < p.y0) p.y = Math.min(p.y0, p.y + 100 * dt); }
     if (on) { P.y = p.y; P.gy = p.y; }
@@ -236,6 +241,50 @@ function flipToggle(s) {
   floatText(s.x + s.w / 2, s.y - 110, s.tog.up ? 'Up!' : 'Down!', '#bfe9ff', 28);
   splash(s.x + s.w / 2, s.y, '#d6f1ff', 10);
 }
+// ---------------------------------------------------------------- sewer (v1.23)
+function enterSewer(h) {
+  const up = G, P = G.p; P.inHole = null; refundHeart();
+  const keep = Object.assign({}, In);
+  startLevel(buildSewer(up.idx, Math.floor(Math.random() * 1e9)), up.idx, false);
+  Object.assign(In, keep);
+  G.p = P; G.under = { surf: up, h }; G.fade = 1;
+  P.x = 140; P.y = GROUND - 330; P.gy = GROUND - 330; P.vx = P.vy = 0; P.on = P.onS = null; P.ground = false;
+  G.cam.x = 0; G.aim.x = P.x + 150; G.aim.y = GROUND - 60;
+  Sfx.splat(); kidSay('Whoa! I fell into the sewer!', false);
+}
+function exitSewer() {
+  const P = G.p, h = G.under.h, up = G.under.surf;
+  refundHeart(); up.p = P; G = up; hudReset();
+  P.x = h.x + h.w + 60; P.y = GROUND; P.gy = GROUND; P.vx = P.vy = 0; P.on = P.onS = null; P.inHole = null; P.ground = true; P.inv = 1.5;
+  G.balls.length = 0; G.fade = 1; G.exitT = 0; G.prevSpray = false;
+  G.cam.x = clamp(P.x - view.W * 0.42, 0, Math.max(0, G.L.len - view.W));
+  splash(P.x, GROUND - 10, '#7fb52e', 14); sparkleBurst(P.x, GROUND - 60, 10); spawnCoins(P.x, GROUND - 120, 5);
+  floatText(P.x, GROUND - 150, 'Back up!', '#ffd23f', 30); Sfx.buy();
+}
+// ---------------------------------------------------------------- falling hearts (v1.23): one for every 100 coins picked up, drops when a heart is missing
+function refundHeart() { if (G && G.heart) { SAVE.heartPend = (SAVE.heartPend || 0) + 1; G.heart = null; persist(); } }
+function updHeart(dt) {
+  const P = G.p;
+  if (!G.heart && (SAVE.heartPend || 0) > 0 && P.hearts > 0 && P.hearts < maxHearts() && G.respawnT <= 0 && !G.demo && !G.done && !G.exitT) {
+    let x = P.x + P.face * 140; if (holeAt(x, -30) || x < 40 || x > G.L.len - 40) x = P.x;
+    G.heart = { x, y: 0, t: 0, land: false }; SAVE.heartPend--; persist();
+    Sfx.ding(); hintOnce('heart', 'A heart is falling from the sky! Grab it!');
+  }
+  const h = G.heart; if (!h) return;
+  h.t += dt;
+  if (!h.land) {
+    h.y += 120 * dt; h.x += Math.sin(h.t * 2.2) * 30 * dt;
+    let floor = holeAt(h.x, 0) ? GROUND + 400 : GROUND;
+    for (const s of G.solids) if (h.x > s.x && h.x < s.x + s.w && s.y >= h.y - 6) floor = Math.min(floor, s.y);
+    for (const p of G.plats) if (p.style !== 'roof' && h.x > p.x && h.x < p.x + p.w && p.y >= h.y - 6) floor = Math.min(floor, p.y);
+    if (h.y >= floor - 22) { h.y = floor - 22; h.land = true; }
+    if (h.y > GROUND + 300) { G.heart = null; SAVE.heartPend = (SAVE.heartPend || 0) + 1; return; }
+  }
+  if (Math.abs(P.x - h.x) < 42 && Math.abs(P.y - 45 - h.y) < 66 && G.respawnT <= 0) {
+    G.heart = null; P.hearts = Math.min(maxHearts(), P.hearts + 1);
+    Sfx.buy(); sparkleBurst(h.x, h.y, 14); floatText(h.x, h.y - 40, '+1 heart!', '#ff6f8a', 30);
+  }
+}
 function holeFall() {
   const P = G.p, h = P.inHole; P.inHole = null;
   P.x = P.safeX < h.x ? h.x - 60 : h.x + h.w + 55; P.y = GROUND; P.gy = GROUND; P.vx = P.vy = 0; P.hurtT = 0.9;
@@ -261,6 +310,7 @@ function updPlayer(dt) {
   if (G.respawnT > 0) {
     const before = G.respawnT; G.respawnT -= dt;
     if (before > 0.7 && G.respawnT <= 0.7) {
+      if (G.under) { const up = G.under.surf; refundHeart(); up.p = P; up.respawnT = G.respawnT; G = up; hudReset(); }
       P.inHole = null; P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.tank = tankMax(); P.hearts = maxHearts(); P.inv = 2; G.balls.length = 0;
       G.cam.x = clamp(P.x - view.W * 0.4, 0, Math.max(0, G.L.len - view.W)); if (G.arena && G.arena.started) G.cam.x = G.arena.L;
     }
@@ -291,7 +341,7 @@ function updPlayer(dt) {
   P.y += P.vy * dt; P.ground = false; P.on = null; P.onS = null;
   if (P.inHole && P.y < GROUND - 2) P.inHole = null;
   if (P.y >= GROUND - 1 && !P.inHole && prevY <= GROUND + 1) P.inHole = holeAt(P.x);
-  if (P.inHole) { if (P.y > GROUND + 120) { holeFall(); return; } }
+  if (P.inHole) { if (P.y > GROUND + 120) { if (P.inHole.sewer && !G.under && !G.demo) enterSewer(P.inHole); else holeFall(); return; } }
   else if (P.y >= GROUND) { P.y = GROUND; P.vy = 0; P.ground = true; }
   if (vyBefore >= 0) {
     for (const p of G.plats) if (prevY <= Math.max(p.y, p.py == null ? p.y : p.py) + 1 && P.y >= p.y && P.x > p.x - 10 && P.x < p.x + p.w + 10) { P.y = p.y; P.vy = 0; P.ground = true; P.on = p; }
@@ -469,7 +519,7 @@ function hurtPlayer(srcX) {
   if (P.hearts <= 0) { G.respawnT = 1.4; P.lock = true; Sfx.say("Oops! Let's try again!"); }
 }
 function updEnemies(dt) {
-  const P = G.p, swamp = G.theme === 'swamp';
+  const P = G.p, swamp = (G.theme === 'swamp' || G.theme === 'sewer');
   for (const e of G.enemies) {
     e.flash = Math.max(0, e.flash - dt);
     if (e.hp <= 0) continue;
@@ -509,6 +559,23 @@ function updEnemies(dt) {
         if (P.vy > 150 && P.y < e.y - e.r * 0.7) { e.hp = 0; P.vy = -560; Sfx.jump(); }
         else hurtPlayer(e.x);
       }
+    } else if (e.kind === 'worm') {
+      // slime worm (sewer): inches along, rears up and spits slime when the kid is near
+      e.t += dt; e.rear = Math.max(0, e.rear - dt);
+      if (!e.rear) { e.x += e.dir * (28 + 30 * Math.max(0, Math.sin(e.t * 5))) * dt; if (e.x < e.minX) { e.x = e.minX; e.dir = 1; } if (e.x > e.maxX) { e.x = e.maxX; e.dir = -1; } }
+      const dx = P.x - e.x;
+      if (Math.abs(dx) < 420 && Math.abs(dx) > 60 && G.respawnT <= 0 && !G.demo) {
+        e.spitT -= dt;
+        if (e.spitT <= 0) {
+          e.spitT = Math.max(1.8, 3 - G.idx * 0.04) * (0.8 + Math.random() * 0.4); e.dir = Math.sign(dx) || 1; e.rear = 0.5;
+          const T = 1, x0 = e.x + e.dir * 10, y0 = e.y - 46, vy = (GROUND - 30 - y0 - 0.5 * 900 * T * T) / T;
+          G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T, vy, r: 10, hp: 0.3, hp0: 0.3, slime: true, temp: true }); Sfx.throw();
+        }
+      }
+      if (Math.abs(dx) < 34 && P.y > e.y - 50 && P.y - 86 < e.y) {
+        if (P.vy > 150 && P.y < e.y - 20) { e.hp = 0; P.vy = -560; Sfx.jump(); }
+        else hurtPlayer(e.x);
+      }
     } else {
       e.t += dt; e.x += e.dir * 70 * dt; e.y = e.y0 + Math.sin(e.t * 2) * 22;
       if (e.x < e.minX) e.dir = 1; if (e.x > e.maxX) e.dir = -1;
@@ -522,7 +589,7 @@ function updEnemies(dt) {
     if (e.hp <= 0 && e.gone) continue;
     if (e.hp <= 0) {
       if (e.kind === 'blob') { const col = swamp ? '#6f9a2a' : '#7b5431'; for (let k = 0; k < 14; k++) part(e.x, e.y - 20, (Math.random() - 0.5) * 520, -150 - Math.random() * 380, 0.9, 6 + Math.random() * 7, col, 'c'); if (!G.arena || !G.arena.started) for (const dx of [-55, 0, 50]) if (!holeAt(e.x + dx, 0)) G.puddles.push({ x: e.x + dx, w: 26 + Math.random() * 20, life: 2.5, slime: swamp }); shake(3); }
-      Sfx.pop(); splash(e.x, e.y - 20, e.kind === 'bird' ? '#4a3a5a' : e.kind === 'wave' ? '#7fb52e' : (swamp ? '#6f9a2a' : '#7b5431'), e.kind === 'wave' ? 30 : 16); bubbles(e.x, e.y - 20, 6);
+      Sfx.pop(); splash(e.x, e.y - 20, e.kind === 'bird' ? '#4a3a5a' : e.kind === 'wave' || e.kind === 'worm' ? '#7fb52e' : (swamp ? '#6f9a2a' : '#7b5431'), e.kind === 'wave' ? 30 : 16); bubbles(e.x, e.y - 20, 6);
       if (!e.noCoin) { spawnCoins(e.x, e.y - 30, e.kind === 'wave' ? 4 : 2); floatText(e.x, e.y - 60, e.kind === 'wave' ? 'Wave washed!' : 'Splash!', '#bfe9ff', 24); }
     }
   }
@@ -653,12 +720,13 @@ function updBalls(dt) {
   for (const p of G.puddles) p.life -= dt;
   G.puddles = G.puddles.filter(p => p.life > 0);
 }
+function gotCoin() { SAVE.coins++; G.lvlCoins++; SAVE.heartAcc = (SAVE.heartAcc || 0) + 1; if (SAVE.heartAcc >= 100) { SAVE.heartAcc -= 100; SAVE.heartPend = Math.min(3, (SAVE.heartPend || 0) + 1); } }
 function updCoins(dt) {
   const P = G.p;
   for (const c of G.coins) {
     c.t += dt;
     const dx = P.x - c.x, dy = P.y - 45 - c.y, d = Math.hypot(dx, dy);
-    if (d < 34) { c.got = true; SAVE.coins++; G.lvlCoins++; Sfx.coin(); part(c.x, c.y, 0, -40, 0.3, 8, '#fff27a', 's', 0); continue; }
+    if (d < 34) { c.got = true; gotCoin(); Sfx.coin(); part(c.x, c.y, 0, -40, 0.3, 8, '#fff27a', 's', 0); continue; }
     if ((d < 180 || c.t > 2.5 || G.done) && c.t > 0.45) { const sp = 500 + c.t * 200; c.x += dx / d * sp * dt; c.y += dy / d * sp * dt; continue; }
     c.vy += 1200 * dt; c.x += c.vx * dt; c.y += c.vy * dt;
     if (c.y > GROUND - 10) { c.y = GROUND - 10; c.vy *= -0.45; c.vx *= 0.7; }
@@ -690,7 +758,10 @@ function updProgress(dt) {
     G.nagT -= dt;
     if (G.nagT <= 0) { G.nagT = 8; kidSay(valves && valves === left ? 'Close the valve on the sewer pipe!' : birds && birds === left ? (birds === 1 ? 'One more bird to wash!' : `${birds} more birds to wash!`) : left === 1 ? 'One more dirty thing to wash!' : `${left} more dirty things to wash!`, true); }
   }
-  if (G.holes.some(h => (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 320)) hintOnce('hole', 'An open sewer! Jump over it!');
+  if (G.holes.some(h => h.sewer && (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 420)) hintOnce('sewerIn', 'A sewer entrance! Jump in to explore, or jump over it!');
+  else if (!G.under && G.holes.some(h => !h.sewer && (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 320)) hintOnce('hole', 'An open sewer! Jump over it!');
+  if (G.under && G.t > 1.5) hintOnce('sewer', 'Slime worms! Wash them, then ride the lift up!');
+  if (G.under && G.holes.some(h => (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 300)) hintOnce('slimePit', 'A slime pit! Jump over it!');
   if (G.solids.some(s => s.kind === 'hurdle' && (s.x - P.x) * P.face > 0 && s.x - P.x < 300 && s.x > P.x)) hintOnce('hurdle', 'Construction barriers! Jump over them!');
   if (G.solids.some(s => s.tog && Math.abs(s.x - P.x) < 300)) hintOnce('lift', 'A lift block! Stand on it and spray to make it go up!');
   if (G.arena && !G.arena.started && P.x > G.arena.x + 120) startBoss();
@@ -833,7 +904,7 @@ function updBoss(dt) {
 function completeLevel() {
   if (G.done) return;
   G.done = true; In.spray = false; Sfx.spray(false, false, 0);
-  for (const c of G.coins) { if (!c.got) { SAVE.coins++; G.lvlCoins++; } } G.coins = [];
+  for (const c of G.coins) { if (!c.got) { gotCoin(); } } G.coins = [];
   setTimeout(() => UI.levelDone(), 600);
 }
 
@@ -844,13 +915,13 @@ function render() {
   const sh = G.cam.shake, sx = (Math.random() - 0.5) * sh, sy = (Math.random() - 0.5) * sh;
   const cx = Math.round(G.cam.x);
   c.save(); c.translate(0, -VIEW_OY);
-  drawBackdrop(c, G.theme, cx, W, G.t, G.L.bgv || 0);
+  if (G.under) drawSewerBack(c, cx, W, G.t); else drawBackdrop(c, G.theme, cx, W, G.t, G.L.bgv || 0);
   c.translate(-cx + sx, sy);
   c.lineJoin = 'round'; c.lineCap = 'round';
-  drawGround(c, G.theme, cx, W);
+  if (G.under) drawSewerFloor(c, cx, W); else drawGround(c, G.theme, cx, W);
   const vis = (x, w) => x + w > cx - 50 && x < cx + W + 50;
   for (const h of G.holes) if (vis(h.x, h.w)) drawSewerHole(c, h, G.t);
-  drawScenery(c, cx, W);
+  if (!G.under) drawScenery(c, cx, W);
   for (const [x, k] of (G.L.signs || [])) if (vis(x, 130)) drawSign(c, x, k, G.t);
   for (const p of G.plats) if (vis(p.x, p.w)) drawPlat(c, p, G.theme, G.t);
   for (const p of G.puddles) { c.globalAlpha = Math.min(1, p.life); ell(c, p.x, GROUND + 4, p.w, 7); c.fillStyle = p.slime ? '#6f9a2a' : '#6b4526'; c.fill(); c.globalAlpha = 1; }
@@ -870,14 +941,16 @@ function render() {
   }
   for (const s of G.solids) if (vis(s.x - 40, s.w + 40)) { if (s.pipe) drawPipe(c, s.pipe, G.t); else if (s.tower) drawTower(c, s, G.t); else if (s.tog) drawLiftBlock(c, s, G.t, G.p.onS === s); else drawSolid(c, s); }
   for (const h of G.hydrants) if (vis(h.x - 30, 90)) drawHydrant(c, h.x, h.active);
-  if (G.wall && vis(G.wall.x, 80)) drawWall(c, G.wall.x, G.t, G.wall.melt, G.theme === 'swamp');
+  if (G.wall && vis(G.wall.x, 80)) drawWall(c, G.wall.x, G.t, G.wall.melt, (G.theme === 'swamp' || G.theme === 'sewer'));
   if (G.finish && vis(G.finish - 10, 100)) drawFinish(c, G.finish, G.t, G.wall ? G.wall.open : true);
   for (const k of G.coins) drawCoin(c, k.x, k.y, k.t);
+  if (G.heart) drawSkyHeart(c, G.heart.x, G.heart.y, G.heart.t, G.heart.land);
+  for (const p of G.plats) if (p.exit && vis(p.x, p.w)) drawExitLight(c, p, G.t);
   for (const o of G.objs) if (o.type === 'spinner' && vis(o.x, o.w)) drawSpinnerHead(c, o.x + o.w / 2, o.top + PAD + 30, o.ang || 0, o.done, G.t);
   for (const e of G.enemies) if (e.kind === 'blob' && !e.fall) { ell(c, e.x, e.y + 2, e.r * 1.1, 5); c.fillStyle = 'rgba(0,0,0,.15)'; c.fill(); }
-  for (const e of G.enemies) { if (e.kind === 'blob') drawBlob(c, e, G.t, G.theme === 'swamp'); else if (e.kind === 'wave') drawWave(c, e, G.t); else drawBird(c, e, G.t); }
+  for (const e of G.enemies) { if (e.kind === 'blob') drawBlob(c, e, G.t, (G.theme === 'swamp' || G.theme === 'sewer')); else if (e.kind === 'wave') drawWave(c, e, G.t); else if (e.kind === 'worm') drawWorm(c, e, G.t); else drawBird(c, e, G.t); }
   if (G.boss) drawBoss(c);
-  for (const b of G.balls) if (b.shot) drawSlimeShot(c, b, G.t); else drawBall(c, b, G.t, G.theme === 'swamp');
+  for (const b of G.balls) if (b.shot) drawSlimeShot(c, b, G.t); else drawBall(c, b, G.t, (G.theme === 'swamp' || G.theme === 'sewer'));
   if (G.p.ground && !G.p.inHole) { ell(c, G.p.x, G.p.y + 2, 24, 5); c.fillStyle = 'rgba(0,0,0,.16)'; c.fill(); }
   if (G.p.y > GROUND + 1 && G.p.inHole) { const h = G.p.inHole; c.save(); c.beginPath(); c.rect(cx - 100, -400, W + 200, GROUND + 400); c.rect(h.x, GROUND, h.w, 300); c.clip(); drawPlayer(c); c.restore(); }
   else drawPlayer(c);
@@ -888,6 +961,8 @@ function render() {
   if (G.boss && G.boss.sayT > 0) bubble(c, G.boss.x, G.boss.y - 250, G.boss.say, true);
   c.restore();
   if (!G.demo) { edgeArrow(c, W); if (G.p.tank < tankMax() * 0.2) waterArrow(c, W); }
+  const fa = Math.max(G.fade || 0, Math.min(1, G.exitT || 0));
+  if (fa > 0) { c.fillStyle = `rgba(20,16,28,${fa})`; c.fillRect(0, 0, W, 540); }
   if (G.respawnT > 0) {
     const a = G.respawnT > 0.7 ? (1.4 - G.respawnT) / 0.7 : G.respawnT / 0.7;
     c.fillStyle = `rgba(255,255,255,${clamp(a, 0, 1)})`; c.fillRect(0, 0, W, 540);
@@ -1021,10 +1096,11 @@ function hud() {
   hudSet('coinN', 'c', SAVE.coins, (el, v) => { el.textContent = v; el.parentNode.classList.remove('pop'); void el.offsetWidth; el.parentNode.classList.add('pop'); });
   const tankPct = Math.round(P.tank / tankMax() * 100);
   hudSet('tankFill', 't', tankPct + '', (el, v) => { el.style.height = parseInt(v) + '%'; el.parentNode.classList.toggle('low', parseInt(v) < 20); });
-  let prog, label;
+  let prog, label; const G0 = G; if (G.under) G = G.under.surf;
   if (G.boss && G.boss.st !== 'enter') { prog = Math.min(1, G.boss.clean / G.boss.target); label = 'boss'; }
   else { let s = (G.birdsReq || 0) - (G.birdsLeft || 0) + G.pipes.length - (G.valvesLeft || 0); for (const o of G.objs) if (o.count && o.grid) s += 1 - o.rem; prog = G.total ? s / G.total : 1; label = `${G.total - G.left}/${G.total}`; }
   hudSet('progFill', 'p', Math.round(prog * 200), (el, v) => { el.style.width = (v / 2) + '%'; });
+  G = G0;
   hudSet('progTxt', 'pl', label, (el, v) => { el.textContent = v === 'boss' ? 'Sir Sludgington' : v; document.getElementById('prog').classList.toggle('boss', v === 'boss'); });
   hudSet('nozzles', 'n', SAVE.noz + SAVE.nozzles.join(), UI.drawNozzles);
 }

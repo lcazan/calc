@@ -161,6 +161,8 @@ function buildLevel(i, seed) {
     x = cx + cw + 140 + 110;
   };
   const hole = () => { x += 50; const w = 80 + Math.floor(r() * 25); L.holes.push([x, w]); x += w + 70; };
+  // sewer entrance (v1.23): a wide hole with a SEWER ENTRANCE sign; falling in leads to an underground level
+  const sewerIn = () => { x += 200; L.signs.push([x - 165, 'sewer']); L.holes.push([x, 130, 1]); x += 130 + 90; };
   const pipe = () => { x += 260; L.pipes.push(x); x += 90 + 130; };
   // slime tower (v1.18): 100-150 tall, shoots slime both ways at kid height; stomp its top to plug it
   const tower = () => { x += 90; L.towers.push([x, 70, 100 + Math.round(r() * 50)]); x += 70 + 150; };
@@ -182,6 +184,7 @@ function buildLevel(i, seed) {
       if (d > 0.4) feats.push('M'); if (d > 0.2) feats.push('E'); if (d > 0.3) feats.push('K'); if (d > 0.65) feats.push('K'); if (d > 0.35) feats.push('B');
       const climbs = ['s3', 'lift', 'hops'];
       for (let c = 0, nc = 1 + Math.round(d * 2); c < nc; c++) feats.push(climbs[Math.floor(r() * 3)]);
+      if (r() < 0.75) feats.push('S');
     }
     // shuffle, then never the same gadget twice in a row
     for (let j = feats.length - 1; j > 0; j--) { const m = Math.floor(r() * (j + 1)); [feats[j], feats[m]] = [feats[m], feats[j]]; }
@@ -204,6 +207,7 @@ function buildLevel(i, seed) {
     else if (p === 'hops') hops();
     else if (p === 'tog') tog();
     else if (p === 'O') hole();
+    else if (p === 'S') sewerIn();
     else if (p === 'P') pipe();
     else if (p === 'M') movers();
     else if (p === 'E') elev();
@@ -227,6 +231,27 @@ function buildLevel(i, seed) {
   L.wall = x + 40;
   if (boss) { L.boss = { fight: a + 1, x: L.wall + 120 }; L.len = L.boss.x + 1100; }
   else { L.finish = L.wall + 200; L.len = L.finish + 160; }
+  return L;
+}
+// underground sewer level (v1.23): slime worms, a few blobs, slime pits, crates, and a lift up at the end
+function buildSewer(i, seed) {
+  const r = rng(seed), d = i / (LEVEL_COUNT - 1);
+  const mm = ({ easy: 0.5, medium: 0.75, hard: 1, ultra: 2 })[typeof SAVE !== 'undefined' && SAVE.diff] || 0.75;
+  const L = { name: 'Sewer', theme: 'sewer', dirt: 'slime', tough: 2 + 5 * d, objs: [], solids: [], plats: [], holes: [], hydrants: [240], blobs: [], birds: [], worms: [], signs: [],
+    waveEvery: 0, blobEvery: 0, towerEvery: 3, startX: 140, sewer: true };
+  let x = 520; const flat = [];
+  for (let k = 0, n = 3 + Math.floor(r() * 2); k < n; k++) {
+    flat.push([x, x + 240]); x += 260;
+    const f = r();
+    if (f < 0.4) { L.holes.push([x, 90 + Math.floor(r() * 20)]); x += 200; }
+    else if (f < 0.7) { L.solids.push(['stone', x, 70, 70]); if (r() < 0.5) L.solids.push(['stone', x + 70, 70, 140], ['stone', x + 140, 70, 70]); x += 300; }
+    else { L.plats.push([x, GROUND - 80, 110, 'wood'], [x + 170, GROUND - 125, 110, 'wood'], [x + 340, GROUND - 80, 110, 'wood']); x += 470; }
+  }
+  flat.push([x, x + 300]); x += 340;
+  const nw = Math.max(1, Math.round((3 + Math.floor(d * 4)) * mm));
+  for (let j = 0; j < nw; j++) { const [a, b] = flat[j % flat.length]; L.worms.push([Math.round(a + (b - a) * (0.3 + 0.4 * ((j * 0.37) % 1))), 90]); }
+  if (d > 0.3) { const [a, b] = flat[1 % flat.length]; L.blobs.push([Math.round((a + b) / 2), 80]); }
+  L.lift = [x, 130]; L.len = x + 150;
   return L;
 }
 const LEVELS = [];
