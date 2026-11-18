@@ -78,6 +78,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 #title .logo small { display: inline-block; margin-top: calc(2 * var(--u)); font-size: calc(5 * var(--u)); background: #6f9a2a; color: #fff; padding: calc(.4 * var(--u)) calc(3 * var(--u)); border-radius: 99px; border: calc(.5 * var(--u)) solid var(--ink); transform: rotate(3deg); }
 #playBtn { position: absolute; right: 12%; bottom: 14%; font-size: calc(10 * var(--u)); padding: calc(1.6 * var(--u)) calc(7 * var(--u)); animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(calc(-1.2 * var(--u))) scale(1.04); } }
+#ver { position: absolute; left: calc(3 * var(--u) + env(safe-area-inset-left)); bottom: calc(2 * var(--u)); font-size: calc(3.6 * var(--u)); color: #fff; background: rgba(42,33,64,.55); padding: 0 calc(1.6 * var(--u)); border-radius: 99px; pointer-events: none; }
 #titleSet { position: absolute; right: calc(3 * var(--u)); top: calc(3 * var(--u)); background: #fff; }
 
 #map .bar { position: absolute; top: calc(2 * var(--u)); left: calc(3 * var(--u)); right: calc(3 * var(--u)); display: flex; align-items: center; gap: calc(2 * var(--u)); }
@@ -168,6 +169,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 <div id="title" class="screen">
   <div class="logo"><b>SUPER <span>SPLASH</span><i>!</i></b><small>vs. Sir Sludgington</small></div>
   <button id="playBtn" class="btn green">▶ Play</button>
+  <div id="ver">v1.07</div>
   <button id="titleSet" class="btn round" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
 </div>
 
