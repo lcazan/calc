@@ -72,20 +72,26 @@ function kidHead(c, k) {
   }
   circ(c, -9, 2, 5); paint(c, skin, 2.5);
   circ(c, 0, 0, 19); paint(c, skin, 3);
+  if (!girl && (!k.hat || k.hat === 'none')) { // messy tufts on top (under the hair)
+    const tuft = (x1, y1, tx, ty, x2, y2) => { c.beginPath(); c.moveTo(x1, y1); c.quadraticCurveTo((x1 + tx) / 2 - 2, (y1 + ty) / 2 + 2, tx, ty); c.quadraticCurveTo((x2 + tx) / 2 + 1, (y2 + ty) / 2, x2, y2); c.closePath(); paint(c, hair, 2.5); };
+    tuft(-18, -1, -27, -12, -12, -15); tuft(-10, -15, -8, -27, 2, -19);
+  }
   // hair
   c.beginPath(); c.moveTo(-19, 4); c.quadraticCurveTo(-22, -22, 0, -21); c.quadraticCurveTo(20, -21, 19, -6);
   if (girl) { c.quadraticCurveTo(12, -14, 4, -9); c.quadraticCurveTo(-4, -14, -10, -8); c.quadraticCurveTo(-14, 2, -19, 12); }
   else { c.lineTo(14, -9); c.lineTo(10, -6); c.lineTo(6, -12); c.lineTo(1, -7); c.lineTo(-5, -12); c.lineTo(-11, -5); c.lineTo(-14, 3); }
   c.closePath(); paint(c, hair, 2.5);
   // goggles
-  c.beginPath(); c.moveTo(-19, -7); c.quadraticCurveTo(0, -15, 19, -11); c.strokeStyle = '#333'; c.lineWidth = 4; c.stroke();
-  rrect(c, 2, -18, 9, 8, 3); paint(c, '#8fe0ff', 2); rrect(c, 12, -18, 8, 8, 3); paint(c, '#8fe0ff', 2);
+  c.beginPath(); c.moveTo(-19, -6); c.quadraticCurveTo(0, -15, 19, -11); c.strokeStyle = '#2e2e3a'; c.lineWidth = 5; c.stroke();
+  const lens = (x, y, r) => { circ(c, x, y, r + 1.6); paint(c, '#3a7fc4', 2.5); circ(c, x, y, r); paint(c, '#8fe0ff', 0); circ(c, x - r * 0.35, y - r * 0.35, r * 0.32); paint(c, 'rgba(255,255,255,.85)', 0); };
+  lens(5, -17, 5); lens(15.5, -15, 4.6);
   // face
   if (k.blink) { line(c, 2, -1, 8, -1, OUT, 2.5); line(c, 11, -1, 16, -1, OUT, 2.5); }
   else if (k.hurt) { line(c, 2, -4, 8, 0, OUT, 2.5); line(c, 2, 0, 8, -4, OUT, 2.5); line(c, 11, -4, 16, 0, OUT, 2.5); line(c, 11, 0, 16, -4, OUT, 2.5); }
   else {
-    ell(c, 5, -1, 4, 5); paint(c, '#fff', 2); ell(c, 13.5, -1, 4, 5); paint(c, '#fff', 2);
-    circ(c, 6.5, 0, 2.2); paint(c, OUT, 0); circ(c, 15, 0, 2.2); paint(c, OUT, 0);
+    ell(c, 5, -1, 4.8, 6); paint(c, '#fff', 2.2); ell(c, 14, -1, 4.6, 6); paint(c, '#fff', 2.2);
+    circ(c, 6.6, 0, 2.8); paint(c, OUT, 0); circ(c, 15.6, 0, 2.7); paint(c, OUT, 0);
+    circ(c, 7.4, -1, 0.9); paint(c, '#fff', 0); circ(c, 16.4, -1, 0.9); paint(c, '#fff', 0);
   }
   c.beginPath(); c.arc(18, 5, 3, -1.4, 1.4); c.strokeStyle = OUT; c.lineWidth = 2.2; c.stroke();
   c.globalAlpha = 0.45; circ(c, 14, 8, 3.5); paint(c, '#ff6f8a', 0); c.globalAlpha = 1;
@@ -97,14 +103,15 @@ function nozzleColor(id, t) { const n = NOZZLES[id] || NOZZLES.fan; return n.col
 // origin = feet center, facing right. k: {g,skin,hair,hat,wcol,walk,air,aim,t,blink,hurt,noz}
 function drawKid(c, k) {
   const girl = k.g === 'girl', skin = SKINS[k.skin || 0];
-  const shirt = girl ? '#ff7eb6' : '#e8443a', pants = girl ? '#7c5cd6' : '#3f6fb5';
+  const shirt = girl ? '#ff7eb6' : '#e8443a', pants = girl ? '#7c5cd6' : '#3561c4';
   const a = k.aim || 0.35, dx = Math.cos(a), dy = Math.sin(a);
   const sw = k.air ? 0 : Math.sin(k.walk || 0);
   c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
   // washer pack on the back
-  rrect(c, -29, -64, 18, 36, 6); paint(c, k.wcol || '#ffc928');
-  rrect(c, -27, -70, 14, 7, 3); paint(c, '#555', 2);
-  circ(c, -20, -50, 4.5); paint(c, '#fff', 2); line(c, -20, -50, -18, -53, '#e33', 1.5);
+  rrect(c, -30, -66, 20, 39, 7); paint(c, k.wcol || '#ffc928');
+  rrect(c, -26, -62, 3, 24, 1.5); paint(c, 'rgba(255,255,255,.4)', 0);
+  rrect(c, -27, -72, 14, 7, 3); paint(c, '#6a6a74', 2);
+  circ(c, -20, -50, 5.5); paint(c, '#fff', 2.2); line(c, -20, -50, -17.5, -53.5, '#e33', 1.6); circ(c, -20, -50, 1); paint(c, OUT, 0);
   // hose
   const gx = 10 - dx * 8, gy = -40 - dy * 8;
   c.beginPath(); c.moveTo(-20, -30); c.bezierCurveTo(-26, -4, gx - 24, -6, gx, gy); c.strokeStyle = '#2b2b33'; c.lineWidth = 4; c.stroke();
@@ -112,14 +119,15 @@ function drawKid(c, k) {
   const leg = (hx, ang) => {
     const fx = hx + Math.sin(ang) * 21, fy = -24 + Math.cos(ang) * 21;
     limb(c, hx, -26, fx, fy - 3, pants, 7);
-    rrect(c, fx - 6, fy - 8, 15, 9, 4); paint(c, '#ffd23f', 2.5);
+    rrect(c, fx - 7, fy - 9, 18, 10, 5); paint(c, '#ffd23f', 2.5); line(c, fx - 4, fy - 1.5, fx + 8, fy - 1.5, 'rgba(0,0,0,.18)', 1.5);
   };
   if (k.air) { leg(-4, -0.55); leg(5, 0.65); } else { leg(-4, -sw * 0.55); leg(5, sw * 0.55); }
   // torso
   rrect(c, -12, -58, 24, 34, 9); paint(c, shirt);
   if (girl) { poly(c, [-10, -46, 10, -46, 15, -20, -15, -20]); paint(c, pants, 2.5); }
   else { rrect(c, -10, -46, 20, 22, 4); paint(c, pants, 2.5); rrect(c, -4, -42, 8, 6, 2); paint(c, '#5b86c9', 1.5); }
-  line(c, -7, -56, -7, -46, pants, 3); line(c, 7, -56, 7, -46, pants, 3);
+  limb(c, -7, -57, -7, -46, pants, 3); limb(c, 7, -57, 7, -46, pants, 3);
+  if (!girl) { circ(c, -7, -45, 1.8); paint(c, '#ffd23f', 1.2); circ(c, 7, -45, 1.8); paint(c, '#ffd23f', 1.2); }
   // back arm to the support grip
   const sx = 10 + dx * 12, sy = -40 + dy * 12;
   limb(c, -4, -52, sx, sy, shirt, 6); circ(c, sx, sy, 4); paint(c, skin, 2);
