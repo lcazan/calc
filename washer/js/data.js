@@ -94,6 +94,7 @@ function buildLevel(i) {
     x = ex + 170 + pw + 110;
   };
   const hydrant = () => { L.hydrants.push(x - 40); x += 60; };
+  const spinner = () => { L.objs.push(['spinner', x, 0]); x += W('spinner') + 90; };
   let plan;
   if (i === 0) {
     L.signs.push([70, 'move'], [240, 'spray']); x = 420;
@@ -108,9 +109,11 @@ function buildLevel(i) {
     if (i === 2) plan[1] = 'lift';
     if (i === 4) plan[1] = 'hops';
     plan.splice(2, 0, 'H'); if (plan.length > 6) plan.splice(6, 0, 'H');
+    if (i >= 3 && !boss && (i === 3 || r() < 0.55)) plan.splice(1, 0, 'F', 'g');
   }
   for (const p of plan) {
     if (p === 'g') ground();
+    else if (p === 'F') spinner();
     else if (p === 'H') {
       if (i !== 0) hydrant();
       else if (!L.signs.some(s => s[1] === 'tank')) { L.hydrants.push(x + 20); L.signs.push([x + 90, 'tank']); x += 250; }
@@ -126,8 +129,9 @@ function buildLevel(i) {
   // enemies on flat stretches only
   const nb = i === 0 ? 1 : 1 + Math.floor(d * 3) + (r() < 0.5 ? 1 : 0);
   for (let j = 0; j < nb && flat.length; j++) { const [x0, x1] = flat[(j * 3 + 1) % flat.length]; if (x0 > 500) L.blobs.push([Math.round((x0 + x1) / 2), Math.max(40, Math.min(130, (x1 - x0) / 2))]); }
-  const nbird = d > 0.2 ? 1 + Math.floor(d * 2) : 0;
+  const nbird = i < 2 ? 0 : 1 + Math.floor(d * 3);
   for (let j = 0; j < nbird; j++) L.birds.push([Math.round(700 + (x - 900) * (j + 0.5) / nbird), 180, 190 + Math.floor(r() * 50)]);
+  L.waveEvery = i >= 2 ? Math.round(30 - d * 14) : 0;
   L.wall = x + 40;
   if (boss) { L.boss = { fight: a + 1, x: L.wall + 120 }; L.len = L.boss.x + 1100; }
   else { L.finish = L.wall + 200; L.len = L.finish + 160; }

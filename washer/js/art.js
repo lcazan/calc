@@ -515,6 +515,12 @@ const OBJ = {
     for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; line(c, 36 + Math.cos(a) * 21, 38 + Math.sin(a) * 21, 36 + Math.cos(a) * 25, 38 + Math.sin(a) * 25, OUT, 2); }
     line(c, 36, 38, 36, 22, OUT, 3); line(c, 36, 38, 48, 42, OUT, 3);
   } },
+  spinner: { w: 152, h: 142, snd: 'chime', draw(c) {
+    rrect(c, 0, 92, 152, 50, 10); paint(c, '#9aa3b5'); rrect(c, 8, 86, 136, 14, 6); paint(c, '#7fd0f0', 2.5);
+    for (let x = 18; x < 140; x += 30) { rrect(c, x, 106, 18, 26, 4); paint(c, '#8a93a5', 2); }
+    rrect(c, 62, 30, 28, 62, 5); paint(c, '#b0b8c8'); ell(c, 76, 30, 22, 8); paint(c, '#c8d0dc');
+    for (let i = 0; i < 3; i++) line(c, 64, 46 + i * 14, 88, 46 + i * 14, '#8a93a5', 2.5);
+  } },
   boss: { w: 180, h: 192, count: false, draw(c) {
     ell(c, 60, 184, 24, 9); paint(c, '#4b2a6b'); ell(c, 120, 184, 24, 9); paint(c, '#4b2a6b');
     circ(c, 8, 118, 15); paint(c, '#fff'); circ(c, 172, 118, 15); paint(c, '#fff');
@@ -639,6 +645,41 @@ function drawFinish(c, x, t, open) {
   c.closePath(); paint(c, open ? '#3a8cf0' : '#999');
   dropShape(c, x + 46, y - 166 + lift, 10); paint(c, '#fff', 2);
   circ(c, x + 1, y - 204, 7); paint(c, '#ffd23f', 2);
+}
+function drawSpinnerHead(c, x, y, ang, done, t) {
+  if (done) {
+    c.strokeStyle = 'rgba(150,215,255,.9)'; c.lineWidth = 4;
+    for (const s of [-1, 1]) for (const k of [0.6, 1]) { c.beginPath(); c.moveTo(x, y - 6); c.quadraticCurveTo(x + s * 40 * k, y - 50 - Math.sin(t * 6) * 4, x + s * 62 * k, y + 50); c.stroke(); }
+    if (Math.random() < 0.3) { c.globalAlpha = 0.8; star(c, x + (Math.random() - 0.5) * 80, y - 30 + Math.random() * 40, 5, 4, 0.35); c.fillStyle = '#fff'; c.fill(); c.globalAlpha = 1; }
+  }
+  c.save(); c.translate(x, y);
+  for (let i = 0; i < 4; i++) {
+    const a = ang + i * Math.PI / 2, ex = Math.cos(a) * 28, ey = Math.sin(a) * 8;
+    line(c, 0, 0, ex, ey, OUT, 9); line(c, 0, 0, ex, ey, done ? '#c8d0dc' : '#8a6a44', 5);
+    circ(c, ex, ey, 6); paint(c, done ? '#7fd0f0' : '#6b4526', 2.5);
+  }
+  circ(c, 0, 0, 10); paint(c, done ? '#ffd23f' : '#5a3a20', 3);
+  c.restore();
+}
+function drawWave(c, e, t) {
+  const s = e.size, W = 120 * s, H = 96 * s;
+  c.save(); c.translate(e.x, GROUND + 2); c.scale(-e.dir, 1);
+  const wob = Math.sin(t * 8) * 4 * s;
+  c.beginPath(); c.moveTo(W * 0.6, 0);
+  c.quadraticCurveTo(W * 0.62, -H * 0.55, W * 0.15 + wob, -H);
+  c.quadraticCurveTo(-W * 0.25, -H * 1.1, -W * 0.42, -H * 0.62);
+  c.quadraticCurveTo(-W * 0.22, -H * 0.82, -W * 0.18, -H * 0.5);
+  c.quadraticCurveTo(-W * 0.3, -H * 0.15, -W * 0.6, 0);
+  c.closePath();
+  const g = c.createLinearGradient(0, -H, 0, 0); g.addColorStop(0, e.flash > 0 ? '#c8e6a0' : '#9fd04a'); g.addColorStop(1, '#4f7a1a');
+  paint(c, g, 3);
+  c.fillStyle = 'rgba(230,255,190,.75)';
+  for (let i = 0; i < 4; i++) { circ(c, -W * 0.38 + i * 12 * s, -H * 0.66 - Math.sin(t * 6 + i) * 3, (5 - i) * s + 1); c.fill(); }
+  ell(c, -W * 0.02, -H * 0.62, 8 * s, 10 * s); paint(c, '#fff', 2); ell(c, W * 0.2, -H * 0.62, 8 * s, 10 * s); paint(c, '#fff', 2);
+  circ(c, -W * 0.05, -H * 0.6, 3.5 * s); paint(c, OUT, 0); circ(c, W * 0.17, -H * 0.6, 3.5 * s); paint(c, OUT, 0);
+  line(c, -W * 0.12, -H * 0.8, W * 0.05, -H * 0.72, OUT, 3); line(c, W * 0.3, -H * 0.8, W * 0.14, -H * 0.72, OUT, 3);
+  c.beginPath(); c.arc(W * 0.08, -H * 0.36, 9 * s, 0.2, Math.PI - 0.2); c.strokeStyle = OUT; c.lineWidth = 3; c.stroke();
+  c.restore();
 }
 function drawCoin(c, x, y, t) {
   const sx = Math.abs(Math.cos(t * 5)) * 0.8 + 0.2;

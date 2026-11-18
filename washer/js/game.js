@@ -80,6 +80,20 @@ function cleanAt(o, wx, wy, r, amt) {
   if (got > 0) { o.sum -= got; o.rem = Math.max(0, o.sum / o.total); o.need = true; }
   return got;
 }
+function dirtyAt(o, wx, wy, r) {
+  if (!o.grid) return 0;
+  const lx = wx - o.x, ly = wy - o.top;
+  const i0 = Math.max(0, Math.floor((lx - r) / CELL)), i1 = Math.min(o.gw - 1, Math.floor((lx + r) / CELL));
+  const j0 = Math.max(0, Math.floor((ly - r) / CELL)), j1 = Math.min(o.gh - 1, Math.floor((ly + r) / CELL));
+  const rr = r * r; let add = 0;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const k = j * o.gw + i; if (!o.act[k]) continue;
+    const cx = (i + 0.5) * CELL - lx, cy = (j + 0.5) * CELL - ly, d2 = cx * cx + cy * cy; if (d2 > rr) continue;
+    const nv = Math.max(o.grid[k], 1 - d2 / rr * 0.4); add += nv - o.grid[k]; o.grid[k] = nv;
+  }
+  if (add > 0) { o.sum += add; o.rem = Math.min(1, o.sum / o.total); o.need = true; if (o.done) { o.done = false; G.cleaned--; } }
+  return add;
+}
 function finishObj(o) {
   if (!o.grid) return;
   for (let i = 0; i < o.grid.length; i++) o.grid[i] = 0;
@@ -99,7 +113,7 @@ function startLevel(L, idx, demo) {
   G = { L, idx, demo: !!demo, theme: L.theme, t: 0, objs: [], plats: [], solids: [], hydrants: [], enemies: [], balls: [], coins: [], parts: [], texts: [], puddles: [],
     cam: { x: 0, shake: 0 }, aim: { x: 0, y: 0 }, tgt: null, retarget: 0, lvlCoins: 0, cleaned: 0,
     wall: L.wall ? { x: L.wall, open: false, melt: 0 } : null, finish: L.finish || 0, boss: null, arena: null,
-    done: false, respawnT: 0, checkpoint: 120, nagT: 3, kidSay: null, demoT: 0, paused: false };
+    done: false, respawnT: 0, checkpoint: 120, nagT: 3, kidSay: null, demoT: 0, paused: false, waveT: 12 };
   let seed = (idx + 1) * 1000;
   for (const [type, x, v, by] of L.objs) G.objs.push(makeObj(type, x, by || GROUND, v || 0, L.dirt, seed++));
   G.total = G.objs.filter(o => o.count && o.grid).length;
@@ -135,6 +149,8 @@ function update(dt) {
   updPlayer(dt);
   updSpray(dt);
   updEnemies(dt);
+  updSpinners(dt);
+  updWaves(dt);
   updBoss(dt);
   updBalls(dt);
   updCoins(dt);
@@ -252,7 +268,7 @@ function updSpray(dt) {
     : t.o.grid[t.i] > 0.06 && !t.o.done && ok(t.o.x + t.cx, t.o.top + t.cy));
   if (!valid || G.retarget <= 0 || t.k === 'cell') {
     let threat = null, bs = 1e12;
-    for (const b of G.balls) if (ok(b.x, b.y)) { const s = (b.x - hx) ** 2 + (b.y - hy) ** 2; if (s < bs) { bs = s; threat = { k: 'ball', ref: b }; } }
+    for (const b of G.balls) if (!b.mud && Math.abs(b.x - P.x) < 220 && ok(b.x, b.y)) { const s = (b.x - hx) ** 2 + (b.y - hy) ** 2; if (s < bs) { bs = s; threat = { k: 'ball', ref: b }; } }
     if (!threat) for (const e of G.enemies) if (e.hp > 0 && ok(e.x, e.y - e.r * 0.7)) { const s = (e.x - hx) ** 2 + (e.y - hy) ** 2; if (s < bs) { bs = s; threat = { k: 'en', ref: e }; } }
     if (threat) t = threat;
     else if (!valid || G.retarget <= 0) t = findCell(hx, hy, R, ok);
@@ -335,7 +351,15 @@ function updEnemies(dt) {
   for (const e of G.enemies) {
     e.flash = Math.max(0, e.flash - dt);
     if (e.hp <= 0) continue;
-    if (e.kind === 'blob') {
+    if (e.kind === 'wave') {
+      e.size = 0.35 + 0.65 * Math.max(0, e.hp) / e.hp0; e.r = 46 * e.size; e.t += dt;
+      e.x += e.dir * e.spd * dt;
+      if (Math.random() < dt * 12) part(e.x - e.dir * 40 * e.size, GROUND - 10 - Math.random() * 40 * e.size, -e.dir * 40, -40, 0.6, 3 + Math.random() * 4, '#7fb52e', 'c');
+      const hitSolid = G.solids.some(s => e.x > s.x - 10 && e.x < s.x + s.w + 10) || (G.wall && !G.wall.open && Math.abs(e.x - G.wall.x - 38) < 40);
+      if (hitSolid) { e.hp = 0; e.noCoin = true; }
+      else if (e.x < G.cam.x - 300 || e.x > G.cam.x + view.W + 400) { e.hp = 0; e.gone = true; }
+      else if (Math.abs(P.x - e.x) < 52 * e.size + 12 && P.y > GROUND - 88 * e.size) hurtPlayer(e.x);
+    } else if (e.kind === 'blob') {
       e.hop += dt * 6; e.x += e.dir * e.spd * dt;
       if (e.x < e.minX) { e.x = e.minX; e.dir = 1; } if (e.x > e.maxX) { e.x = e.maxX; e.dir = -1; }
       const dx = P.x - e.x;
@@ -350,18 +374,52 @@ function updEnemies(dt) {
       if (e.dropT <= 0 && Math.abs(P.x - e.x) < 90) { G.balls.push({ x: e.x, y: e.y + 14, vx: 0, vy: 40, r: 12, hp: 0.3, hp0: 0.3, slime: swamp }); e.dropT = 3.5; Sfx.throw(); }
       if (Math.abs(P.x - e.x) < 30 && Math.abs(P.y - 45 - e.y) < 50) hurtPlayer(e.x);
     }
+    if (e.hp <= 0 && e.gone) continue;
     if (e.hp <= 0) {
-      Sfx.pop(); splash(e.x, e.y - 20, e.kind === 'bird' ? '#4a3a5a' : (swamp ? '#6f9a2a' : '#7b5431'), 16); bubbles(e.x, e.y - 20, 6);
-      spawnCoins(e.x, e.y - 30, 2); floatText(e.x, e.y - 60, 'Splash!', '#bfe9ff', 24);
+      Sfx.pop(); splash(e.x, e.y - 20, e.kind === 'bird' ? '#4a3a5a' : e.kind === 'wave' ? '#7fb52e' : (swamp ? '#6f9a2a' : '#7b5431'), e.kind === 'wave' ? 30 : 16); bubbles(e.x, e.y - 20, 6);
+      if (!e.noCoin) { spawnCoins(e.x, e.y - 30, e.kind === 'wave' ? 4 : 2); floatText(e.x, e.y - 60, e.kind === 'wave' ? 'Wave washed!' : 'Splash!', '#bfe9ff', 24); }
     }
   }
   G.enemies = G.enemies.filter(e => e.hp > 0);
+}
+function updSpinners(dt) {
+  for (const o of G.objs) {
+    if (o.type !== 'spinner') continue;
+    o.ang = (o.ang || 0) + dt * (o.done ? 1.2 : 7);
+    if (o.done || G.demo) continue;
+    const near = o.x + o.w > G.cam.x - 150 && o.x < G.cam.x + view.W + 150;
+    if (near && !G.spinSaid) { G.spinSaid = true; kidSay('That fountain is spraying mud everywhere! Wash it to make it stop!', true); }
+    o.spewT = (o.spewT == null ? 1.5 : o.spewT) - dt;
+    if (o.spewT <= 0 && near) {
+      o.spewT = 2.4 + Math.random() * 0.8;
+      const hx = o.x + o.w / 2, hy = o.top + PAD + 30;
+      for (let k = 0; k < 4; k++) { const s = k % 2 ? 1 : -1; G.balls.push({ x: hx + s * 14, y: hy, vx: s * (90 + Math.random() * 200), vy: -380 - Math.random() * 240, r: 11, hp: 0.3, hp0: 0.3, slime: G.L.dirt === 'slime', mud: true }); }
+      Sfx.throw();
+    }
+  }
+}
+function updWaves(dt) {
+  if (!G.L.waveEvery || G.done || G.respawnT > 0 || (G.arena && G.arena.started)) return;
+  G.waveT -= dt; if (G.waveT > 0) return;
+  const P = G.p, dir = -P.face, x0 = P.face > 0 ? G.cam.x + view.W + 80 : G.cam.x - 80;
+  const lo = Math.min(x0, P.x), hi = Math.max(x0, P.x);
+  const blocked = x0 < 100 || x0 > G.L.len - 50 || G.solids.some(s => s.x + s.w > lo && s.x < hi) || (G.wall && !G.wall.open && G.wall.x > lo && G.wall.x < hi);
+  if (blocked) { G.waveT = 3; return; }
+  G.waveT = G.L.waveEvery * (0.8 + Math.random() * 0.5);
+  G.enemies.push({ kind: 'wave', x: x0, y: GROUND, dir, spd: 85 + G.idx * 1.5, hp: 5, hp0: 5, r: 46, size: 1, flash: 0, t: 0 });
+  Sfx.whoosh();
+  if (!G.waveSaid) { G.waveSaid = true; kidSay('A slime wave! Spray it, or jump over it when it gets small!', true); }
 }
 function updBalls(dt) {
   const P = G.p;
   for (const b of G.balls) {
     b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.hp <= 0) { b.dead = true; for (let i = 0; i < 8; i++) part(b.x, b.y, (Math.random() - 0.5) * 240, (Math.random() - 0.5) * 240, 0.4, 3, '#d6f1ff', 'c'); Sfx.pop(); continue; }
+    if (b.mud) {
+      let hit = false;
+      for (const o of G.objs) if (o.type !== 'spinner' && o.grid && b.x > o.x && b.x < o.x + o.w && b.y > o.top && b.y < o.y && dirtyAt(o, b.x, b.y, 26) > 0) { hit = true; break; }
+      if (hit) { b.dead = true; Sfx.splat(); splash(b.x, b.y, b.slime ? '#6f9a2a' : '#7b5431', 6); continue; }
+    }
     if (b.y >= GROUND - 4) { b.dead = true; Sfx.splat(); splash(b.x, GROUND - 4, b.slime ? '#6f9a2a' : '#7b5431', 10); G.puddles.push({ x: b.x, w: 40, life: 3, slime: b.slime }); continue; }
     if (b.x > P.x - 18 - b.r && b.x < P.x + 18 + b.r && b.y > P.y - 88 - b.r && b.y < P.y + b.r) { b.dead = true; hurtPlayer(b.x); }
   }
@@ -536,7 +594,8 @@ function render() {
   if (G.wall && vis(G.wall.x, 80)) drawWall(c, G.wall.x, G.t, G.wall.melt, G.theme === 'swamp');
   if (G.finish && vis(G.finish - 10, 100)) drawFinish(c, G.finish, G.t, G.wall ? G.wall.open : true);
   for (const k of G.coins) drawCoin(c, k.x, k.y, k.t);
-  for (const e of G.enemies) { if (e.kind === 'blob') drawBlob(c, e, G.t, G.theme === 'swamp'); else drawBird(c, e, G.t); }
+  for (const o of G.objs) if (o.type === 'spinner' && vis(o.x, o.w)) drawSpinnerHead(c, o.x + o.w / 2, o.top + PAD + 30, o.ang || 0, o.done, G.t);
+  for (const e of G.enemies) { if (e.kind === 'blob') drawBlob(c, e, G.t, G.theme === 'swamp'); else if (e.kind === 'wave') drawWave(c, e, G.t); else drawBird(c, e, G.t); }
   if (G.boss) drawBoss(c);
   for (const b of G.balls) drawBall(c, b, G.t, G.theme === 'swamp');
   drawPlayer(c);
