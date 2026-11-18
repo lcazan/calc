@@ -16,7 +16,7 @@ function makeObj(type, x, baseY, v, dirt, seed) {
   D.draw(a, D.w, D.h, v || 0);
   const o = { type, x: x - PAD, y: baseY + PAD, w, h, v, art, count: D.count !== false, done: !dirt, bounce: 0, given: 0,
     reward: clamp(Math.round(D.w * D.h / 2600), 3, 14), snd: D.snd };
-  o.top = o.y - o.h;
+  o.top = o.y - o.h; o.base = baseY; o.high = baseY < GROUND - HIGH_ABOVE;
   if (dirt) addDirt(o, dirt, seed || 1);
   return o;
 }
@@ -248,7 +248,7 @@ function updSpray(dt) {
     P.sputT -= dt; if (want && P.sputT <= 0) { Sfx.sputter(); P.sputT = 0.5; }
   }
   P.spraying = want && !P.refill && P.tank > 0;
-  const hx = P.x + P.face * 10, hy = P.y - 40, R = pr.range * noz.range;
+  const hx = P.x + P.face * 10, hy = P.y - 40, R = MAX_REACH * noz.range;
   const ok = (x, y) => { const dx = (x - hx) * P.face, dy = y - hy; if (dx < 16 || dx * dx + dy * dy > R * R) return false; const a = Math.atan2(dy, dx); return a > -1.25 && a < 1.1; };
   if (!P.spraying) {
     P.hitting = false; Sfx.spray(false, false, 0);
@@ -271,7 +271,10 @@ function updSpray(dt) {
     for (const b of G.balls) if (!b.mud && Math.abs(b.x - P.x) < 220 && ok(b.x, b.y)) { const s = (b.x - hx) ** 2 + (b.y - hy) ** 2; if (s < bs) { bs = s; threat = { k: 'ball', ref: b }; } }
     if (!threat) for (const e of G.enemies) if (e.hp > 0 && ok(e.x, e.y - e.r * 0.7)) { const s = (e.x - hx) ** 2 + (e.y - hy) ** 2; if (s < bs) { bs = s; threat = { k: 'en', ref: e }; } }
     if (threat) t = threat;
-    else if (!valid || G.retarget <= 0) t = findCell(hx, hy, R, ok);
+    else if (!valid || G.retarget <= 0) {
+      G.needClimb = false; t = findCell(hx, hy, R, ok);
+      if (!t && G.needClimb && G.t > (G.climbSayT || 0)) { G.climbSayT = G.t + 10; kidSay('I need to climb up there to wash that!', true); }
+    }
     G.retarget = 0.25;
   }
   G.tgt = t;
@@ -287,8 +290,11 @@ function updSpray(dt) {
   // clean
   const amt = 3.2 * noz.pow * pr.pow * dt, r = noz.r;
   let got = 0;
-  const list = G.boss && G.boss.st === 'fight' ? G.objs.concat([G.boss.o]) : G.objs;
+  const [nzx, nzy] = nozzleWorld(), wb = waveBlocks(nzx, nzy, G.aim.x, G.aim.y);
+  if (wb) { G.aim.x = wb.x; G.aim.y = GROUND - 40 * wb.size; G.tgt = { k: 'en', ref: wb }; }
+  const list = wb ? [] : G.boss && G.boss.st === 'fight' ? G.objs.concat([G.boss.o]) : G.objs;
   for (const o of list) {
+    if (tooLow(o)) continue;
     const g = cleanAt(o, G.aim.x, G.aim.y, r, amt);
     if (g > 0) {
       got += g;
@@ -309,6 +315,21 @@ function updSpray(dt) {
   if (Math.random() < 0.25) part(G.aim.x, G.aim.y, 0, -20, 0.5, r * 0.6, 'rgba(255,255,255,.5)', 'm', 0);
   Sfx.spray(true, P.hitting, SAVE.up.pressure);
 }
+function tooLow(o) { return o.high && G.p.y > o.base + CLIMB_GAP; }
+// does a slime wave stand between the nozzle and this point? (waves block the jet)
+function waveBlocks(x1, y1, x2, y2) {
+  for (const e of G.enemies) {
+    if (e.kind !== 'wave' || e.hp <= 0) continue;
+    const s = e.size, rx0 = e.x - 50 * s, rx1 = e.x + 50 * s, ry0 = GROUND - 90 * s, ry1 = GROUND;
+    let t0 = 0, t1 = 1; const dx = x2 - x1, dy = y2 - y1;
+    for (const [p, q] of [[-dx, x1 - rx0], [dx, rx1 - x1], [-dy, y1 - ry0], [dy, ry1 - y1]]) {
+      if (p === 0) { if (q < 0) { t0 = 2; break; } continue; }
+      const r = q / p; if (p < 0) { if (r > t1) { t0 = 2; break; } if (r > t0) t0 = r; } else { if (r < t0) { t0 = 2; break; } if (r < t1) t1 = r; }
+    }
+    if (t0 <= t1 && t0 < 0.98) return e;
+  }
+  return null;
+}
 function findCell(hx, hy, R, ok) {
   const ax = G.aim.x, ay = G.aim.y, P = G.p;
   let best = null, bs = 1e12;
@@ -318,11 +339,12 @@ function findCell(hx, hy, R, ok) {
     const nx = clamp(hx, o.x, o.x + o.w), ny = clamp(hy, o.top, o.y);
     if ((nx - hx) ** 2 + (ny - hy) ** 2 > R * R) continue;
     if ((o.x + o.w - hx) * P.face < 16 && (o.x - hx) * P.face < 16) continue;
+    if (tooLow(o)) { G.needClimb = true; continue; }
     for (let j = 0; j < o.gh; j++) for (let i = 0; i < o.gw; i++) {
       const k = j * o.gw + i; if (!o.act[k] || o.grid[k] <= 0.06) continue;
       const cx = (i + 0.5) * CELL, cy = (j + 0.5) * CELL, wx = o.x + cx, wy = o.top + cy;
       const s = (wx - ax) ** 2 + (wy - ay) ** 2 + 0.2 * ((wx - hx) ** 2 + (wy - hy) ** 2);
-      if (s < bs && ok(wx, wy)) { bs = s; best = { k: 'cell', o, i: k, cx, cy }; }
+      if (s < bs && ok(wx, wy) && !waveBlocks(hx, hy, wx, wy)) { bs = s; best = { k: 'cell', o, i: k, cx, cy }; }
     }
   }
   return best;
@@ -481,7 +503,7 @@ function startBoss() {
   A.L = Math.max(0, G.L.len - view.W);
   const o = makeObj('boss', 0, GROUND, 0, 'slime', 999 + A.fight);
   G.boss = { o, x: G.L.len - 260, y: -260, vx: 0, vy: 0, face: -1, st: 'enter', t: 0, throwT: 2.5, jumpT: 6, blobT: 8, mood: 'angry', moodT: 0,
-    say: '', sayT: 0, hitT: 0, ground: false, clean: 0, target: bossTarget(A.fight), diff: bossDiff(A.fight), blinkT: 3, blink: 0, tx: 0 };
+    say: '', sayT: 0, hitT: 0, waveT: 3, sprayedT: 0, ground: false, clean: 0, target: bossTarget(A.fight), diff: bossDiff(A.fight), blinkT: 3, blink: 0, tx: 0 };
   G.checkpoint = A.L + 90; G.hydrants.push({ x: A.L + 60, active: true });
   Sfx.music('boss');
 }
@@ -510,6 +532,18 @@ function updBoss(dt) {
     if (b.ground) {
       if (!b.tx || Math.abs(b.tx - b.x) < 12) b.tx = L + 260 + Math.random() * Math.max(100, R - L - 380);
       b.vx = Math.sign(b.tx - b.x) * (55 + diff * 20) * (b.hitT > 0 ? 0.35 : 1);
+    }
+    b.waveT -= dt;
+    if (b.waveT <= 0 && b.ground && G.enemies.filter(e => e.kind === 'wave').length < 2) {
+      b.waveT = [0, 7, 5.5, 4.5][diff] * (0.85 + Math.random() * 0.3);
+      G.enemies.push({ kind: 'wave', x: b.x + b.face * 90, y: GROUND, dir: b.face, spd: 75 + diff * 12, hp: 3 + diff, hp0: 3 + diff, r: 46, size: 1, flash: 0, t: 0 });
+      Sfx.whoosh(); b.mood = 'laugh'; b.moodT = 1; if (Math.random() < 0.5) bossSay(pick(['Slime wave, GO!', 'Surf the slime!', 'Wash THAT, little washer!']));
+    }
+    b.sprayedT = b.hitT > 0 ? b.sprayedT + dt : Math.max(0, b.sprayedT - dt * 0.5);
+    if (b.sprayedT > 2.4 && b.ground) {
+      b.sprayedT = 0; const away = b.x < P.x ? -1 : 1, dest = away < 0 ? L + 160 : R - 140;
+      b.vy = -820; b.ground = false; b.vx = clamp((dest - b.x) / 1.15, -460, 460); b.jumpT = Math.max(b.jumpT, 3);
+      Sfx.throw(); bossSay(pick(['Missed me!', 'Too slow!', 'Wheee!'])); b.mood = 'laugh'; b.moodT = 1;
     }
     b.throwT -= dt; if (b.throwT <= 0 && b.ground) { throwBall(b, diff); b.throwT = [0, 2.9, 2.4, 2.0][diff] * (0.8 + Math.random() * 0.4); }
     b.jumpT -= dt; if (b.jumpT <= 0 && b.ground) { b.vy = -760; b.ground = false; b.vx = clamp((P.x - b.x) / 1.1, -300, 300); b.jumpT = 6.5 + Math.random() * 2; Sfx.throw(); }

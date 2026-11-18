@@ -4,10 +4,14 @@ const GROUND = 460;
 
 const NOZZLES = {
   fan:   { name: 'Fan',   color: '#36c25b', r: 20, range: 1,    pow: 1 },
-  jet:   { name: 'Jet',   color: '#ef4a3c', r: 11, range: 1.35, pow: 1.6 },
-  wide:  { name: 'Wide',  color: '#f2f2f2', r: 32, range: 0.8,  pow: 0.8 },
-  turbo: { name: 'Turbo', color: 'rainbow', r: 28, range: 1.2,  pow: 1.8 }
+  jet:   { name: 'Jet',   color: '#ef4a3c', r: 11, range: 1,    pow: 1.8 },
+  wide:  { name: 'Wide',  color: '#f2f2f2', r: 32, range: 0.85, pow: 0.8 },
+  turbo: { name: 'Turbo', color: 'rainbow', r: 28, range: 1,    pow: 1.8 }
 };
+// Spray reach is the same for everyone (upgrades only add power), so high-up things need climbing.
+const MAX_REACH = 300;
+// Things standing this high above the ground can only be washed when the kid is up near them (feet at most CLIMB_GAP below their base).
+const HIGH_ABOVE = 100, CLIMB_GAP = 85;
 const NOZZLE_ORDER = ['fan', 'jet', 'wide', 'turbo'];
 const NOZZLE_COST = { jet: 20, wide: 45, turbo: 120 };
 const PRESSURE = [
@@ -158,7 +162,7 @@ function fleeStory(a) {
   return [['flee:' + next.theme + ':' + bossTarget(a + 1).toFixed(2), FLEE_TEXT[a % FLEE_TEXT.length].replace('{n}', next.name)]];
 }
 // how clean he must get before he runs away (fight 1..10)
-function bossTarget(f) { return f >= AREAS.length ? 0.93 : 0.2 + 0.05 * (f - 1); }
+function bossTarget(f) { return f >= AREAS.length ? 0.93 : 0.45 + 0.04 * (f - 1); }
 function bossDiff(f) { return f <= 3 ? 1 : f <= 7 ? 2 : 3; }
 
 const BOSS_TAUNTS = ['Mwa-ha-ha! Mud is marvelous!', 'Slime time!', "You'll never clean me!", 'Catch this, little washer!', 'Dirt is delightful!', 'Messy is the best!'];

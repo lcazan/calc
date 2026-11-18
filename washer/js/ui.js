@@ -151,7 +151,7 @@ const UI = (() => {
     let g = sec('Nozzles');
     for (const id of NOZZLE_ORDER) {
       const n = NOZZLES[id], own = SAVE.nozzles.includes(id);
-      const desc = { fan: 'Good at everything', jet: 'Far and strong, thin spray', wide: 'Big wide spray', turbo: 'Super strong rainbow spray!' }[id];
+      const desc = { fan: 'Good at everything', jet: 'Thin and super strong', wide: 'Big wide spray', turbo: 'Super strong rainbow spray!' }[id];
       item(g, iconCanvas(44, (c, s) => nozzleIcon(c, s, id)), n.name, desc, SAVE.noz === id ? 'using' : own ? 'owned' : 'buy', NOZZLE_COST[id],
         () => { SAVE.nozzles.push(id); SAVE.noz = id; }, () => { SAVE.noz = id; });
     }
