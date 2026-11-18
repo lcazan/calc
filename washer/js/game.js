@@ -218,6 +218,8 @@ function updSpray(dt) {
     return;
   }
   P.tank = Math.max(0, P.tank - 7 * dt);
+  // never spray behind the kid: after turning around (or a respawn) restart the stream in front
+  if ((G.aim.x - hx) * P.face < 16) { G.aim.x = hx + P.face * 40; G.aim.y = hy + 10; G.tgt = null; }
   // choose a target
   G.retarget -= dt;
   let t = G.tgt;
