@@ -429,11 +429,11 @@ function updPlayer(dt) {
       if (!h.active) { h.active = true; G.checkpoint = h.x; Sfx.buy(); sparkleBurst(h.x + 40, GROUND - 76, 10); }
     }
   }
-  // fire hose (v1.30): bought in the shop, hooks onto a red hydrant the kid stands at; walking 450 away unhooks it
+  // fire hose (v1.30): bought in the shop, hooks onto a red hydrant the kid stands at; walking HOSE_LEN away unhooks it (twice that with the Long hose)
   if (SAVE.up.hose && !G.demo) {
     const hn = G.hydrants.find(h => Math.abs(P.x - h.x) < 70 && P.y > GROUND - 10);
     if (hn && G.hose !== hn) { G.hose = hn; Sfx.ding(); floatText(hn.x, GROUND - 120, 'Hose on!', '#ff6f5a', 28); hintOnce('hose', 'Fire hose hooked up! Now I can spray super far and strong!'); }
-    else if (G.hose && Math.abs(P.x - G.hose.x) > 450) { floatText(G.hose.x, GROUND - 120, 'Hose off', '#fff', 24); G.hose = null; Sfx.pop(); }
+    else if (G.hose && Math.abs(P.x - G.hose.x) > HOSE_LEN * (SAVE.up.longhose ? 2 : 1)) { floatText(G.hose.x, GROUND - 120, 'Hose off', '#fff', 24); G.hose = null; Sfx.pop(); }
   }
   // fire truck: walk up to it to hop in
   // walking into it boards it, also again after hopping off (v1.31); landing next to it after hopping off doesn't: the kid must walk away first

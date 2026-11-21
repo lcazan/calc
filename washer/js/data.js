@@ -28,7 +28,9 @@ const PRESSURE_COST = [30, 60, 100, 150, 220];
 const TANK = [100, 150, 210, 280, 360];
 const TANK_COST = [20, 45, 80, 120];
 // extras (v1.30): soap needs Pressure maxed; the fire hose hooks onto red hydrants
-const SOAP_COST = 200, HOSE_COST = 150;
+const SOAP_COST = 200, HOSE_COST = 150, LONGHOSE_COST = 100;
+// fire hose reach from its hydrant before it unhooks; the Long hose (v1.35, needs the Fire hose) doubles it
+const HOSE_LEN = 450;
 const HATS = { none: 0, cap: 15, helmet: 25, cowboy: 30, pirate: 40, wizard: 45, propeller: 60, crown: 80 };
 const HAT_NAMES = { none: 'No hat', cap: 'Cap', helmet: 'Fire helmet', cowboy: 'Cowboy hat', pirate: 'Pirate hat', wizard: 'Wizard hat', propeller: 'Propeller hat', crown: 'Crown' };
 const WCOLORS = { yellow: ['#ffc928', 0], red: ['#ef4a3c', 10], blue: ['#3a8cf0', 10], green: ['#43c46b', 10], purple: ['#9b5de5', 15], pink: ['#ff7eb6', 15] };

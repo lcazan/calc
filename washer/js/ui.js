@@ -2,7 +2,7 @@
 // Super Splash: menus, saving, input and the main loop
 const SAVE_KEY = 'supersplash-v1';
 const SAVE_DEF = { gender: 'boy', skin: 0, hair: 0, sound: true, music: true, voice: true, diff: 'medium', coins: 0, unlocked: 1, done: [],
-  up: { pressure: 0, tank: 0, soap: false, hose: false }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
+  up: { pressure: 0, tank: 0, soap: false, hose: false, longhose: false }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
 function loadSave() {
   const d = JSON.parse(JSON.stringify(SAVE_DEF));
   // the save is kept twice (v1.25); if the main copy is missing or broken the backup is used, so progress is never lost to a bad read
@@ -151,7 +151,7 @@ const UI = (() => {
       else b.innerHTML = `<span class="coin"></span>${price}`;
       b.onclick = () => {
         if (state === 'owned') { click(); onUse(); persist(); renderShop(); return; }
-        if (state === 'locked') { Sfx.init(); Sfx.nope(); Sfx.say('Max out your pressure first!'); return; }
+        if (state === 'locked') { Sfx.init(); Sfx.nope(); Sfx.say(sub + '!'); return; }
         if (state !== 'buy') return;
         if (SAVE.coins < price) { Sfx.init(); Sfx.nope(); Sfx.say(`You need ${price - SAVE.coins} more coins. Wash more stuff!`); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 400); return; }
         SAVE.coins -= price; onBuy(); persist(); Sfx.init(); Sfx.buy(); renderShop();
@@ -172,6 +172,7 @@ const UI = (() => {
     item(g, iconCanvas(44, (c, s) => tankIcon(c, s, (tl + 1) / TANK.length)), 'Water tank', `Holds ${Math.round(TANK[tl] * tankMul())} ${pips(tl, TANK.length)}`, tl >= TANK.length - 1 ? 'max' : 'buy', TANK_COST[tl], () => { SAVE.up.tank++; });
     // extras (v1.30): fire hose for red hydrants; soap only after Pressure is maxed
     item(g, iconCanvas(44, hoseIcon), 'Fire hose', 'Hooks onto red hydrants: sprays far and strong', SAVE.up.hose ? 'using' : 'buy', HOSE_COST, () => { SAVE.up.hose = true; });
+    item(g, iconCanvas(44, (c, s) => { hoseIcon(c, s); hoseIcon(c, s * 0.6); }), 'Long hose', SAVE.up.hose ? 'Twice as long: walk farther from the hydrant' : 'Buy the Fire hose first', SAVE.up.longhose ? 'using' : SAVE.up.hose ? 'buy' : 'locked', LONGHOSE_COST, () => { SAVE.up.longhose = true; });
     const soapOk = pl >= PRESSURE.length - 1;
     item(g, iconCanvas(44, soapIcon), 'Soap', soapOk ? 'Sudsy spray: washed things stay clean' : 'Max out Pressure first', SAVE.up.soap ? 'using' : soapOk ? 'buy' : 'locked', SOAP_COST, () => { SAVE.up.soap = true; });
     g = sec('Hats');
