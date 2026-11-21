@@ -400,7 +400,7 @@ function updPlayer(dt) {
   if (G.arena && G.arena.started) minX = G.arena.L + 20;
   if (P.inHole) P.x = clamp(P.x, P.inHole.x + 16, P.inHole.x + P.inHole.w - 16);
   P.x = clamp(P.x, minX, maxX);
-  if (G.lakes.length && !lakeFree(P.x, P.y)) { P.x = x0; P.vx = 0; } // pond banks and tunnel walls
+  if (G.lakes.length && !P.inHole && !lakeFree(P.x, P.y)) { P.x = x0; P.vx = 0; } // pond banks and tunnel walls (not in sewer holes, v1.34)
   // y
   const prevY = P.y, wasGround = P.ground, vyBefore = P.vy;
   P.y += P.vy * dt; P.ground = false; P.on = null; P.onS = null;
@@ -408,7 +408,7 @@ function updPlayer(dt) {
   if (P.y >= GROUND - 1 && !P.inHole && prevY <= GROUND + 1) P.inHole = holeAt(P.x);
   if (P.inHole) { if (P.y > GROUND + 120) { if (P.inHole.sewer && !G.under && !G.demo) enterSewer(P.inHole); else holeFall(); return; } }
   else if (P.y >= GROUND && (!G.lakes.length || (prevY <= GROUND + 1 && !lakeCol(P.x)))) { P.y = GROUND; P.vy = 0; P.ground = true; }
-  if (G.lakes.length && P.y > GROUND - 60 && !lakeFree(P.x, P.y)) { P.y = prevY; P.vy = 0; if (!lakeFree(P.x, P.y)) { P.y = GROUND; P.ground = true; } } // pond bottom, tunnel roof
+  if (G.lakes.length && !P.inHole && P.y > GROUND - 60 && !lakeFree(P.x, P.y)) { P.y = prevY; P.vy = 0; if (!lakeFree(P.x, P.y)) { P.y = GROUND; P.ground = true; } } // pond bottom, tunnel roof
   if (vyBefore >= 0) {
     for (const p of G.plats) if (prevY <= Math.max(p.y, p.py == null ? p.y : p.py) + 1 && P.y >= p.y && P.x > p.x - 10 && P.x < p.x + p.w + 10) { P.y = p.y; P.vy = 0; P.ground = true; P.on = p; }
     for (const s2 of G.solids) if (prevY <= s2.y + 1 && P.y >= s2.y && P.x + 14 > s2.x && P.x - 14 < s2.x + s2.w) { P.y = s2.y; P.vy = 0; P.ground = true; P.onS = s2; }
@@ -538,7 +538,7 @@ function updSpray(dt) {
     return;
   }
   if (!G.demo && !free) P.tank = Math.max(0, P.tank - 7 * dt);
-  if (SAVE.up.soap && !G.demo) { if (G.aim.y > GROUND - 50) G.soapG[Math.floor(G.aim.x / SOAP_CELL)] = 1; if (Math.random() < dt * 10) bubbles(G.aim.x, G.aim.y, 1); }
+  if (SAVE.up.soap && !G.demo) { if (G.aim.y > GROUND - 50 && !holeAt(G.aim.x, -20) && !lakeCol(G.aim.x, -20)) G.soapG[Math.floor(G.aim.x / SOAP_CELL)] = 1; if (Math.random() < dt * 10) bubbles(G.aim.x, G.aim.y, 1); }
   // never spray behind the kid: after turning around (or a respawn) restart the stream in front
   if ((G.aim.x - hx) * P.face < 16) { G.aim.x = hx + P.face * 40; G.aim.y = hy + 10; G.tgt = null; }
   // choose a target
@@ -595,7 +595,7 @@ function updSpray(dt) {
       }
     }
   }
-  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt * boost * gearMult() / (G.L.tough || 2); e.flash = 0.1; got += 0.01; }
+  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt * boost * gearMult() * (SAVE.up.soap ? 1.33 : 1) / (G.L.tough || 2); e.flash = 0.1; got += 0.01; }
   for (const b of G.balls) if (Math.hypot(b.x - G.aim.x, b.y - G.aim.y) < b.r + r) { b.hp -= amt; got += 0.01; }
   for (const s2 of G.solids) if (s2.tog && s2.tog.up && P.onS !== s2 && G.aim.x > s2.x - 12 && G.aim.x < s2.x + s2.w + 12 && G.aim.y > s2.y + 20 && G.aim.y < GROUND + 5) { s2.baseT = (s2.baseT || 0) + dt; got += 0.01; if (s2.baseT >= 0.5) { s2.baseT = 0; flipToggle(s2); G.tgt = null; } }
   for (const pp of G.pipes) { if (!pp.open) continue; const [vx, vy] = valvePos(pp); if (Math.hypot(vx - G.aim.x, vy - G.aim.y) < 30 + r) { pp.hp -= dt; pp.turnT = 0.15; got += 0.01; if (pp.hp <= 0) closeValve(pp); } }
