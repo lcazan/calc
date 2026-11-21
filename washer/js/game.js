@@ -128,7 +128,7 @@ function newPlayer(x) {
 }
 function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 1, hp0: 1, r: 26, hop: Math.random() * 3, flash: 0, spd: 45, shootT: 2 + Math.random() * 2 }; }
 function startLevel(L, idx, demo) {
-  G = { L, idx, demo: !!demo, theme: L.theme, t: 0, objs: [], plats: [], solids: [], hydrants: [], enemies: [], balls: [], coins: [], parts: [], texts: [], puddles: [],
+  G = { L, idx, demo: !!demo, theme: L.theme, t: 0, objs: [], plats: [], solids: [], hydrants: [], enemies: [], balls: [], wballs: [], coins: [], parts: [], texts: [], puddles: [],
     cam: { x: 0, y: 0, shake: 0 }, aim: { x: 0, y: 0 }, tgt: null, retarget: 0, lvlCoins: 0, cleaned: 0,
     wall: L.wall ? { x: L.wall, open: false, melt: 0 } : null, finish: L.finish || 0, boss: null, arena: null,
     done: false, respawnT: 0, checkpoint: 120, nagT: 3, kidSay: null, demoT: 0, paused: false, waveT: 12 };
@@ -163,7 +163,7 @@ function startLevel(L, idx, demo) {
   G.total = G.objs.filter(o => o.count && o.grid).length + G.birdsReq + G.pipes.length;
   if (L.boss) G.arena = { x: L.boss.x, fight: L.boss.fight, started: false, L: 0 };
   G.p = newPlayer(L.startX || 120);
-  In.left = In.right = In.jump = In.spray = In.jp = false;
+  In.left = In.right = In.jump = In.spray = In.jp = In.bp = false;
   G.aim.x = G.p.x + 150; G.aim.y = GROUND - 60;
   G.cam.x = clamp(G.p.x - view.W * 0.4, 0, Math.max(0, L.len - view.W));
   hudReset();
@@ -199,6 +199,7 @@ function update(dt) {
   updZones(dt);
   updPlayer(dt);
   updSpray(dt);
+  updWBalls(dt);
   updEnemies(dt);
   updSpinners(dt);
   updWaves(dt);
@@ -388,6 +389,12 @@ function updPlayer(dt) {
     if (ctl && P.jbuf > 0 && P.coyote > 0) { P.vy = -830; P.ground = false; P.coyote = 0; P.jbuf = 0; Sfx.jump(); }
     if (!In.jump && P.vy < -380 && !P.hurtT && !P.bigJ) P.vy = -380;
     P.vy = Math.min(P.vy + 2100 * dt, 1000);
+    // jet boots (v1.36): holding jump while falling hovers for JET_TIME; refilled on landing
+    if (P.ground) P.jet = JET_TIME;
+    else if (SAVE.up.boots && ctl && In.jump && P.vy > 0 && P.jet > 0) {
+      P.jet -= dt; P.vy = Math.min(P.vy, 40);
+      if (Math.random() < dt * 30) part(P.x + (Math.random() - 0.5) * 16, P.y, (Math.random() - 0.5) * 60, 240, 0.35, 3 + Math.random() * 3, sprayRainbow() ? rainbow(G.t) : '#bfe9ff', 'c');
+    }
   }
   // x (conveyor belts push the kid back at walking speed while standing on them)
   const x0 = P.x;
@@ -583,17 +590,7 @@ function updSpray(dt) {
   const list = wb ? [] : G.boss && G.boss.st === 'fight' ? G.objs.concat([G.boss.o]) : G.objs;
   for (const o of list) {
     if (tooLow(o)) continue;
-    const g = cleanAt(o, G.aim.x, G.aim.y, r, G.boss && o === G.boss.o ? base * G.boss.armor : amt);
-    if (g > 0) {
-      got += g;
-      if (Math.random() < 0.7) part(G.aim.x, G.aim.y, (Math.random() - 0.5) * 300 - P.face * 80, -Math.random() * 260, 0.5, 2.5 + Math.random() * 3, o.dirtCol, 'c');
-      if (o === (G.boss && G.boss.o)) { G.boss.hitT = 0.25; }
-      else {
-        const want2 = Math.floor((1 - o.rem) * o.reward * 0.5);
-        if (o.given < want2) { spawnCoins(G.aim.x, G.aim.y, want2 - o.given); o.given = want2; }
-        if (o.rem < 0.05) completeObj(o);
-      }
-    }
+    got += washObj(o, G.aim.x, G.aim.y, r, G.boss && o === G.boss.o ? base * G.boss.armor : amt);
   }
   for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt * boost * gearMult() * (SAVE.up.soap ? 1.33 : 1) / (G.L.tough || 2); e.flash = 0.1; got += 0.01; }
   for (const b of G.balls) if (Math.hypot(b.x - G.aim.x, b.y - G.aim.y) < b.r + r) { b.hp -= amt; got += 0.01; }
@@ -601,9 +598,57 @@ function updSpray(dt) {
   for (const pp of G.pipes) { if (!pp.open) continue; const [vx, vy] = valvePos(pp); if (Math.hypot(vx - G.aim.x, vy - G.aim.y) < 30 + r) { pp.hp -= dt; pp.turnT = 0.15; got += 0.01; if (pp.hp <= 0) closeValve(pp); } }
   P.hitting = got > 0;
   // water spray particles
-  if (Math.random() < 0.8) part(G.aim.x, G.aim.y, (Math.random() - 0.5) * 220 - P.face * 60, -Math.random() * 200, 0.4, 2 + Math.random() * 2.5, '#d6f1ff', 'c');
+  if (Math.random() < 0.8) part(G.aim.x, G.aim.y, (Math.random() - 0.5) * 220 - P.face * 60, -Math.random() * 200, 0.4, 2 + Math.random() * 2.5, sprayRainbow() ? rainbow(G.t + Math.random()) : '#d6f1ff', 'c');
   if (Math.random() < 0.25) part(G.aim.x, G.aim.y, 0, -20, 0.5, r * 0.6, 'rgba(255,255,255,.5)', 'm', 0);
   Sfx.spray(true, P.hitting, SAVE.up.pressure);
+}
+// washes object o around (x, y); coins come out as it gets cleaner (spray and water balloons)
+function washObj(o, x, y, r, amt) {
+  const g = cleanAt(o, x, y, r, amt);
+  if (g > 0) {
+    if (Math.random() < 0.7) part(x, y, (Math.random() - 0.5) * 300 - G.p.face * 80, -Math.random() * 260, 0.5, 2.5 + Math.random() * 3, o.dirtCol, 'c');
+    if (o === (G.boss && G.boss.o)) { G.boss.hitT = 0.25; }
+    else {
+      const want2 = Math.floor((1 - o.rem) * o.reward * 0.5);
+      if (o.given < want2) { spawnCoins(x, y, want2 - o.given); o.given = want2; }
+      if (o.rem < 0.05) completeObj(o);
+    }
+  }
+  return g;
+}
+// water balloon launcher (v1.36): the balloon button throws a balloon in an arc; it bursts on the first dirty thing,
+// monster or floor it hits and washes a big round spot. Uses BALLOON_WATER from the tank (free on the fire hose or truck).
+function throwBalloon() {
+  const P = G.p; In.bp = false;
+  if (!SAVE.up.balloon || G.demo || P.lock || P.swim || G.respawnT > 0 || P.balloonT > 0) return;
+  const free = (G.truck && G.truck.on) || G.hose;
+  if (!free && P.tank < BALLOON_WATER) { Sfx.sputter(); hintOnce('water', 'Out of water! Go back to a red hydrant!'); return; }
+  if (!free) P.tank -= BALLOON_WATER;
+  P.balloonT = BALLOON_CD;
+  G.wballs.push({ x: P.x + P.face * 20, y: P.y - 60, vx: P.face * 560 + P.vx * 0.5, vy: -480, t: 0 });
+  Sfx.throw();
+}
+function updWBalls(dt) {
+  const P = G.p; P.balloonT = Math.max(0, (P.balloonT || 0) - dt);
+  if (In.bp) throwBalloon();
+  const objs = G.boss && G.boss.st === 'fight' ? G.objs.concat([G.boss.o]) : G.objs;
+  for (const b of G.wballs) {
+    const py = b.y; b.t += dt; b.vy += 1400 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    const onTop = s => b.vy > 0 && py <= s.y && b.y >= s.y && b.x > s.x && b.x < s.x + s.w;
+    const hit = b.y >= GROUND - 4 || G.plats.some(onTop) || G.solids.some(onTop)
+      || objs.some(o => o.grid && !o.done && b.x > o.x && b.x < o.x + o.w && b.y > o.top && b.y < o.y)
+      || G.enemies.some(e => e.hp > 0 && Math.hypot(e.x - b.x, e.y - e.r * 0.7 - b.y) < e.r + 14)
+      || G.balls.some(s => Math.hypot(s.x - b.x, s.y - b.y) < s.r + 14);
+    if (hit) { b.dead = true; burstBalloon(b.x, Math.min(b.y, GROUND - 4), objs); }
+    else if (b.t > 4) b.dead = true;
+  }
+  G.wballs = G.wballs.filter(b => !b.dead);
+}
+function burstBalloon(x, y, objs) {
+  Sfx.splat(); splash(x, y, sprayRainbow() ? rainbow(G.t) : '#9fdcff', 26); part(x, y, 0, -20, 0.5, BALLOON_R * 0.7, 'rgba(255,255,255,.6)', 'm', 0);
+  for (const o of objs) washObj(o, x, y, BALLOON_R, G.boss && o === G.boss.o ? 0.25 * G.boss.armor : 0.9);
+  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - x, e.y - e.r * 0.7 - y) < e.r + BALLOON_R) { e.hp -= 1.2 * gearMult() / (G.L.tough || 2); e.flash = 0.1; }
+  for (const s of G.balls) if (Math.hypot(s.x - x, s.y - y) < s.r + BALLOON_R) s.hp -= 3;
 }
 function togBase(s) { return [s.x + s.w / 2, GROUND - 35]; }
 function valvePos(pp) { return [pp.x + pp.w / 2, GROUND - pp.h - 34]; }
@@ -922,6 +967,8 @@ function updProgress(dt) {
   if (G.solids.some(s => s.kind === 'hurdle' && (s.x - P.x) * P.face > 0 && s.x - P.x < 300 && s.x > P.x)) hintOnce('hurdle', 'Construction barriers! Jump over them!');
   if (G.solids.some(s => s.tog && Math.abs(s.x - P.x) < 300)) hintOnce('lift', 'A lift block! Stand on it and spray to make it go up!');
   if (G.truck && !G.truck.on && Math.abs(G.truck.x - P.x) < 500) hintOnce('truck', 'A fire truck! Walk up to it to hop in!');
+  if (SAVE.up.boots && !G.p.ground && !G.p.swim) hintOnce('boots', 'Jet boots! Keep holding jump in the air to float!');
+  if (SAVE.up.balloon) hintOnce('balloon', 'Tap the pink balloon button to throw a water balloon!');
   if (!G.truck && !SAVE.up.hose && (G.L.infest || []).some(([a]) => Math.abs(a - P.x) < 400)) hintOnce('infest', 'So many monsters! A fire hose from the shop would help. It hooks onto red hydrants!');
   if (G.arena && !G.arena.started && P.x > G.arena.x + 120) startBoss();
   if (!G.arena && G.finish && w && w.open && P.x > G.finish - 20) {
@@ -1125,6 +1172,7 @@ function render() {
   for (const q of G.pools) if (vis(q.x, q.w)) drawWater(c, q, G.t);
   if (G.lakes.length) drawLakesFront(c, G.lakes, G.tunnels, G.t, G.theme);
   drawStream(c);
+  for (const b of G.wballs) drawWaterBalloon(c, b, sprayRainbow() ? rainbow(G.t) : '#5ab8ff');
   drawParts(c);
   for (const t of G.texts) { c.globalAlpha = Math.min(1, t.life * 1.5); outlinedText(c, t.s, t.x, t.y, t.size, t.col); c.globalAlpha = 1; }
   if (G.kidSay) bubble(c, G.p.x, G.p.y - 120, G.kidSay.s, false);
@@ -1177,15 +1225,17 @@ function drawPlayer(c) {
   else { if (a > 0) tip(-50, a * 1.4); drawKid(c, k); }
   c.restore();
 }
+// rainbow water (v1.36, shop toggle) or the Turbo nozzle colors the spray
+function sprayRainbow() { return SAVE.rbw || curNozzle().color === 'rainbow'; }
 function drawStream(c) {
   const P = G.p; if (!P.spraying) return;
   const [nx, ny] = nozzleWorld(), hx = G.aim.x, hy = G.aim.y, noz = curNozzle(), big = (G.truck && G.truck.on) ? 1.8 : G.hose ? 1.4 : 1, r = noz.r * big;
   const ang = Math.atan2(hy - ny, hx - nx), px = -Math.sin(ang), py = Math.cos(ang);
-  c.globalAlpha = 0.35; c.fillStyle = noz.color === 'rainbow' ? rainbow(G.t) : '#c9eeff';
+  c.globalAlpha = 0.35; c.fillStyle = sprayRainbow() ? rainbow(G.t) : '#c9eeff';
   c.beginPath(); c.moveTo(nx + px * 2, ny + py * 2); c.lineTo(hx + px * r * 0.8, hy + py * r * 0.8); c.lineTo(hx - px * r * 0.8, hy - py * r * 0.8); c.lineTo(nx - px * 2, ny - py * 2); c.fill();
   c.globalAlpha = 1;
   line(c, nx, ny, hx, hy, 'rgba(255,255,255,.95)', (3 + noz.pow * 1.4) * big);
-  c.setLineDash([6, 14]); c.lineDashOffset = -G.t * 900; line(c, nx, ny, hx, hy, noz.color === 'rainbow' ? rainbow(G.t + 0.5) : 'rgba(110,195,255,.95)', 3); c.setLineDash([]);
+  c.setLineDash([6, 14]); c.lineDashOffset = -G.t * 900; line(c, nx, ny, hx, hy, sprayRainbow() ? rainbow(G.t + 0.5) : 'rgba(110,195,255,.95)', 3); c.setLineDash([]);
   c.globalAlpha = 0.55; circ(c, hx, hy, r * (0.6 + Math.random() * 0.3)); c.fillStyle = '#eefaff'; c.fill(); c.globalAlpha = 1;
 }
 function drawBoss(c) {
@@ -1276,5 +1326,6 @@ function hud() {
   hudSet('progFill', 'p', Math.round(prog * 200), (el, v) => { el.style.width = (v / 2) + '%'; });
   G = G0;
   hudSet('progTxt', 'pl', label, (el, v) => { el.textContent = v === 'boss' ? 'Sir Sludgington' : v; document.getElementById('prog').classList.toggle('boss', v === 'boss'); });
+  hudSet('bBalloon', 'b', SAVE.up.balloon ? (P.balloonT > 0 ? 'w' : 'r') : '', (el, v) => { el.classList.toggle('hidden', !v); el.classList.toggle('wait', v === 'w'); });
   hudSet('nozzles', 'n', SAVE.noz + SAVE.nozzles.join(), UI.drawNozzles);
 }

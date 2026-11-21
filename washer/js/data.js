@@ -31,6 +31,10 @@ const TANK_COST = [20, 45, 80, 120];
 const SOAP_COST = 200, HOSE_COST = 150, LONGHOSE_COST = 100;
 // fire hose reach from its hydrant before it unhooks; the Long hose (v1.35, needs the Fire hose) doubles it
 const HOSE_LEN = 450;
+// gadgets (v1.36): jet boots hover, water balloons, rainbow water (looks only)
+const BOOTS_COST = 150, BALLOON_COST = 120, RAINBOW_COST = 60;
+const JET_TIME = 1.2;                                           // seconds of hover per jump
+const BALLOON_CD = 1, BALLOON_WATER = 8, BALLOON_R = 90;        // wait between throws, tank water per balloon, splash radius
 const HATS = { none: 0, cap: 15, helmet: 25, cowboy: 30, pirate: 40, wizard: 45, propeller: 60, crown: 80 };
 const HAT_NAMES = { none: 'No hat', cap: 'Cap', helmet: 'Fire helmet', cowboy: 'Cowboy hat', pirate: 'Pirate hat', wizard: 'Wizard hat', propeller: 'Propeller hat', crown: 'Crown' };
 const WCOLORS = { yellow: ['#ffc928', 0], red: ['#ef4a3c', 10], blue: ['#3a8cf0', 10], green: ['#43c46b', 10], purple: ['#9b5de5', 15], pink: ['#ff7eb6', 15] };

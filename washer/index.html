@@ -56,6 +56,8 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 #pad { left: calc(3 * var(--u) + env(safe-area-inset-left)); bottom: calc(4 * var(--u) + env(safe-area-inset-bottom)); display: flex; gap: calc(1.4 * var(--u)); position: absolute; }
 #bL, #bR { position: relative; width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: calc(3 * var(--u)); background: var(--teal); }
 #bJump { right: calc(32 * var(--u) + env(safe-area-inset-right)); bottom: calc(4 * var(--u) + env(safe-area-inset-bottom)); width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: var(--teal); }
+#bBalloon { right: calc(33 * var(--u) + env(safe-area-inset-right)); bottom: calc(25 * var(--u) + env(safe-area-inset-bottom)); width: calc(16 * var(--u)); height: calc(16 * var(--u)); border-radius: 50%; background: #ffa3c8; }
+#bBalloon.wait { opacity: .45; }
 #bSpray { right: calc(4 * var(--u) + env(safe-area-inset-right)); bottom: calc(4 * var(--u) + env(safe-area-inset-bottom)); width: calc(25 * var(--u)); height: calc(25 * var(--u)); border-radius: 50%; background: radial-gradient(circle at 40% 35%, #8fd8ff, #3a8cf0 70%); }
 #banner { position: fixed; left: 50%; top: 28%; transform: translate(-50%, -50%) scale(0); font-size: calc(9 * var(--u)); color: #fff; white-space: nowrap; pointer-events: none; text-shadow: 0 calc(.6 * var(--u)) 0 var(--ink), 0 0 calc(.8 * var(--u)) var(--ink), 0 0 calc(.8 * var(--u)) var(--ink), 0 0 calc(.8 * var(--u)) var(--ink); opacity: 0; }
 #banner.go { animation: banner 2.4s ease-out; }
@@ -166,6 +168,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
     <button id="bR" class="big" aria-label="Right"><svg viewBox="0 0 24 24"><path d="M10 4l8 8-8 8v-5H4V9h6z" fill="#fff" stroke="#2a2140" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
   </div>
   <button id="bJump" class="big" aria-label="Jump"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2" fill="#fff"/><path d="M7 11l3-3h4l2 4 3 1M10 8l-1 6-4 4M9 14l4 2 1 5"/></svg></button>
+  <button id="bBalloon" class="big hidden" aria-label="Water balloon"><svg viewBox="0 0 24 24"><path d="M12 3c4 0 6.5 3.4 6.5 7.2S15.5 18 12 18s-6.5-4-6.5-7.8S8 3 12 3z" fill="#5ab8ff" stroke="#2a2140" stroke-width="1.6"/><path d="M10.5 18l1.5 2 1.5-2z" fill="#5ab8ff" stroke="#2a2140" stroke-width="1.4" stroke-linejoin="round"/><ellipse cx="9.5" cy="8" rx="1.6" ry="2.4" fill="#fff" opacity=".7"/></svg></button>
   <button id="bSpray" class="big" aria-label="Spray"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15h7l2-2h3" stroke="#2a2140" stroke-width="3.4"/><path d="M3 15h7l2-2h3" stroke="#fff" stroke-width="1.8"/><path d="M5 15v4" stroke="#2a2140" stroke-width="3.4"/><path d="M5 15v4" stroke="#fff" stroke-width="1.8"/><path d="M17 13l4-4M17 13h5M17 13l4 4" stroke="#fff" stroke-width="1.8" stroke-dasharray="2 1.6"/></svg></button>
 </div>
 <div id="banner"></div>
@@ -173,7 +176,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 <div id="title" class="screen">
   <div class="logo"><b>SUPER <span>SPLASH</span><i>!</i></b><small>vs. Sir Sludgington</small></div>
   <button id="playBtn" class="btn green">▶ Play</button>
-  <div id="ver">v1.35</div>
+  <div id="ver">v1.36</div>
   <button id="titleSet" class="btn round" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
 </div>
 
@@ -252,11 +255,11 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 
 <div id="rotate"><div class="ph"></div>Turn your device sideways to play!</div>
 
-<script src="js/data.js?v=1.35"></script>
-<script src="js/art.js?v=1.35"></script>
-<script src="js/world.js?v=1.35"></script>
-<script src="js/audio.js?v=1.35"></script>
-<script src="js/game.js?v=1.35"></script>
-<script src="js/ui.js?v=1.35"></script>
+<script src="js/data.js?v=1.36"></script>
+<script src="js/art.js?v=1.36"></script>
+<script src="js/world.js?v=1.36"></script>
+<script src="js/audio.js?v=1.36"></script>
+<script src="js/game.js?v=1.36"></script>
+<script src="js/ui.js?v=1.36"></script>
 </body>
 </html>

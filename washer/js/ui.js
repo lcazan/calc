@@ -2,7 +2,7 @@
 // Super Splash: menus, saving, input and the main loop
 const SAVE_KEY = 'supersplash-v1';
 const SAVE_DEF = { gender: 'boy', skin: 0, hair: 0, sound: true, music: true, voice: true, diff: 'medium', coins: 0, unlocked: 1, done: [],
-  up: { pressure: 0, tank: 0, soap: false, hose: false, longhose: false }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
+  up: { pressure: 0, tank: 0, soap: false, hose: false, longhose: false, boots: false, balloon: false, rainbow: false }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
 function loadSave() {
   const d = JSON.parse(JSON.stringify(SAVE_DEF));
   // the save is kept twice (v1.25); if the main copy is missing or broken the backup is used, so progress is never lost to a bad read
@@ -140,7 +140,7 @@ const UI = (() => {
     pv.translate(110, 280); pv.scale(2.4, 2.4); drawKid(pv, Object.assign(kidState(), { aim: 0.1, t: performance.now() / 1000 }));
     const box = $('shopItems'); box.innerHTML = '';
     const sec = t => { const h = document.createElement('h3'); h.textContent = t; box.appendChild(h); const g = document.createElement('div'); g.className = 'grid'; box.appendChild(g); return g; };
-    const item = (g, icon, name, sub, state, price, onBuy, onUse) => {
+    const item = (g, icon, name, sub, state, price, onBuy, onUse, onOff) => {
       const d = document.createElement('div'); d.className = 'item ' + state; d.appendChild(icon);
       d.insertAdjacentHTML('beforeend', `<b>${name}</b><small>${sub || ''}</small>`);
       const b = document.createElement('button');
@@ -150,7 +150,7 @@ const UI = (() => {
       else if (state === 'locked') b.textContent = '🔒';
       else b.innerHTML = `<span class="coin"></span>${price}`;
       b.onclick = () => {
-        if (state === 'owned') { click(); onUse(); persist(); renderShop(); return; }
+        if (state === 'owned' || (state === 'using' && onOff)) { click(); (state === 'owned' ? onUse : onOff)(); persist(); renderShop(); return; }
         if (state === 'locked') { Sfx.init(); Sfx.nope(); Sfx.say(sub + '!'); return; }
         if (state !== 'buy') return;
         if (SAVE.coins < price) { Sfx.init(); Sfx.nope(); Sfx.say(`You need ${price - SAVE.coins} more coins. Wash more stuff!`); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 400); return; }
@@ -175,6 +175,11 @@ const UI = (() => {
     item(g, iconCanvas(44, (c, s) => { hoseIcon(c, s); hoseIcon(c, s * 0.6); }), 'Long hose', SAVE.up.hose ? 'Twice as long: walk farther from the hydrant' : 'Buy the Fire hose first', SAVE.up.longhose ? 'using' : SAVE.up.hose ? 'buy' : 'locked', LONGHOSE_COST, () => { SAVE.up.longhose = true; });
     const soapOk = pl >= PRESSURE.length - 1;
     item(g, iconCanvas(44, soapIcon), 'Soap', soapOk ? 'Sudsy spray: washed things stay clean' : 'Max out Pressure first', SAVE.up.soap ? 'using' : soapOk ? 'buy' : 'locked', SOAP_COST, () => { SAVE.up.soap = true; });
+    g = sec('Gadgets');
+    item(g, iconCanvas(44, bootsIcon), 'Jet boots', 'Hold jump in the air to float', SAVE.up.boots ? 'using' : 'buy', BOOTS_COST, () => { SAVE.up.boots = true; });
+    item(g, iconCanvas(44, balloonIcon), 'Water balloons', 'Throw balloons that splash a big spot clean', SAVE.up.balloon ? 'using' : 'buy', BALLOON_COST, () => { SAVE.up.balloon = true; });
+    item(g, iconCanvas(44, rainbowIcon), 'Rainbow water', SAVE.up.rainbow ? 'Tap to turn it on or off' : 'Spray every color!', SAVE.rbw ? 'using' : SAVE.up.rainbow ? 'owned' : 'buy', RAINBOW_COST,
+      () => { SAVE.up.rainbow = true; SAVE.rbw = true; }, () => { SAVE.rbw = true; }, () => { SAVE.rbw = false; });
     g = sec('Hats');
     for (const id in HATS) {
       const own = SAVE.hats.includes(id);
@@ -197,6 +202,9 @@ const UI = (() => {
     rrect(c, s * 0.06, s * 0.4, s * 0.36, s * 0.2, 4); paint(c, '#a7adb8', 2); circ(c, s * 0.42, s / 2, s * 0.12); paint(c, col || rainbow(0.3), 2);
   }
   function hoseIcon(c, s) { c.lineCap = 'round'; for (const [col, lw] of [[OUT, 8], ['#e8443a', 5]]) { c.beginPath(); c.arc(s * 0.45, s * 0.55, s * 0.28, 0.3, TAU * 0.95); c.lineTo(s * 0.88, s * 0.3); c.strokeStyle = col; c.lineWidth = lw; c.stroke(); } rrect(c, s * 0.8, s * 0.2, 8, 8, 2); paint(c, '#ffd23f', 2); }
+  function bootsIcon(c, s) { for (const bx of [0.2, 0.52]) { poly(c, [s * bx, s * 0.2, s * (bx + 0.16), s * 0.2, s * (bx + 0.16), s * 0.55, s * (bx + 0.3), s * 0.6, s * (bx + 0.3), s * 0.72, s * bx, s * 0.72]); paint(c, '#e8443a', 2.5); for (const k of [0, 1]) { c.globalAlpha = 0.8; circ(c, s * (bx + 0.08 + k * 0.12), s * 0.86, s * 0.06); c.fillStyle = '#7fd3ff'; c.fill(); c.globalAlpha = 1; } } }
+  function balloonIcon(c, s) { drawWaterBalloon(c, { x: s * 0.5, y: s * 0.45, t: 0 }, '#5ab8ff'); }
+  function rainbowIcon(c, s) { c.lineCap = 'round'; ['#ef4a3c', '#ffb627', '#ffd23f', '#43c46b', '#3a8cf0', '#9b5de5'].forEach((col, i) => { c.beginPath(); c.arc(s * 0.5, s * 0.72, s * (0.42 - i * 0.055), Math.PI, TAU); c.strokeStyle = col; c.lineWidth = s * 0.06; c.stroke(); }); }
   function soapIcon(c, s) { rrect(c, s * 0.3, s * 0.35, s * 0.4, s * 0.55, 6); paint(c, '#ff9fc0', 2.5); rrect(c, s * 0.44, s * 0.18, s * 0.12, s * 0.18, 2); paint(c, '#fff', 2); line(c, s * 0.5, s * 0.2, s * 0.68, s * 0.2, OUT, 3); for (const [bx, by, r] of [[0.75, 0.25, 4], [0.85, 0.12, 3], [0.2, 0.2, 3]]) { circ(c, s * bx, s * by, r); paint(c, 'rgba(200,240,255,.6)', 1.5); } }
   function gaugeIcon(c, s, f) { circ(c, s / 2, s / 2, s * 0.42); paint(c, '#fff', 2.5); const a = Math.PI * (0.8 + f * 1.4); line(c, s / 2, s / 2, s / 2 + Math.cos(a) * s * 0.32, s / 2 + Math.sin(a) * s * 0.32, '#e8443a', 3); circ(c, s / 2, s / 2, 3); paint(c, OUT, 0); }
   function tankIcon(c, s, f) { rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); paint(c, '#eef6ff', 2.5); c.save(); rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); c.clip(); c.fillStyle = '#3a9cf0'; c.fillRect(0, s * (0.9 - 0.8 * f), s, s); c.restore(); rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); paint(c, null, 2.5); }
@@ -253,16 +261,16 @@ const UI = (() => {
   // ---------------- input
   function bindHold(id, key) {
     const el = $(id);
-    const down = e => { e.preventDefault(); Sfx.init(); In[key] = true; if (key === 'jump') In.jp = true; el.classList.add('on'); try { el.setPointerCapture(e.pointerId); } catch (x) { } };
+    const down = e => { e.preventDefault(); Sfx.init(); In[key] = true; if (key === 'jump') In.jp = true; if (key === 'balloon') In.bp = true; el.classList.add('on'); try { el.setPointerCapture(e.pointerId); } catch (x) { } };
     const up = () => { In[key] = false; el.classList.remove('on'); };
     el.addEventListener('pointerdown', down); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
     el.addEventListener('contextmenu', e => e.preventDefault());
   }
-  const KEYS = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump', x: 'spray', X: 'spray', j: 'spray', J: 'spray', f: 'spray', F: 'spray', Shift: 'spray' };
+  const KEYS = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'jump', w: 'jump', W: 'jump', ' ': 'jump', x: 'spray', X: 'spray', j: 'spray', J: 'spray', f: 'spray', F: 'spray', Shift: 'spray', b: 'balloon', B: 'balloon', e: 'balloon', E: 'balloon' };
   function keys() {
     addEventListener('keydown', e => {
       const k = KEYS[e.key];
-      if (k) { e.preventDefault(); Sfx.init(); if (k === 'jump' && !e.repeat) In.jp = true; In[k] = true; }
+      if (k) { e.preventDefault(); Sfx.init(); if (k === 'jump' && !e.repeat) In.jp = true; if (k === 'balloon' && !e.repeat) In.bp = true; In[k] = true; }
       if ((e.key === 'Escape' || e.key === 'p') && scene === 'game') { G && G.paused ? resume() : pause(); }
       if (e.key === 'Enter' && overlay === 'story') storyNext();
     });
@@ -303,7 +311,7 @@ const UI = (() => {
     buildLevels();
     view.cv = $('cv'); view.ctx = view.cv.getContext('2d');
     resize(); addEventListener('resize', () => { resize(); if (scene === 'map') map(); });
-    bindHold('bL', 'left'); bindHold('bR', 'right'); bindHold('bJump', 'jump'); bindHold('bSpray', 'spray');
+    bindHold('bL', 'left'); bindHold('bR', 'right'); bindHold('bJump', 'jump'); bindHold('bSpray', 'spray'); bindHold('bBalloon', 'balloon');
     keys();
     document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); persist(); Sfx.spray(false, false, 0); } });
     document.addEventListener('touchmove', e => { if (!e.target.closest || !e.target.closest('.scroll')) e.preventDefault(); }, { passive: false });

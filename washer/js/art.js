@@ -2073,6 +2073,12 @@ function drawTruck(c, T, t, P) {
   circ(c, bx, by, 9); paint(c, '#77738a', 2.5);
   if (!T.on && T.x < T.x1 - 2) { const ay = y - 200 + Math.sin(t * 5) * 8, ax = x + w / 2; poly(c, [ax - 18, ay, ax + 18, ay, ax, ay + 24]); paint(c, '#ffd23f', 3); }
 }
+// water balloon in flight (v1.36), wobbling as it spins
+function drawWaterBalloon(c, b, col) {
+  c.save(); c.translate(b.x, b.y); c.rotate(b.t * 8); c.scale(1 + Math.sin(b.t * 20) * 0.08, 1 - Math.sin(b.t * 20) * 0.08);
+  ell(c, 0, 0, 13, 15); paint(c, col, 2.5); poly(c, [-3, 14, 3, 14, 0, 19]); paint(c, col, 2);
+  ell(c, -4, -5, 3, 5); c.fillStyle = 'rgba(255,255,255,.7)'; c.fill(); c.restore();
+}
 // fire hose from a hydrant to the kid's washer, sagging on the ground
 function drawHose(c, x1, y1, P) {
   const x2 = P.x - P.face * 6, y2 = P.y - 36, mx = (x1 + x2) / 2, my = Math.min(GROUND + 4, Math.max(y1, y2) + 60);
