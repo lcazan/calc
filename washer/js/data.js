@@ -35,9 +35,15 @@ const WCOLORS = { yellow: ['#ffc928', 0], red: ['#ef4a3c', 10], blue: ['#3a8cf0'
 // ground: big things on the ground; high: smaller things put up high (on blocks, ledges, floating platforms)
 const AREAS = [
   { name: 'Sunny Street', theme: 'street', dirt: 'mud', block: 'crate', icon: 'house', scenes: [
-    { name: 'Sunny Street', ground: [['house', 0], ['car', 0], ['fence'], ['doghouse'], ['house', 2], ['car', 3]], high: [['mailbox'], ['trash']] },
-    { name: 'Garage Lane', ground: [['garage'], ['van'], ['car', 1], ['garage'], ['van']], high: [['bike'], ['trash'], ['mailbox']] },
-    { name: 'Corner Market', ground: [['fruitstand'], ['shop', 0], ['car', 2], ['fruitstand']], high: [['trash'], ['bench']] } ] },
+    // story: a walk down a sunny morning street
+    { name: 'Sunny Street', story: true, ground: [['house', 0], ['mailbox'], ['car', 0], ['doghouse'], ['fence'], ['lemonade'], ['house', 2], ['kiddiepool'], ['grill'], ['birdbath'], ['car', 3], ['treehouse'], ['mower'], ['house', 1], ['redwagon'], ['trash'], ['bike'], ['car', 2]],
+      high: [['flowerpot'], ['mailbox'], ['trash'], ['bike']] },
+    // story: Saturday on Garage Lane: fixing, tinkering, a yard sale, a camper getting ready for a trip
+    { name: 'Garage Lane', story: true, ground: [['garage'], ['car', 1], ['toolbench'], ['motorcycle'], ['hoop'], ['garagesale'], ['van'], ['redwagon'], ['rv'], ['boat', 0], ['house', 1], ['grill'], ['car', 2], ['mower'], ['doghouse'], ['fence'], ['mailbox'], ['bike']],
+      high: [['toolbox'], ['paintcans'], ['bike'], ['trash']] },
+    // story: shops at the corner: bus stop, newspapers, fruit, flowers, a cafe, the market
+    { name: 'Corner Market', story: true, ground: [['busstop'], ['bus', 0], ['newsstand'], ['shop', 0], ['fruitstand'], ['flowerstand'], ['cafe'], ['shop', 1], ['vending'], ['bench'], ['car', 4], ['trash'], ['mailbox'], ['car', 2]],
+      high: [['basket'], ['flowerpot'], ['trash'], ['bench']] } ] },
   { name: 'Puddle Park', theme: 'park', dirt: 'mud', block: 'crate', icon: 'fountain', scenes: [
     { name: 'Playground', ground: [['slide'], ['swing'], ['seesaw'], ['sandbox']], high: [['bench'], ['trash']] },
     { name: 'Duck Pond', ground: [['fountain'], ['statue'], ['boat', 0], ['bench']], high: [['picnic'], ['bench']] },
@@ -55,9 +61,15 @@ const AREAS = [
     { name: 'Corn Fields', ground: [['tractor', 0], ['scarecrow'], ['haywagon'], ['tractor', 1]], high: [['pig', 0], ['coop']] },
     { name: 'Orchard', ground: [['silo'], ['cow'], ['haywagon']], high: [['cow'], ['pig', 1]] } ] },
   { name: 'Sudsy School', theme: 'school', dirt: 'mud', block: 'crate', icon: 'school', scenes: [
-    { name: 'Schoolyard', ground: [['school'], ['bus', 2], ['bike']], high: [['bike'], ['trash']] },
-    { name: 'Recess', ground: [['slide'], ['seesaw'], ['swing'], ['sandbox']], high: [['trash'], ['bike']] },
-    { name: 'Sports Field', ground: [['goal'], ['bleachers'], ['goal']], high: [['bike'], ['cones']] } ] },
+    // story: arriving at school in the morning, then walking all around the schoolyard
+    { name: 'Schoolyard', story: true, ground: [['guard'], ['car', 1], ['bus', 2], ['bikerack'], ['flagpole'], ['school'], ['bench'], ['lunchtable'], ['drinkfountain'], ['hoop'], ['tetherball'], ['dome'], ['garden'], ['hutch'], ['portable'], ['lostfound'], ['greenhouse'], ['vending'], ['clock'], ['statue'], ['trash'], ['van'], ['picnic'], ['car', 3], ['icecream', 0], ['mailbox'], ['bike'], ['fence'], ['bell'], ['playhouse'], ['bleachers'], ['cones']],
+      high: [['backpack'], ['lunchbox'], ['globe'], ['ballbucket'], ['bike'], ['trash']] },
+    // story: the bell rings and everyone runs out to play
+    { name: 'Recess', story: true, ground: [['bell'], ['drinkfountain'], ['slide'], ['swing'], ['springrider'], ['seesaw'], ['sandbox'], ['merrygo'], ['monkeybars'], ['tunnel'], ['tires'], ['climbwall'], ['pirateship'], ['playhouse'], ['chalkboard'], ['ballcart'], ['puppetshow'], ['balloonstand'], ['popcorn'], ['picnic'], ['bench'], ['gazebo'], ['fountain'], ['garden'], ['dome'], ['hoop'], ['trash'], ['fence'], ['lostfound'], ['lunchtable'], ['tetherball'], ['hutch']],
+      high: [['lunchbox'], ['ballbucket'], ['backpack'], ['globe'], ['trash'], ['bike']] },
+    // story: game day at the sports field
+    { name: 'Sports Field', story: true, ground: [['bus', 2], ['bleachers'], ['goal'], ['scoreboard'], ['snackbar'], ['dugout'], ['cones'], ['medalstand'], ['goalpost'], ['ballcart'], ['bench'], ['van'], ['drinkfountain'], ['trash'], ['fence']],
+      high: [['trophy'], ['cooler'], ['ballbucket'], ['backpack']] } ] },
   { name: 'Busy Airport', theme: 'airport', dirt: 'soot', block: 'crate', icon: 'plane', scenes: [
     { name: 'Runway', ground: [['plane', 0], ['tower'], ['plane', 1]], high: [['suitcase'], ['cart']] },
     { name: 'Hangar', ground: [['helicopter'], ['fueltruck'], ['helicopter']], high: [['cart'], ['suitcase', 1]] },
@@ -85,7 +97,7 @@ function buildLevel(i, seed) {
   const d = i / (LEVEL_COUNT - 1);
   const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [], towers: [], belts: [], pools: [], birdZones: [], infest: [], puddles: [] };
   const blk = A.block;
-  let gc = Math.floor(r() * 7), hc = Math.floor(r() * 3), x = 300;
+  let gc = SC.story ? 0 : Math.floor(r() * 7), hc = SC.story ? 0 : Math.floor(r() * 3), x = 300; // story scenes (v1.31) walk their list in order
   const W = t => OBJ[t].w;
   const flat = [];
   const ground = () => {
@@ -186,7 +198,7 @@ function buildLevel(i, seed) {
   // infested stretch (v1.30): dozens of mud monsters and slime puddles; a fire truck to drive (or hydrants for the fire hose), road closed at the end
   const infest = () => {
     const truck = r() < 0.6, x0 = x + 60;
-    if (truck) { L.truck = [x0, 0]; x = x0 + 300; } else { L.hydrants.push(x0 + 40); x = x0 + 160; }
+    if (truck) { L.objs.push(['firehouse', x0, 0]); const tx = x0 + W('firehouse') + 30; L.truck = [tx, 0]; x = tx + 300; } // the truck waits at a fire station (v1.31) else { L.hydrants.push(x0 + 40); x = x0 + 160; }
     const a = x;
     for (let k = 0; k < 5; k++) { ground(); if (!truck && k === 2) { L.hydrants.push(x - 20); x += 60; } }
     const b = x, nb = Math.max(8, Math.round((truck ? 30 + d * 12 : 16 + d * 8) * mm));

@@ -678,6 +678,314 @@ const OBJ = {
     rrect(c, 0, 110, 142, 40, 8); paint(c, '#ffd23f'); rrect(c, 10, 146, 20, 56, 4); paint(c, '#ffd23f'); rrect(c, 112, 146, 20, 56, 4); paint(c, '#ffd23f');
     star(c, 71, 50, 14, 5); paint(c, '#ffd23f', 2);
   } },
+  // ---------------- story things (v1.31): Sunny Street area
+  lemonade: { w: 170, h: 150, snd: 'chime', draw(c) {
+    for (const x of [14, 150]) { rrect(c, x, 20, 8, 130, 2); paint(c, '#a0662f'); }
+    rrect(c, 0, 8, 172, 24, 6); paint(c, '#ffd23f'); txt(c, 'LEMONADE', 86, 20, 17, '#e8443a');
+    rrect(c, 4, 84, 162, 66, 4); paint(c, '#fff3d6'); for (let x = 4; x < 166; x += 18) { c.fillStyle = '#ffd23f'; c.fillRect(x, 86, 9, 62); } rrect(c, 4, 84, 162, 66, 4); paint(c, null, 3);
+    rrect(c, 34, 46, 34, 38, 6); paint(c, 'rgba(255,240,120,.85)', 2.5); circ(c, 51, 60, 6); paint(c, '#fff27a', 2);
+    for (const x of [94, 124]) { poly(c, [x, 62, x + 20, 62, x + 17, 84, x + 3, 84]); paint(c, '#fff', 2.5); rrect(c, x + 3, 68, 14, 14, 2); paint(c, '#ffe066', 0); }
+    rrect(c, 54, 112, 64, 24, 5); paint(c, '#fff', 2.5); txt(c, '5¢', 86, 124, 16, '#3a6fd8');
+  } },
+  kiddiepool: { w: 190, h: 70, snd: 'splash', draw(c) {
+    ell(c, 95, 44, 92, 24); paint(c, '#3a8cf0'); ell(c, 95, 40, 78, 16); paint(c, '#8fd8ff', 2.5);
+    for (let k = 0; k < 6; k++) { c.fillStyle = 'rgba(255,255,255,.6)'; c.fillRect(12 + k * 30, 54, 14, 6); }
+    ell(c, 130, 30, 22, 10); paint(c, '#ffd23f'); circ(c, 146, 18, 9); paint(c, '#ffd23f'); poly(c, [154, 18, 164, 20, 154, 22]); paint(c, '#ff9f1c', 2); circ(c, 148, 15, 2); paint(c, OUT, 0);
+    circ(c, 50, 34, 12); paint(c, '#fff'); c.beginPath(); c.arc(50, 34, 12, 0, Math.PI); c.fillStyle = '#e8443a'; c.fill(); circ(c, 50, 34, 12); paint(c, null, 2.5);
+  } },
+  grill: { w: 110, h: 130, snd: 'chime', draw(c) {
+    for (const [a, b] of [[30, 20], [80, 90]]) line(c, a + 10, 70, b + 10, 128, OUT, 5);
+    wheel(c, 98, 120, 9);
+    c.beginPath(); c.moveTo(10, 50); c.lineTo(100, 50); c.arc(55, 50, 45, 0, Math.PI); c.closePath(); paint(c, '#2e2a36');
+    c.beginPath(); c.arc(55, 46, 45, Math.PI, 0); c.closePath(); paint(c, '#e8443a'); rrect(c, 46, 0, 18, 8, 3); paint(c, '#888', 2);
+    rrect(c, 0, 44, 110, 8, 3); paint(c, '#c9ced6', 2.5);
+    for (const x of [30, 55, 80]) { c.globalAlpha = 0.5; line(c, x, -4 + 30, x + 4, 10, '#ccc', 3); c.globalAlpha = 1; }
+  } },
+  birdbath: { w: 90, h: 120, snd: 'chime', draw(c) {
+    rrect(c, 24, 104, 42, 16, 4); paint(c, '#c9ced6'); rrect(c, 36, 50, 18, 56, 4); paint(c, '#d5d9e0');
+    c.beginPath(); c.moveTo(2, 40); c.quadraticCurveTo(45, 76, 88, 40); c.closePath(); paint(c, '#d5d9e0'); ell(c, 45, 41, 40, 7); paint(c, '#8fd8ff', 2.5);
+    ell(c, 62, 28, 12, 9); paint(c, '#3a8cf0'); circ(c, 72, 20, 7); paint(c, '#3a8cf0'); poly(c, [78, 20, 86, 22, 78, 24]); paint(c, '#ff9f1c', 1.5); circ(c, 73, 18, 1.6); paint(c, OUT, 0); poly(c, [50, 26, 40, 20, 46, 32]); paint(c, '#3a8cf0', 2);
+  } },
+  treehouse: { w: 230, h: 310, snd: 'chime', draw(c) {
+    rrect(c, 96, 140, 40, 170, 8); paint(c, '#8a5a2b');
+    for (const [x, y, r] of [[60, 70, 56], [170, 64, 58], [116, 34, 50], [116, 96, 50]]) { circ(c, x, y, r); paint(c, '#43c46b'); }
+    rrect(c, 54, 120, 124, 14, 3); paint(c, '#a0662f');
+    rrect(c, 66, 64, 100, 58, 3); paint(c, '#e0a84a'); poly(c, [56, 68, 116, 24, 176, 68]); paint(c, '#e8443a'); win(c, 100, 80, 34, 28);
+    for (const x of [40, 64]) line(c, x, 134, x, 310, OUT, 4); for (let y = 150; y < 310; y += 24) line(c, 40, y, 64, y, '#a0662f', 4);
+    poly(c, [184, 80, 210, 90, 184, 100]); paint(c, '#ffd23f', 2); line(c, 184, 70, 184, 122, OUT, 3);
+  } },
+  mower: { w: 150, h: 90, snd: 'honk', draw(c) {
+    line(c, 40, 54, 8, 4, OUT, 7); line(c, 40, 54, 8, 4, '#c9ced6', 4); line(c, 0, 6, 22, 0, OUT, 7);
+    rrect(c, 30, 44, 110, 34, 12); paint(c, '#43c46b'); rrect(c, 70, 24, 44, 26, 6); paint(c, '#2e2a36'); circ(c, 92, 30, 5); paint(c, '#e8443a', 2);
+    wheel(c, 46, 78, 12); wheel(c, 126, 78, 12);
+    for (let k = 0; k < 5; k++) line(c, 140 + k * 2, 88, 144 + k * 2, 80 - k * 2, '#5aa83c', 2);
+  } },
+  redwagon: { w: 160, h: 80, snd: 'chime', draw(c) {
+    line(c, 130, 50, 158, 22, OUT, 5); rrect(c, 150, 14, 10, 16, 4); paint(c, '#2e2a36', 2);
+    rrect(c, 70, 4, 34, 32, 4); paint(c, '#a0662f'); circ(c, 44, 20, 16); paint(c, '#ff9f1c'); line(c, 44, 4, 44, 36, OUT, 2);
+    rrect(c, 8, 30, 130, 30, 6); paint(c, '#e8443a'); txt(c, 'RADIO', 73, 45, 13, '#fff');
+    wheel(c, 30, 66, 13); wheel(c, 116, 66, 13);
+  } },
+  toolbench: { w: 210, h: 150, snd: 'chime', draw(c) {
+    rrect(c, 10, 0, 190, 70, 3); paint(c, '#d8b17a'); for (let x = 22; x < 196; x += 14) for (let y = 10; y < 66; y += 14) { circ(c, x, y, 1.6); c.fillStyle = 'rgba(0,0,0,.3)'; c.fill(); }
+    line(c, 40, 14, 40, 56, OUT, 6); rrect(c, 30, 8, 22, 12, 3); paint(c, '#888', 2);
+    line(c, 80, 14, 90, 56, OUT, 5); line(c, 80, 14, 90, 56, '#ffd23f', 2); circ(c, 128, 34, 16); paint(c, null, 5); line(c, 160, 12, 160, 60, OUT, 5); rrect(c, 152, 40, 16, 22, 4); paint(c, '#e8443a', 2);
+    rrect(c, 0, 76, 210, 16, 3); paint(c, '#a0662f'); for (const x of [10, 190]) { rrect(c, x, 90, 10, 60, 2); paint(c, '#8a5a2b'); }
+    rrect(c, 30, 104, 60, 36, 4); paint(c, '#e8443a'); rrect(c, 52, 98, 16, 8, 2); paint(c, '#888', 2); rrect(c, 120, 112, 50, 28, 3); paint(c, '#3a8cf0'); txt(c, 'PAINT', 145, 126, 11, '#fff');
+  } },
+  motorcycle: { w: 190, h: 110, snd: 'honk', draw(c) {
+    wheel(c, 34, 82, 26); wheel(c, 156, 82, 26);
+    poly(c, [34, 82, 70, 46, 120, 48, 156, 82, 120, 70, 70, 72]); paint(c, '#9aa1b3');
+    ell(c, 92, 46, 34, 14); paint(c, '#3a8cf0'); rrect(c, 46, 34, 40, 12, 5); paint(c, '#2e2a36');
+    line(c, 128, 44, 150, 10, OUT, 6); line(c, 140, 10, 164, 8, OUT, 5); ell(c, 156, 30, 8, 10); paint(c, '#fff6a8', 2.5);
+    line(c, 40, 66, 4, 60, OUT, 7); line(c, 40, 66, 4, 60, '#c9ced6', 3);
+  } },
+  garagesale: { w: 230, h: 140, snd: 'chime', draw(c) {
+    rrect(c, 120, 0, 104, 40, 4); paint(c, '#fff'); txt(c, 'YARD SALE', 172, 20, 15, '#e8443a'); line(c, 172, 40, 172, 76, OUT, 4);
+    rrect(c, 0, 76, 230, 12, 3); paint(c, '#c9ced6'); for (const x of [14, 210]) line(c, x, 88, x, 140, OUT, 5);
+    rrect(c, 12, 34, 50, 42, 4); paint(c, '#ff9f1c'); rrect(c, 18, 40, 38, 28, 3); paint(c, '#bfe7ff', 2); // old TV
+    circ(c, 92, 64, 12); paint(c, '#fff'); rrect(c, 104, 52, 22, 24, 3); paint(c, '#9b5de5'); txt(c, '$1', 115, 64, 11, '#fff');
+    ell(c, 150, 66, 18, 10); paint(c, '#a0662f'); ell(c, 196, 60, 12, 16); paint(c, '#ff7eb6');
+    rrect(c, 40, 104, 70, 36, 4); paint(c, '#d8b17a'); txt(c, 'TOYS', 75, 122, 13, '#7a4a2b');
+  } },
+  rv: { w: 360, h: 170, snd: 'honk', draw(c) {
+    rrect(c, 0, 10, 300, 130, 16); paint(c, '#fff3d6'); rrect(c, 280, 50, 76, 90, 14); paint(c, '#fff3d6');
+    rrect(c, 0, 80, 356, 14, 0); paint(c, '#ff9f1c', 0); rrect(c, 0, 96, 356, 6, 0); paint(c, '#e8443a', 0);
+    rrect(c, 290, 58, 56, 30, 6); paint(c, '#bfe7ff', 2.5); for (const x of [30, 120, 200]) win(c, x, 30, 56, 38); rrect(c, 248, 30, 28, 96, 4); paint(c, '#a0662f', 2.5);
+    rrect(c, 0, 10, 300, 130, 16); paint(c, null, 3); rrect(c, 40, 0, 80, 14, 4); paint(c, '#c9ced6', 2.5);
+    wheel(c, 70, 144, 24); wheel(c, 290, 144, 24);
+  } },
+  flowerstand: { w: 200, h: 150, snd: 'chime', draw(c) {
+    rrect(c, 0, 10, 200, 26, 6); paint(c, '#43c46b'); txt(c, 'FLOWERS', 100, 23, 17, '#fff'); for (const x of [10, 182]) { rrect(c, x, 34, 8, 116, 2); paint(c, '#a0662f'); }
+    for (let row = 0; row < 2; row++) { const y = 72 + row * 42; rrect(c, 6, y + 20, 188, 14, 3); paint(c, '#a0662f');
+      for (let k = 0; k < 5; k++) { const x = 28 + k * 36; rrect(c, x - 13, y + 2, 26, 20, 4); paint(c, ['#3a8cf0', '#ff9f1c', '#9b5de5'][(k + row) % 3], 2.5);
+        for (const [dx, dy] of [[-7, -6], [6, -8], [0, -14]]) { circ(c, x + dx, y + dy, 7); paint(c, ['#ff7eb6', '#ffd23f', '#e8443a', '#fff'][(k + row * 2 + dx) & 3], 2); } } }
+  } },
+  newsstand: { w: 150, h: 200, snd: 'chime', draw(c) {
+    rrect(c, 4, 30, 142, 170, 6); paint(c, '#2f6b4f'); poly(c, [0, 34, 20, 4, 130, 4, 150, 34]); paint(c, '#e8443a'); txt(c, 'NEWS', 75, 20, 18, '#fff');
+    rrect(c, 18, 46, 114, 70, 4); paint(c, '#bfe7ff', 2.5);
+    for (let k = 0; k < 3; k++) { rrect(c, 22 + k * 36, 128, 32, 40, 2); paint(c, '#fff', 2); for (let l = 0; l < 4; l++) line(c, 26 + k * 36, 140 + l * 7, 50 + k * 36, 140 + l * 7, '#999', 2); rrect(c, 24 + k * 36, 130, 28, 6, 1); paint(c, ['#e8443a', '#3a8cf0', '#ffd23f'][k], 0); }
+    rrect(c, 4, 176, 142, 8, 2); paint(c, '#1f4f39', 2);
+  } },
+  cafe: { w: 210, h: 170, snd: 'chime', draw(c) {
+    line(c, 105, 30, 105, 150, OUT, 6); line(c, 105, 30, 105, 150, '#c9ced6', 3);
+    c.beginPath(); c.moveTo(10, 44); c.quadraticCurveTo(105, -16, 200, 44); c.closePath(); paint(c, '#e8443a');
+    for (const x of [42, 105, 168]) { c.beginPath(); c.moveTo(x, 44); c.quadraticCurveTo(x - 10, 50, x - 21, 44); c.fillStyle = '#fff'; c.fill(); }
+    ell(c, 105, 112, 56, 10); paint(c, '#fff'); line(c, 105, 120, 105, 168, OUT, 5); rrect(c, 85, 162, 40, 8, 3); paint(c, '#888', 2);
+    rrect(c, 80, 92, 18, 16, 4); paint(c, '#fff', 2); rrect(c, 116, 96, 26, 10, 4); paint(c, '#e0a84a', 2);
+    for (const x of [10, 176]) { rrect(c, x, 100, 24, 70, 4); paint(c, '#3a8cf0'); rrect(c, x - 4, 124, 32, 10, 3); paint(c, '#3a8cf0'); }
+  } },
+  busstop: { w: 170, h: 220, snd: 'honk', draw(c) {
+    rrect(c, 4, 20, 162, 14, 3); paint(c, '#3a8cf0'); for (const x of [10, 152]) { rrect(c, x, 30, 8, 190, 2); paint(c, '#888'); }
+    rrect(c, 18, 40, 134, 126, 4); paint(c, 'rgba(191,231,255,.55)', 2.5); rrect(c, 30, 52, 50, 70, 3); paint(c, '#ffd23f', 2); txt(c, 'ZOO!', 55, 86, 14, '#e8443a');
+    rrect(c, 24, 170, 122, 12, 3); paint(c, '#a0662f'); for (const x of [34, 136]) line(c, x, 182, x, 220, OUT, 4);
+    circ(c, 150, 12, 16); paint(c, '#fff'); txt(c, 'BUS', 150, 12, 11, '#3a6fd8');
+  } },
+  // ---------------- story things (v1.31): Sudsy School area
+  guard: { w: 100, h: 200, snd: 'whistle', draw(c) {
+    line(c, 80, 40, 80, 200, OUT, 6); line(c, 80, 40, 80, 200, '#ccc', 3);
+    const p = []; for (let i = 0; i < 8; i++) { const a = Math.PI / 8 + i * Math.PI / 4; p.push(80 + Math.cos(a) * 20, 28 + Math.sin(a) * 20); } poly(c, p); paint(c, '#e8443a'); txt(c, 'STOP', 80, 28, 11, '#fff');
+    rrect(c, 28, 146, 14, 50, 4); paint(c, '#2c3e66'); rrect(c, 46, 146, 14, 50, 4); paint(c, '#2c3e66'); ell(c, 34, 196, 10, 5); paint(c, OUT, 0); ell(c, 54, 196, 10, 5); paint(c, OUT, 0);
+    rrect(c, 20, 80, 50, 72, 14); paint(c, '#ff9f1c'); c.fillStyle = '#fff27a'; c.fillRect(21, 112, 48, 6); c.fillRect(40, 81, 8, 70); rrect(c, 20, 80, 50, 72, 14); paint(c, null, 3);
+    limb(c, 64, 94, 78, 74, '#ff9f1c', 9); circ(c, 46, 56, 20); paint(c, SKINS[2]); rrect(c, 24, 34, 44, 12, 5); paint(c, '#2c3e66'); rrect(c, 34, 26, 26, 12, 5); paint(c, '#2c3e66');
+    circ(c, 40, 56, 2.5); paint(c, OUT, 0); circ(c, 52, 56, 2.5); paint(c, OUT, 0); c.beginPath(); c.arc(46, 62, 6, 0.2, Math.PI - 0.2); c.strokeStyle = OUT; c.lineWidth = 2.5; c.stroke();
+  } },
+  bikerack: { w: 210, h: 80, snd: 'bell', draw(c) {
+    for (const x of [24, 66, 108, 150, 192]) { c.beginPath(); c.moveTo(x - 14, 80); c.lineTo(x - 14, 30); c.arc(x, 30, 14, Math.PI, 0); c.lineTo(x + 14, 80); c.strokeStyle = OUT; c.lineWidth = 7; c.stroke(); c.strokeStyle = '#c9ced6'; c.lineWidth = 4; c.stroke(); }
+    for (const x of [6, 104]) { c.save(); c.translate(x, 16); OBJ.bike.draw(c); c.restore(); }
+  } },
+  flagpole: { w: 120, h: 300, snd: 'bell', draw(c) {
+    rrect(c, 30, 272, 60, 28, 4); paint(c, '#b9bec8'); line(c, 60, 8, 60, 274, OUT, 9); line(c, 60, 8, 60, 274, '#e0e4ea', 5); circ(c, 60, 8, 7); paint(c, '#ffd23f', 2);
+    c.save(); rrect(c, 64, 16, 54, 36, 2); c.clip(); c.fillStyle = '#fff'; c.fillRect(64, 16, 54, 36); c.fillStyle = '#e8443a'; for (let y = 16; y < 52; y += 10) c.fillRect(64, y, 54, 5); c.fillStyle = '#3a6fd8'; c.fillRect(64, 16, 24, 20); c.restore(); rrect(c, 64, 16, 54, 36, 2); paint(c, null, 2.5);
+  } },
+  lunchtable: { w: 220, h: 82, snd: 'chime', draw(c) {
+    for (const x of [30, 190]) { line(c, x - 14, 82, x, 40, OUT, 6); line(c, x + 14, 82, x, 40, OUT, 6); }
+    rrect(c, 8, 60, 204, 10, 4); paint(c, '#3a8cf0'); rrect(c, 0, 30, 220, 14, 5); paint(c, '#43c46b');
+    circ(c, 50, 20, 9); paint(c, '#e8443a'); line(c, 50, 11, 52, 5, OUT, 2.5);
+    rrect(c, 92, 2, 20, 28, 2); paint(c, '#fff'); poly(c, [92, 2, 102, -6, 112, 2]); paint(c, '#fff', 2); txt(c, 'MILK', 102, 18, 7, '#3a6fd8');
+    poly(c, [140, 30, 176, 30, 158, 8]); paint(c, '#f0cc5a'); line(c, 146, 24, 170, 24, '#43c46b', 3);
+  } },
+  drinkfountain: { w: 80, h: 120, snd: 'splash', draw(c) {
+    rrect(c, 24, 50, 32, 70, 6); paint(c, '#c9ced6'); ell(c, 40, 46, 36, 12); paint(c, '#e0e4ea'); ell(c, 40, 44, 24, 6); paint(c, '#8fd8ff', 2);
+    rrect(c, 46, 30, 8, 14, 2); paint(c, '#888', 2); c.beginPath(); c.moveTo(50, 30); c.quadraticCurveTo(40, 4, 26, 38); c.strokeStyle = '#6ec6ff'; c.lineWidth = 3; c.stroke();
+    circ(c, 40, 70, 5); paint(c, '#3a8cf0', 2);
+  } },
+  hoop: { w: 140, h: 270, snd: 'whistle', draw(c) {
+    rrect(c, 10, 256, 40, 14, 4); paint(c, '#888'); line(c, 30, 60, 30, 260, OUT, 12); line(c, 30, 60, 30, 260, '#3a8cf0', 7); line(c, 30, 62, 60, 62, OUT, 8);
+    rrect(c, 56, 18, 80, 58, 4); paint(c, '#fff'); rrect(c, 80, 42, 32, 24, 2); c.strokeStyle = '#e8443a'; c.lineWidth = 3; c.stroke();
+    for (let k = 0; k < 5; k++) line(c, 80 + k * 8, 80, 84 + k * 6, 104, '#fff', 2.5);
+    line(c, 76, 78, 120, 78, OUT, 7); line(c, 76, 78, 120, 78, '#ff7a1a', 3);
+    circ(c, 112, 250, 18); paint(c, '#ff7a1a'); line(c, 94, 250, 130, 250, OUT, 2); line(c, 112, 232, 112, 268, OUT, 2);
+  } },
+  tetherball: { w: 100, h: 240, snd: 'pop', draw(c) {
+    ell(c, 50, 234, 32, 7); paint(c, '#888'); line(c, 50, 20, 50, 236, OUT, 9); line(c, 50, 20, 50, 236, '#e0e4ea', 5);
+    line(c, 50, 24, 80, 104, '#bbb', 2.5); circ(c, 80, 118, 18); paint(c, '#ffd23f'); c.beginPath(); c.arc(80, 118, 18, -0.4, 0.4); c.lineTo(80, 118); c.closePath(); paint(c, '#e8443a', 2);
+  } },
+  dome: { w: 230, h: 140, snd: 'chime', draw(c) {
+    const cx = 115, by = 140, R = 112, H = 132, cols = ['#e8443a', '#ffd23f', '#43c46b', '#3a8cf0'];
+    for (let i = 0; i <= 6; i++) { const rx = R * Math.abs(Math.cos(i * Math.PI / 6)); c.beginPath(); c.ellipse(cx, by, Math.max(1, rx), H, 0, Math.PI, TAU); c.strokeStyle = OUT; c.lineWidth = 7; c.stroke(); c.strokeStyle = cols[i % 4]; c.lineWidth = 3.5; c.stroke(); }
+    for (const f of [0.35, 0.68]) { const y = by - H * f, hw = R * Math.sqrt(1 - f * f); line(c, cx - hw, y, cx + hw, y, OUT, 7); line(c, cx - hw, y, cx + hw, y, '#9b5de5', 3.5); }
+  } },
+  garden: { w: 230, h: 130, snd: 'chime', draw(c) {
+    for (const [x, top] of [[30, 20], [78, 34], [126, 14]]) {
+      line(c, x, 90, x, top, OUT, 6); line(c, x, 90, x, top, '#43c46b', 3); ell(c, x + 10, 64, 10, 5, -0.5); paint(c, '#43c46b', 2);
+      star(c, x, top, 20, 10, 0.55); paint(c, '#ffd23f', 2.5); circ(c, x, top, 8); paint(c, '#7a4a2b', 2);
+    }
+    for (const x of [172, 206]) { line(c, x, 90, x, 44, '#a0662f', 4); ell(c, x - 4, 64, 12, 8); paint(c, '#43c46b', 2); circ(c, x + 6, 72, 7); paint(c, '#e8443a', 2); circ(c, x - 8, 56, 6); paint(c, '#e8443a', 2); }
+    rrect(c, 4, 84, 222, 12, 4); paint(c, '#6b4526'); rrect(c, 0, 92, 230, 38, 4); paint(c, '#a0662f'); line(c, 2, 110, 228, 110, 'rgba(0,0,0,.2)', 2);
+  } },
+  hutch: { w: 160, h: 120, snd: 'chime', draw(c) {
+    for (const x of [14, 136]) { rrect(c, x, 90, 10, 30, 2); paint(c, '#8a5a2b'); }
+    rrect(c, 4, 30, 152, 64, 4); paint(c, '#a0662f'); poly(c, [0, 34, 80, 2, 160, 34]); paint(c, '#e8443a');
+    rrect(c, 14, 42, 82, 44, 3); paint(c, '#fff');
+    ell(c, 54, 74, 16, 11); paint(c, '#fff'); ell(c, 48, 56, 4, 11); paint(c, '#fff', 2); ell(c, 58, 56, 4, 11); paint(c, '#fff', 2); circ(c, 60, 70, 2); paint(c, OUT, 0); circ(c, 68, 74, 2); paint(c, '#ff7eb6', 0);
+    for (let x = 24; x < 96; x += 10) line(c, x, 42, x, 86, 'rgba(90,90,90,.5)', 1.5); for (let y = 52; y < 86; y += 10) line(c, 14, y, 96, y, 'rgba(90,90,90,.5)', 1.5); rrect(c, 14, 42, 82, 44, 3); paint(c, null, 2.5);
+    rrect(c, 104, 42, 42, 44, 3); paint(c, '#c68a5c', 2.5); txt(c, 'HOP', 125, 64, 12, '#fff');
+  } },
+  portable: { w: 310, h: 180, snd: 'bell', draw(c) {
+    for (let x = 8; x < 300; x += 14) line(c, x, 150, x + 10, 180, '#c68a5c', 3); line(c, 6, 180, 304, 180, OUT, 3);
+    rrect(c, 0, 30, 310, 122, 4); paint(c, '#f0e4c0'); rrect(c, -4, 22, 318, 12, 3); paint(c, '#9aa1b3');
+    win(c, 26, 62, 56, 42); win(c, 228, 62, 56, 42); rrect(c, 132, 62, 46, 88, 3); paint(c, '#3a8cf0'); circ(c, 170, 108, 3); paint(c, '#ffd23f', 0);
+    txt(c, 'ROOM 12', 155, 46, 15, '#3a6fd8'); rrect(c, 116, 150, 78, 10, 2); paint(c, '#888'); rrect(c, 124, 160, 62, 10, 2); paint(c, '#888');
+  } },
+  lostfound: { w: 130, h: 120, snd: 'chime', draw(c) {
+    circ(c, 34, 38, 15); paint(c, '#ff7eb6'); circ(c, 34, 24, 6); paint(c, '#fff', 2); ell(c, 70, 36, 14, 11); paint(c, '#43c46b'); circ(c, 100, 34, 13); paint(c, '#ffd23f');
+    rrect(c, 10, 40, 110, 80, 6); paint(c, '#3a8cf0'); rrect(c, 20, 52, 90, 24, 4); paint(c, '#fff', 2.5); txt(c, 'LOST & FOUND', 65, 64, 10, '#3a6fd8');
+  } },
+  bell: { w: 100, h: 220, snd: 'bell', draw(c) {
+    line(c, 50, 50, 50, 220, OUT, 10); line(c, 50, 50, 50, 220, '#8a5a2b', 6); rrect(c, 12, 40, 76, 12, 4); paint(c, '#8a5a2b');
+    c.beginPath(); c.moveTo(26, 100); c.quadraticCurveTo(30, 54, 50, 52); c.quadraticCurveTo(70, 54, 74, 100); c.closePath(); paint(c, '#ffd23f'); rrect(c, 22, 96, 56, 9, 4); paint(c, '#e0a800', 2.5);
+    circ(c, 50, 110, 6); paint(c, OUT, 0); line(c, 50, 112, 64, 160, '#c68a5c', 3); c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(36, 66, 5, 26);
+  } },
+  monkeybars: { w: 250, h: 160, snd: 'chime', draw(c) {
+    for (const x0 of [12, 206]) { for (const x of [x0, x0 + 32]) { line(c, x, 22, x, 160, OUT, 8); line(c, x, 22, x, 160, '#3a8cf0', 4); } for (let y = 50; y < 160; y += 28) { line(c, x0, y, x0 + 32, y, OUT, 7); line(c, x0, y, x0 + 32, y, '#ffd23f', 3); } }
+    line(c, 12, 22, 238, 22, OUT, 9); line(c, 12, 22, 238, 22, '#e8443a', 5); for (let x = 60; x < 200; x += 22) { circ(c, x, 22, 5); paint(c, '#ffd23f', 2); }
+  } },
+  springrider: { w: 100, h: 110, snd: 'pop', draw(c) {
+    ell(c, 50, 106, 30, 6); paint(c, '#888'); for (let k = 0; k < 5; k++) { ell(c, 50, 100 - k * 8, 14, 4); c.strokeStyle = OUT; c.lineWidth = 5; c.stroke(); c.strokeStyle = '#c9ced6'; c.lineWidth = 2.5; c.stroke(); }
+    ell(c, 46, 56, 34, 17); paint(c, '#ff7eb6'); poly(c, [66, 50, 76, 22, 88, 30, 80, 56]); paint(c, '#ff7eb6'); ell(c, 84, 28, 13, 10); paint(c, '#ff7eb6');
+    circ(c, 86, 24, 2.5); paint(c, OUT, 0); poly(c, [78, 18, 82, 8, 86, 18]); paint(c, '#ff7eb6', 2); line(c, 72, 30, 64, 46, '#ffd23f', 5); line(c, 12, 50, 2, 64, '#ffd23f', 5);
+    line(c, 74, 34, 74, 22, OUT, 4); line(c, 68, 22, 80, 22, OUT, 4);
+  } },
+  merrygo: { w: 210, h: 90, snd: 'jingle', draw(c) {
+    for (const x of [30, 70, 140, 180]) { c.beginPath(); c.moveTo(x, 72); c.lineTo(x, 44); c.quadraticCurveTo(x, 22, 105, 22); c.strokeStyle = OUT; c.lineWidth = 7; c.stroke(); c.strokeStyle = '#3a8cf0'; c.lineWidth = 3.5; c.stroke(); }
+    line(c, 105, 72, 105, 20, OUT, 6); circ(c, 105, 18, 9); paint(c, '#e8443a');
+    rrect(c, 4, 70, 202, 14, 6); paint(c, '#ef4a3c'); ell(c, 105, 70, 100, 12); paint(c, '#ffd23f'); line(c, 105, 84, 105, 90, OUT, 6);
+  } },
+  playhouse: { w: 180, h: 180, snd: 'chime', draw(c) {
+    rrect(c, 130, 16, 18, 40, 2); paint(c, '#a0662f'); rrect(c, 10, 70, 160, 110, 4); paint(c, '#fff3d6'); poly(c, [0, 74, 90, 8, 180, 74]); paint(c, '#9b5de5');
+    c.beginPath(); c.moveTo(70, 180); c.lineTo(70, 128); c.arc(90, 128, 20, Math.PI, 0); c.lineTo(110, 180); c.closePath(); paint(c, '#43c46b'); circ(c, 102, 150, 3); paint(c, '#ffd23f', 0);
+    win(c, 22, 96, 36, 30); win(c, 122, 96, 36, 30); rrect(c, 20, 126, 40, 10, 3); paint(c, '#a0662f', 2); for (const x of [28, 40, 52]) { circ(c, x, 124, 5); paint(c, '#ff7eb6', 1.5); }
+  } },
+  ballcart: { w: 150, h: 120, snd: 'pop', draw(c) {
+    circ(c, 30, 38, 16); paint(c, '#ef4a3c'); circ(c, 62, 30, 18); paint(c, '#ff7a1a'); line(c, 44, 30, 80, 30, OUT, 2); circ(c, 96, 36, 16); paint(c, '#fff'); poly(c, [96, 30, 101, 34, 99, 40, 93, 40, 91, 34]); paint(c, OUT, 0); circ(c, 124, 40, 13); paint(c, '#ffd23f');
+    rrect(c, 10, 44, 130, 56, 6); paint(c, '#c9ced6'); for (let x = 22; x < 140; x += 12) line(c, x, 46, x, 98, 'rgba(0,0,0,.25)', 2); rrect(c, 10, 44, 130, 56, 6); paint(c, null, 3);
+    wheel(c, 30, 108, 11); wheel(c, 120, 108, 11);
+  } },
+  chalkboard: { w: 140, h: 160, snd: 'chime', draw(c) {
+    line(c, 24, 160, 52, 6, OUT, 6); line(c, 116, 160, 88, 6, OUT, 6); line(c, 70, 6, 70, 160, OUT, 5);
+    rrect(c, 8, 18, 124, 92, 5); paint(c, '#a0662f'); rrect(c, 16, 26, 108, 76, 3); paint(c, '#2f6b4f', 2);
+    txt(c, 'ABC', 52, 46, 20, '#fff'); txt(c, '1+1=2', 70, 78, 16, '#ffd23f'); star(c, 106, 44, 9, 5, 0.5); c.strokeStyle = '#ff9fc0'; c.lineWidth = 2.5; c.stroke();
+    rrect(c, 12, 108, 116, 8, 2); paint(c, '#8a5a2b', 2);
+  } },
+  tires: { w: 200, h: 100, snd: 'pop', draw(c) {
+    const ring = (x, y, r, col) => { circ(c, x, y, r); paint(c, '#2e2a36'); circ(c, x, y, r * 0.45); paint(c, col, 2.5); };
+    ring(38, 70, 30, '#ffd23f'); ring(100, 70, 30, '#43c46b'); ring(162, 70, 30, '#ff7eb6'); ring(69, 34, 27, '#3a8cf0'); ring(131, 34, 27, '#ff9f1c');
+  } },
+  tunnel: { w: 230, h: 100, snd: 'whistle', draw(c) {
+    rrect(c, 10, 20, 210, 80, 40); paint(c, '#9b5de5'); for (let x = 46; x < 200; x += 30) line(c, x, 22, x, 98, 'rgba(0,0,0,.2)', 5);
+    c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(40, 30, 150, 8); ell(c, 210, 60, 16, 38); paint(c, '#4a2a7a');
+  } },
+  climbwall: { w: 150, h: 210, snd: 'chime', draw(c) {
+    line(c, 20, 200, 20, 10, OUT, 6); line(c, 130, 200, 130, 10, OUT, 6);
+    rrect(c, 10, 10, 130, 196, 6); paint(c, '#3a8cf0'); const cols = ['#ffd23f', '#e8443a', '#43c46b', '#ff7eb6', '#ff9f1c'];
+    for (let k = 0; k < 14; k++) { ell(c, 26 + (k * 47) % 100, 26 + k * 13, 8, 6, k); paint(c, cols[k % 5], 2); }
+    poly(c, [75, 10, 75, -10, 100, 0]); paint(c, '#ffd23f', 2);
+  } },
+  puppetshow: { w: 190, h: 210, snd: 'jingle', draw(c) {
+    rrect(c, 10, 60, 170, 150, 4); paint(c, '#ef4a3c'); rrect(c, 30, 82, 130, 70, 4); paint(c, '#2a2140');
+    circ(c, 95, 124, 18); paint(c, '#ffd23f'); circ(c, 89, 120, 2.5); paint(c, OUT, 0); circ(c, 101, 120, 2.5); paint(c, OUT, 0); c.beginPath(); c.arc(95, 128, 6, 0.2, Math.PI - 0.2); c.stroke(); rrect(c, 83, 140, 24, 14, 4); paint(c, '#43c46b', 2);
+    poly(c, [30, 82, 62, 82, 40, 152, 30, 152]); paint(c, '#9b5de5'); poly(c, [160, 82, 128, 82, 150, 152, 160, 152]); paint(c, '#9b5de5');
+    rrect(c, 20, 26, 150, 34, 8); paint(c, '#ffd23f'); txt(c, 'PUPPETS', 95, 43, 18, '#e8443a'); for (const x of [30, 160]) { line(c, x, 26, x, 6, OUT, 3); poly(c, [x, 6, x + 16, 11, x, 16]); paint(c, '#43c46b', 2); }
+  } },
+  pirateship: { w: 330, h: 230, snd: 'jingle', draw(c) {
+    poly(c, [280, 150, 330, 226, 310, 230, 262, 156]); paint(c, '#ffd23f');
+    line(c, 160, 152, 160, 10, OUT, 10); line(c, 160, 152, 160, 10, '#8a5a2b', 6); poly(c, [160, 10, 196, 18, 160, 28]); paint(c, '#2a2140', 2);
+    rrect(c, 108, 36, 104, 80, 6); paint(c, '#fff'); circ(c, 160, 70, 16); paint(c, '#fff', 2.5); circ(c, 154, 68, 3); paint(c, OUT, 0); circ(c, 166, 68, 3); paint(c, OUT, 0); line(c, 150, 92, 170, 100, OUT, 3); line(c, 170, 92, 150, 100, OUT, 3);
+    poly(c, [0, 146, 300, 146, 270, 226, 30, 226]); paint(c, '#a0662f'); for (let y = 166; y < 226; y += 18) line(c, 10 + (y - 146) * 0.35, y, 290 - (y - 146) * 0.35, y, 'rgba(0,0,0,.2)', 2);
+    for (const x of [80, 160, 240]) { circ(c, x, 186, 11); paint(c, '#bfe7ff', 2.5); } rrect(c, -4, 138, 308, 12, 4); paint(c, '#8a5a2b');
+  } },
+  scoreboard: { w: 250, h: 270, snd: 'whistle', draw(c) {
+    for (const x of [60, 190]) { rrect(c, x - 6, 146, 12, 124, 2); paint(c, '#888'); }
+    rrect(c, 0, 10, 250, 140, 8); paint(c, '#2a2140'); txt(c, 'HOME', 62, 32, 17, '#fff'); txt(c, 'GUEST', 188, 32, 17, '#fff');
+    for (const [x, n] of [[62, '3'], [188, '2']]) { rrect(c, x - 30, 46, 60, 50, 4); paint(c, '#111', 2); txt(c, n, x, 72, 40, '#ff9f1c'); }
+    txt(c, '12:00', 125, 122, 24, '#43c46b'); rrect(c, 80, 0, 90, 18, 5); paint(c, '#e8443a'); txt(c, 'GO TEAM', 125, 9, 11, '#fff');
+  } },
+  dugout: { w: 270, h: 140, snd: 'whistle', draw(c) {
+    rrect(c, 10, 22, 250, 100, 2); paint(c, '#c9ced6'); rrect(c, 0, 10, 270, 16, 4); paint(c, '#3a8cf0');
+    rrect(c, 24, 72, 222, 12, 3); paint(c, '#a0662f'); for (const x of [40, 230]) line(c, x, 84, x, 112, OUT, 5);
+    for (const [x, col] of [[70, '#e8443a'], [120, '#3a8cf0'], [170, '#e8443a']]) { c.beginPath(); c.arc(x, 72, 14, Math.PI, 0); c.closePath(); paint(c, col, 2.5); }
+    for (const x of [204, 214]) { line(c, x, 72, x + 18, 34, OUT, 7); line(c, x, 72, x + 18, 34, '#e0a84a', 4); }
+    rrect(c, 0, 110, 270, 30, 3); paint(c, '#43c46b');
+  } },
+  snackbar: { w: 250, h: 210, snd: 'chime', draw(c) {
+    rrect(c, 0, 66, 250, 144, 4); paint(c, '#fff3d6'); rrect(c, 50, 10, 150, 36, 8); paint(c, '#ffd23f'); txt(c, 'SNACKS', 125, 28, 20, '#e8443a'); line(c, 90, 46, 90, 66, OUT, 4); line(c, 160, 46, 160, 66, OUT, 4);
+    c.save(); rrect(c, -6, 62, 262, 28, 4); c.clip(); for (let x = -6; x < 256; x += 26) { c.fillStyle = (x / 26) % 2 < 1 ? '#e8443a' : '#fff'; c.fillRect(x + 6, 62, 26, 28); } c.restore(); rrect(c, -6, 62, 262, 28, 4); paint(c, null, 3);
+    rrect(c, 34, 98, 182, 56, 4); paint(c, '#bfe7ff', 2.5); rrect(c, 26, 152, 198, 12, 3); paint(c, '#a0662f');
+    ell(c, 80, 146, 22, 7); paint(c, '#e0a84a', 2); ell(c, 80, 142, 20, 4); paint(c, '#c0392b', 2); poly(c, [150, 124, 170, 124, 166, 152, 154, 152]); paint(c, '#3a8cf0', 2); line(c, 162, 124, 168, 110, OUT, 3);
+  } },
+  medalstand: { w: 220, h: 110, snd: 'jingle', draw(c) {
+    rrect(c, 0, 50, 72, 60, 3); paint(c, '#c9ced6'); txt(c, '2', 36, 80, 30, '#fff'); rrect(c, 72, 20, 76, 90, 3); paint(c, '#ffd23f'); txt(c, '1', 110, 56, 36, '#fff'); rrect(c, 148, 64, 72, 46, 3); paint(c, '#c68a5c'); txt(c, '3', 184, 88, 26, '#fff');
+    star(c, 110, 6, 10, 5, 0.5); paint(c, '#fff27a', 2);
+  } },
+  goalpost: { w: 200, h: 290, snd: 'whistle', draw(c) {
+    rrect(c, 86, 220, 28, 70, 8); paint(c, '#3a8cf0');
+    for (const [a, b, d, e] of [[100, 180, 100, 222], [20, 180, 180, 180], [20, 180, 20, 8], [180, 180, 180, 8]]) { line(c, a, b, d, e, OUT, 12); line(c, a, b, d, e, '#ffd23f', 7); }
+    for (const x of [20, 180]) { poly(c, [x, 8, x + 16, 14, x, 20]); paint(c, '#e8443a', 2); }
+  } },
+  // high things
+  flowerpot: { w: 60, h: 70, snd: 'chime', draw(c) {
+    for (const [x, y, col] of [[18, 18, '#ff7eb6'], [32, 10, '#ffd23f'], [44, 20, '#9b5de5']]) { line(c, x, y, 30, 40, '#43c46b', 3); circ(c, x, y, 8); paint(c, col, 2); }
+    poly(c, [6, 36, 54, 36, 46, 70, 14, 70]); paint(c, '#d9785a'); rrect(c, 2, 32, 56, 10, 3); paint(c, '#c0603f', 2.5);
+  } },
+  toolbox: { w: 80, h: 56, snd: 'chime', draw(c) {
+    c.beginPath(); c.moveTo(24, 16); c.lineTo(24, 4); c.lineTo(56, 4); c.lineTo(56, 16); c.strokeStyle = OUT; c.lineWidth = 5; c.stroke();
+    rrect(c, 2, 14, 76, 42, 5); paint(c, '#e8443a'); line(c, 2, 28, 78, 28, OUT, 2.5); rrect(c, 32, 24, 16, 10, 2); paint(c, '#c9ced6', 2);
+  } },
+  paintcans: { w: 90, h: 64, snd: 'chime', draw(c) {
+    for (const [x, col, h] of [[4, '#3a8cf0', 48], [46, '#ffd23f', 40]]) { rrect(c, x, 64 - h, 40, h, 4); paint(c, '#d5d9e0'); rrect(c, x, 64 - h, 40, 12, 4); paint(c, col, 2.5); rrect(c, x + 6, 64 - h + 20, 28, 16, 2); paint(c, col, 2); }
+    line(c, 66, 24, 84, 4, OUT, 5); rrect(c, 78, 0, 12, 10, 2); paint(c, '#fff', 2);
+  } },
+  basket: { w: 84, h: 60, snd: 'chime', draw(c) {
+    c.beginPath(); c.arc(42, 26, 30, Math.PI, 0); c.strokeStyle = OUT; c.lineWidth = 6; c.stroke(); c.strokeStyle = '#c68a5c'; c.lineWidth = 3; c.stroke();
+    circ(c, 24, 28, 11); paint(c, '#e8443a'); circ(c, 44, 24, 11); paint(c, '#ff9f1c'); circ(c, 62, 30, 10); paint(c, '#9b5de5');
+    poly(c, [4, 30, 80, 30, 70, 60, 14, 60]); paint(c, '#d8b17a'); for (let x = 16; x < 72; x += 10) line(c, x, 32, x - 2, 58, 'rgba(0,0,0,.2)', 2);
+  } },
+  backpack: { w: 64, h: 72, snd: 'chime', draw(c) {
+    c.beginPath(); c.arc(32, 14, 11, Math.PI, 0); c.strokeStyle = OUT; c.lineWidth = 5; c.stroke();
+    rrect(c, 6, 12, 52, 60, 14); paint(c, '#ef4a3c'); rrect(c, 14, 42, 36, 24, 6); paint(c, '#c0302a', 2.5); line(c, 16, 26, 48, 26, OUT, 2); circ(c, 32, 50, 3); paint(c, '#ffd23f', 0);
+  } },
+  lunchbox: { w: 76, h: 58, snd: 'chime', draw(c) {
+    c.beginPath(); c.moveTo(24, 16); c.lineTo(26, 4); c.lineTo(50, 4); c.lineTo(52, 16); c.strokeStyle = OUT; c.lineWidth = 5; c.stroke();
+    rrect(c, 4, 14, 68, 44, 6); paint(c, '#43c46b'); star(c, 38, 36, 12, 5, 0.5); paint(c, '#ffd23f', 2); rrect(c, 32, 12, 12, 8, 2); paint(c, '#c9ced6', 2);
+  } },
+  globe: { w: 64, h: 88, snd: 'chime', draw(c) {
+    ell(c, 32, 82, 22, 5); paint(c, '#a0662f'); line(c, 32, 80, 32, 64, OUT, 5);
+    circ(c, 32, 36, 25); paint(c, '#3a8cf0'); ell(c, 24, 28, 10, 8, 0.4); paint(c, '#43c46b', 2); ell(c, 42, 46, 8, 6, -0.3); paint(c, '#43c46b', 2);
+    c.beginPath(); c.arc(32, 36, 30, -2.4, 1.1); c.strokeStyle = OUT; c.lineWidth = 4; c.stroke();
+  } },
+  ballbucket: { w: 76, h: 66, snd: 'pop', draw(c) {
+    circ(c, 22, 22, 12); paint(c, '#fff'); circ(c, 42, 16, 12); paint(c, '#ffd23f'); circ(c, 58, 22, 11); paint(c, '#ef4a3c');
+    poly(c, [6, 26, 70, 26, 60, 66, 16, 66]); paint(c, '#ff9f1c'); line(c, 10, 38, 66, 38, 'rgba(0,0,0,.2)', 3);
+  } },
+  trophy: { w: 60, h: 90, snd: 'jingle', draw(c) {
+    for (const s of [-1, 1]) { c.beginPath(); c.arc(30 + s * 22, 24, 10, 0, TAU); c.strokeStyle = OUT; c.lineWidth = 6; c.stroke(); c.strokeStyle = '#ffd23f'; c.lineWidth = 3; c.stroke(); }
+    rrect(c, 14, 72, 32, 18, 3); paint(c, '#7a4a2b'); rrect(c, 24, 54, 12, 20, 2); paint(c, '#ffd23f');
+    c.beginPath(); c.moveTo(10, 8); c.lineTo(50, 8); c.quadraticCurveTo(50, 58, 30, 58); c.quadraticCurveTo(10, 58, 10, 8); c.closePath(); paint(c, '#ffd23f'); star(c, 30, 28, 9, 5, 0.5); paint(c, '#fff27a', 2);
+  } },
+  cooler: { w: 84, h: 90, snd: 'splash', draw(c) {
+    rrect(c, 8, 20, 68, 70, 12); paint(c, '#ff9f1c'); rrect(c, 4, 10, 76, 16, 6); paint(c, '#fff'); rrect(c, 8, 46, 68, 8, 0); paint(c, '#fff', 0); rrect(c, 32, 66, 20, 10, 3); paint(c, '#fff', 2);
+  } },
   puddle: { w: 86, h: 18, snd: 'chime', draw(c) {
     ell(c, 43, 10, 42, 8); c.fillStyle = 'rgba(140,190,225,.7)'; c.fill(); ell(c, 30, 6, 12, 2); c.fillStyle = 'rgba(255,255,255,.6)'; c.fill();
   } },

@@ -426,10 +426,13 @@ function updPlayer(dt) {
     else if (G.hose && Math.abs(P.x - G.hose.x) > 450) { floatText(G.hose.x, GROUND - 120, 'Hose off', '#fff', 24); G.hose = null; Sfx.pop(); }
   }
   // fire truck: walk up to it to hop in
-  if (T && !T.on && !T.cd && P.ground && P.y > GROUND - 5 && P.x > T.x + 30 && P.x < T.x + T.w - 30 && T.x < T.x1 - 2 && !G.demo) {
+  // walking into it boards it, also again after hopping off (v1.31); landing next to it after hopping off doesn't: the kid must walk away first
+  const overT = T && P.x > T.x + 30 && P.x < T.x + T.w - 30;
+  if (T && overT && P.ground && P.y > GROUND - 5 && !T.on && !T.cd && !T.wasIn && !G.demo) {
     T.on = true; G.hose = null; Sfx.honk(); floatText(T.x + T.w / 2, GROUND - 170, 'Beep beep!', '#ffd23f', 30);
     hintOnce('truckIn', 'Drive the fire truck right and spray the monsters with the water cannon! Jump to hop out.');
   }
+  if (T) T.wasIn = overT;
   for (const k of G.pickups) if (!k.got && Math.abs(P.x - k.x) < 40 && Math.abs(P.y - 45 - k.y) < 60) {
     k.got = true; sparkleBurst(k.x, k.y, 14); Sfx.buy();
     if (P.hearts < maxHearts()) { P.hearts++; floatText(k.x, k.y - 40, '+1 heart!', '#ff6f8a', 30); } else { spawnCoins(k.x, k.y, 5); floatText(k.x, k.y - 40, 'Full hearts!', '#ff6f8a', 26); }
@@ -452,7 +455,7 @@ function driveTruck(dt, ctl) {
   // driving into mud monsters squashes them
   if (Math.abs(T.vx) > 40) for (const e of G.enemies) if (e.kind === 'blob' && !e.fall && e.hp > 0 && e.x > T.x - 10 && e.x < T.x + T.w + 10) { e.hp = 0; shake(3); }
   P.jbuf = In.jp ? 0.14 : Math.max(0, P.jbuf - dt); In.jp = false;
-  if (ctl && P.jbuf > 0) { T.on = false; T.cd = 1.2; T.vx = 0; P.vy = -650; P.vx = 0; P.ground = false; P.jbuf = 0; Sfx.jump(); }
+  if (ctl && P.jbuf > 0) { T.on = false; T.cd = 0.4; T.wasIn = true; T.vx = 0; P.vy = -650; P.vx = 0; P.ground = false; P.jbuf = 0; Sfx.jump(); }
 }
 // conveyor belts: mud monsters keep coming from the right end while the kid is on or before the belt
 function updBelts(dt) {
