@@ -25,6 +25,8 @@ const PRESSURE = [
 const PRESSURE_COST = [30, 60, 100, 150, 220];
 const TANK = [100, 150, 210, 280, 360];
 const TANK_COST = [20, 45, 80, 120];
+// extras (v1.30): soap needs Pressure maxed; the fire hose hooks onto red hydrants
+const SOAP_COST = 200, HOSE_COST = 150;
 const HATS = { none: 0, cap: 15, helmet: 25, cowboy: 30, pirate: 40, wizard: 45, propeller: 60, crown: 80 };
 const HAT_NAMES = { none: 'No hat', cap: 'Cap', helmet: 'Fire helmet', cowboy: 'Cowboy hat', pirate: 'Pirate hat', wizard: 'Wizard hat', propeller: 'Propeller hat', crown: 'Crown' };
 const WCOLORS = { yellow: ['#ffc928', 0], red: ['#ef4a3c', 10], blue: ['#3a8cf0', 10], green: ['#43c46b', 10], purple: ['#9b5de5', 15], pink: ['#ff7eb6', 15] };
@@ -81,7 +83,7 @@ const LEVEL_COUNT = AREAS.length * 3;
 function buildLevel(i, seed) {
   const a = Math.floor(i / 3), k = i % 3, A = AREAS[a], SC = A.scenes[k], r = rng(i === 0 || seed == null ? i * 7919 + 13 : seed), boss = k === 2;
   const d = i / (LEVEL_COUNT - 1);
-  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [], towers: [] };
+  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [], towers: [], belts: [], pools: [], birdZones: [], infest: [], puddles: [] };
   const blk = A.block;
   let gc = Math.floor(r() * 7), hc = Math.floor(r() * 3), x = 300;
   const W = t => OBJ[t].w;
@@ -164,8 +166,37 @@ function buildLevel(i, seed) {
   // sewer entrance (v1.23): a wide hole with a SEWER ENTRANCE sign; falling in leads to an underground level
   const sewerIn = () => { x += 200; L.signs.push([x - 165, 'sewer']); L.holes.push([x, 130, 1]); x += 130 + 90; };
   const pipe = () => { x += 260; L.pipes.push(x); x += 90 + 130; };
-  // slime tower (v1.18): 100-150 tall, shoots slime both ways at kid height; stomp its top to plug it
-  const tower = () => { x += 90; L.towers.push([x, 70, 100 + Math.round(r() * 50)]); x += 70 + 150; };
+  // slime tower (v1.18): 80-110 tall (under the 130 fall-damage drop, v1.30), shoots slime at kid height; stomp its top to plug it
+  const tower = () => { x += 90; L.towers.push([x, 70, 80 + Math.round(r() * 30)]); x += 70 + 150; };
+  // monster scale by difficulty (easy ×0.5, medium ×0.75, hard ×1, ultra ×2; v1.21)
+  const mm = i === 0 ? 1 : ({ easy: 0.5, medium: 0.75, hard: 1, ultra: 2 })[typeof SAVE !== 'undefined' && SAVE.diff] || 0.75;
+  // bird alley (v1.30): up to 10 birds fly in one after another over this stretch
+  const birdZone = () => { const x0 = x; ground(); ground(); L.birdZones.push([x0, x, Math.min(10, Math.max(3, Math.round((6 + d * 5) * mm)))]); };
+  // conveyor belt (v1.30): runs backwards at walking speed; jump while walking to get across; mud monsters keep coming from its right end
+  const belt = () => { x += 80; const w = 520 + Math.round(d * 200); L.belts.push([x, w, Math.round((2.6 - d) / mm * 10) / 10]); x += w + 90; };
+  // swimming pool (v1.30): steps up, a tiled wall, water with 1-2 hearts at the bottom, wall and steps down
+  const pool = () => {
+    L.solids.push([blk, x, 70, 70], [blk, x + 70, 70, 140], ['poolwall', x + 140, 30, 200]);
+    const ix = x + 170, iw = 380;
+    L.pools.push([ix, iw]);
+    for (let k = 0, n = r() < 0.5 ? 1 : 2; k < n; k++) L.pools[L.pools.length - 1].push(ix + Math.round(iw * (n === 1 ? 0.5 : 0.3 + 0.4 * k)));
+    L.solids.push(['poolwall', ix + iw, 30, 200], [blk, ix + iw + 30, 70, 140], [blk, ix + iw + 100, 70, 70]);
+    x = ix + iw + 170 + 110;
+  };
+  // infested stretch (v1.30): dozens of mud monsters and slime puddles; a fire truck to drive (or hydrants for the fire hose), road closed at the end
+  const infest = () => {
+    const truck = r() < 0.6, x0 = x + 60;
+    if (truck) { L.truck = [x0, 0]; x = x0 + 300; } else { L.hydrants.push(x0 + 40); x = x0 + 160; }
+    const a = x;
+    for (let k = 0; k < 5; k++) { ground(); if (!truck && k === 2) { L.hydrants.push(x - 20); x += 60; } }
+    const b = x, nb = Math.max(8, Math.round((truck ? 30 + d * 12 : 16 + d * 8) * mm));
+    L.infest.push([a, b, nb]);
+    for (let k = 0, np = 5 + Math.round(d * 5); k < np; k++) L.puddles.push(Math.round(a + 60 + (b - a - 120) * (k + r() * 0.6) / np));
+    x += 40; L.solids.push(['hurdle', x, 64, 70]);
+    if (truck) L.truck[1] = x - 280;
+    L.signs.push([x - 170, 'closed']);
+    x += 64 + 150;
+  };
   // construction barriers in a row, like hurdles: jump over them (v1.19)
   const hurdles = () => { x += 60; for (let j = 0, n = 2 + (d > 0.5 ? 1 : 0) + (r() < 0.3 ? 1 : 0); j < n; j++) { L.solids.push(['hurdle', x, 64, 50 + Math.round(r() * 20)]); x += 64 + 170 + Math.round(r() * 60); } x += 20; };
   const spinner = () => { L.objs.push(['spinner', x, 0]); x += W('spinner') + 90; };
@@ -185,6 +216,10 @@ function buildLevel(i, seed) {
       const climbs = ['s3', 'lift', 'hops'];
       for (let c = 0, nc = 1 + Math.round(d * 2); c < nc; c++) feats.push(climbs[Math.floor(r() * 3)]);
       if (r() < 0.75) feats.push('S');
+      if (i >= 2 && r() < 0.5) feats.push('Y');
+      if (i >= 2 && r() < 0.55) feats.push('C');
+      if (r() < 0.45) feats.push('W');
+      if (i >= 3 && r() < 0.45) feats.push('X');
     }
     // shuffle, then never the same gadget twice in a row
     for (let j = feats.length - 1; j > 0; j--) { const m = Math.floor(r() * (j + 1)); [feats[j], feats[m]] = [feats[m], feats[j]]; }
@@ -213,15 +248,20 @@ function buildLevel(i, seed) {
     else if (p === 'E') elev();
     else if (p === 'K') tower();
     else if (p === 'B') hurdles();
+    else if (p === 'Y') birdZone();
+    else if (p === 'C') belt();
+    else if (p === 'W') pool();
+    else if (p === 'X') infest();
   }
   if (i === 3 && !L.signs.length) L.signs.push([120, 'nozzle']);
   // enemies on flat stretches only
   // difficulty scales monster counts: easy ×0.5, medium ×0.75, hard ×1, ultra ×2 (v1.21)
-  const mm = i === 0 ? 1 : ({ easy: 0.5, medium: 0.75, hard: 1, ultra: 2 })[typeof SAVE !== 'undefined' && SAVE.diff] || 0.75;
   const nb = i === 0 ? 2 : Math.max(1, Math.round((4 + Math.floor(d * 7) + (r() < 0.5 ? 1 : 0)) * mm));
-  for (let j = 0; j < nb && flat.length; j++) { const [x0, x1] = flat[Math.floor(j * flat.length / nb)]; if (x0 > 500) L.blobs.push([Math.round((x0 + x1) / 2) + ((j * 37) % 60) - 30, Math.max(40, Math.min(130, (x1 - x0) / 2))]); }
+  for (let j = 0; j < nb && flat.length; j++) { const [x0, x1] = flat[Math.floor(j * flat.length / nb)]; if (x0 > 500 && !L.infest.some(([a, b]) => x0 >= a && x0 < b)) L.blobs.push([Math.round((x0 + x1) / 2) + ((j * 37) % 60) - 30, Math.max(40, Math.min(130, (x1 - x0) / 2))]); }
   const nbird = i < 1 ? 0 : Math.max(1, Math.round((2 + Math.floor(d * 5)) * mm));
   for (let j = 0; j < nbird; j++) L.birds.push([Math.round(700 + (x - 900) * (j + 0.5) / nbird), 180, 190 + Math.floor(r() * 50)]);
+  // infested stretches: dozens of slow-shooting monsters (flag 1)
+  for (const [a, b, n] of L.infest) for (let j = 0; j < n; j++) L.blobs.push([Math.round(a + 40 + (b - a - 80) * (j + r()) / n), 50 + Math.round(r() * 50), 1]);
   if (i > 0) L.hydrants.unshift(60);
   L.waveEvery = i >= 1 ? Math.round(32 - d * 16) : 0;
   // mud monsters keep dropping in while the slime wall is shut (v1.11)

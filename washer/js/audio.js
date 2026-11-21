@@ -141,7 +141,12 @@ const Sfx = (() => {
   let voice = null;
   function pickVoice() {
     const vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
-    voice = vs.find(v => /en-US/.test(v.lang) && /Samantha|Google US|Aria|Jenny/.test(v.name)) || vs.find(v => /^en/.test(v.lang)) || null;
+    // most natural first (v1.30): downloaded Premium/Enhanced voices (iPhone/Mac), Microsoft "Natural" (Edge), then the usual good ones
+    const en = vs.filter(v => /^en[-_]?(US|GB|AU|CA)?/i.test(v.lang));
+    const rank = [/premium/i, /enhanced|natural|neural/i, /^(Ava|Zoe|Evan|Nathan|Joelle|Noelle)\b/, /Google US English/, /Samantha|Aria|Jenny|Karen|Daniel/];
+    voice = null;
+    for (const re of rank) { voice = en.find(v => re.test(v.name) && /en-US/i.test(v.lang)) || en.find(v => re.test(v.name)); if (voice) break; }
+    voice = voice || en[0] || null;
   }
   if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
   S.say = function (text, villain) {

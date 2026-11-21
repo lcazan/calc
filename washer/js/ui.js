@@ -2,7 +2,7 @@
 // Super Splash: menus, saving, input and the main loop
 const SAVE_KEY = 'supersplash-v1';
 const SAVE_DEF = { gender: 'boy', skin: 0, hair: 0, sound: true, music: true, voice: true, diff: 'medium', coins: 0, unlocked: 1, done: [],
-  up: { pressure: 0, tank: 0 }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
+  up: { pressure: 0, tank: 0, soap: false, hose: false }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
 function loadSave() {
   const d = JSON.parse(JSON.stringify(SAVE_DEF));
   // the save is kept twice (v1.25); if the main copy is missing or broken the backup is used, so progress is never lost to a bad read
@@ -147,9 +147,11 @@ const UI = (() => {
       if (state === 'using') b.textContent = '✔ Using';
       else if (state === 'owned') b.textContent = 'Use';
       else if (state === 'max') b.textContent = 'MAX';
+      else if (state === 'locked') b.textContent = '🔒';
       else b.innerHTML = `<span class="coin"></span>${price}`;
       b.onclick = () => {
         if (state === 'owned') { click(); onUse(); persist(); renderShop(); return; }
+        if (state === 'locked') { Sfx.init(); Sfx.nope(); Sfx.say('Max out your pressure first!'); return; }
         if (state !== 'buy') return;
         if (SAVE.coins < price) { Sfx.init(); Sfx.nope(); Sfx.say(`You need ${price - SAVE.coins} more coins. Wash more stuff!`); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 400); return; }
         SAVE.coins -= price; onBuy(); persist(); Sfx.init(); Sfx.buy(); renderShop();
@@ -168,6 +170,10 @@ const UI = (() => {
     item(g, iconCanvas(44, (c, s) => gaugeIcon(c, s, pl / (PRESSURE.length - 1))), 'Pressure', `${PRESSURE[pl].psi} PSI ${pips(pl, PRESSURE.length)}`, pl >= PRESSURE.length - 1 ? 'max' : 'buy', PRESSURE_COST[pl], () => { SAVE.up.pressure++; });
     const tl = SAVE.up.tank;
     item(g, iconCanvas(44, (c, s) => tankIcon(c, s, (tl + 1) / TANK.length)), 'Water tank', `Holds ${Math.round(TANK[tl] * tankMul())} ${pips(tl, TANK.length)}`, tl >= TANK.length - 1 ? 'max' : 'buy', TANK_COST[tl], () => { SAVE.up.tank++; });
+    // extras (v1.30): fire hose for red hydrants; soap only after Pressure is maxed
+    item(g, iconCanvas(44, hoseIcon), 'Fire hose', 'Hooks onto red hydrants: sprays far and strong', SAVE.up.hose ? 'using' : 'buy', HOSE_COST, () => { SAVE.up.hose = true; });
+    const soapOk = pl >= PRESSURE.length - 1;
+    item(g, iconCanvas(44, soapIcon), 'Soap', soapOk ? 'Sudsy spray: washed things stay clean' : 'Max out Pressure first', SAVE.up.soap ? 'using' : soapOk ? 'buy' : 'locked', SOAP_COST, () => { SAVE.up.soap = true; });
     g = sec('Hats');
     for (const id in HATS) {
       const own = SAVE.hats.includes(id);
@@ -189,6 +195,8 @@ const UI = (() => {
     const spread = n.r / 32 * s * 0.4; poly(c, [s * 0.42, s / 2 - 2, s * 0.98, s / 2 - spread, s * 0.98, s / 2 + spread, s * 0.42, s / 2 + 2]); c.fill(); c.globalAlpha = 1;
     rrect(c, s * 0.06, s * 0.4, s * 0.36, s * 0.2, 4); paint(c, '#a7adb8', 2); circ(c, s * 0.42, s / 2, s * 0.12); paint(c, col || rainbow(0.3), 2);
   }
+  function hoseIcon(c, s) { c.lineCap = 'round'; for (const [col, lw] of [[OUT, 8], ['#e8443a', 5]]) { c.beginPath(); c.arc(s * 0.45, s * 0.55, s * 0.28, 0.3, TAU * 0.95); c.lineTo(s * 0.88, s * 0.3); c.strokeStyle = col; c.lineWidth = lw; c.stroke(); } rrect(c, s * 0.8, s * 0.2, 8, 8, 2); paint(c, '#ffd23f', 2); }
+  function soapIcon(c, s) { rrect(c, s * 0.3, s * 0.35, s * 0.4, s * 0.55, 6); paint(c, '#ff9fc0', 2.5); rrect(c, s * 0.44, s * 0.18, s * 0.12, s * 0.18, 2); paint(c, '#fff', 2); line(c, s * 0.5, s * 0.2, s * 0.68, s * 0.2, OUT, 3); for (const [bx, by, r] of [[0.75, 0.25, 4], [0.85, 0.12, 3], [0.2, 0.2, 3]]) { circ(c, s * bx, s * by, r); paint(c, 'rgba(200,240,255,.6)', 1.5); } }
   function gaugeIcon(c, s, f) { circ(c, s / 2, s / 2, s * 0.42); paint(c, '#fff', 2.5); const a = Math.PI * (0.8 + f * 1.4); line(c, s / 2, s / 2, s / 2 + Math.cos(a) * s * 0.32, s / 2 + Math.sin(a) * s * 0.32, '#e8443a', 3); circ(c, s / 2, s / 2, 3); paint(c, OUT, 0); }
   function tankIcon(c, s, f) { rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); paint(c, '#eef6ff', 2.5); c.save(); rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); c.clip(); c.fillStyle = '#3a9cf0'; c.fillRect(0, s * (0.9 - 0.8 * f), s, s); c.restore(); rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); paint(c, null, 2.5); }
 

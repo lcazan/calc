@@ -71,10 +71,14 @@ function cleanAt(o, wx, wy, r, amt) {
   const i0 = Math.max(0, Math.floor((lx - r) / CELL)), i1 = Math.min(o.gw - 1, Math.floor((lx + r) / CELL));
   const j0 = Math.max(0, Math.floor((ly - r) / CELL)), j1 = Math.min(o.gh - 1, Math.floor((ly + r) / CELL));
   const rr = (r + CELL * 0.5) ** 2, g = o.grid, act = o.act;
+  // soap (v1.30): every cell the sudsy spray touches stays clean for good (not the boss)
+  const soap = SAVE.up.soap && o.type !== 'boss' ? (o.soap || (o.soap = new Uint8Array(g.length))) : null;
   let got = 0;
   for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-    const k = j * o.gw + i; if (!act[k]) continue; const v = g[k]; if (v <= 0) continue;
+    const k = j * o.gw + i; if (!act[k]) continue;
     const cx = (i + 0.5) * CELL - lx, cy = (j + 0.5) * CELL - ly, d2 = cx * cx + cy * cy; if (d2 > rr) continue;
+    if (soap) soap[k] = 1;
+    const v = g[k]; if (v <= 0) continue;
     const dv = Math.min(v, amt * (1 - d2 / rr * 0.7)); g[k] = v - dv; got += dv;
   }
   if (got > 0) { o.sum -= got; o.rem = Math.max(0, o.sum / o.total); o.need = true; }
@@ -85,14 +89,19 @@ function dirtyAt(o, wx, wy, r) {
   const lx = wx - o.x, ly = wy - o.top;
   const i0 = Math.max(0, Math.floor((lx - r) / CELL)), i1 = Math.min(o.gw - 1, Math.floor((lx + r) / CELL));
   const j0 = Math.max(0, Math.floor((ly - r) / CELL)), j1 = Math.min(o.gh - 1, Math.floor((ly + r) / CELL));
-  const rr = r * r; let add = 0;
+  const rr = r * r; let add = 0, soapy = 0;
   for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
     const k = j * o.gw + i; if (!o.act[k]) continue;
     const cx = (i + 0.5) * CELL - lx, cy = (j + 0.5) * CELL - ly, d2 = cx * cx + cy * cy; if (d2 > rr) continue;
+    if (o.soap && o.soap[k]) { soapy++; continue; }
     const nv = Math.max(o.grid[k], 1 - d2 / rr * 0.4); add += nv - o.grid[k]; o.grid[k] = nv;
   }
   if (add > 0) { o.sum += add; o.rem = Math.min(1, o.sum / o.total); o.need = true; if (o.done) { o.done = false; G.cleaned--; } }
-  return add;
+  return add > 0 || !soapy ? add : -1; // -1: all soapy, the mud slides off
+}
+const SOAP_CELL = 40;
+function soapGround(x) { return !!G.soapG[Math.floor(x / SOAP_CELL)]; }
+function soapSlide(x, y) { bubbles(x, y, 4); part(x, y, 0, -30, 0.5, 10, 'rgba(255,255,255,.7)', 'm', 0); Sfx.pop();
 }
 function finishObj(o) {
   if (!o.grid) return;
@@ -136,7 +145,14 @@ function startLevel(L, idx, demo) {
   G.blobT = 6;
   for (const [x, w, h] of (L.towers || [])) G.solids.push({ kind: 'tower', x, y: GROUND - h, w, h, tower: { off: false, t: 1.5 + Math.random() * 1.5, charge: 0 } });
   G.hydrants = (L.hydrants || []).map(x => ({ x, active: false }));
-  for (const [x, range] of (L.blobs || [])) G.enemies.push(newBlob(x, range));
+  for (const [x, range, inf] of (L.blobs || [])) { const e = newBlob(x, range); if (inf) { e.inf = true; e.hp = e.hp0 = 0.6; e.shootT = 2 + Math.random() * 5; } G.enemies.push(e); }
+  for (const px of (L.puddles || [])) { const o = makeObj('puddle', px - 43, GROUND + 2, 0, L.dirt, seed++); o.reward = 1; G.objs.push(o); }
+  G.belts = (L.belts || []).map(([x, w, ev]) => ({ x, w, ev, t: 1, off: 0 }));
+  G.pools = (L.pools || []).map(([x, w]) => ({ x, w, surf: GROUND - 185 }));
+  G.pickups = []; for (const [, , ...hs] of (L.pools || [])) for (const hx of hs) G.pickups.push({ x: hx, y: GROUND - 32 });
+  G.zones = (L.birdZones || []).map(([x0, x1, n]) => ({ x0, x1, n, t: 0 }));
+  G.truck = L.truck ? { x: L.truck[0], x0: L.truck[0], x1: L.truck[1], w: 240, on: false, vx: 0, cd: 0, nagT: 0 } : null;
+  G.hose = null; G.soapG = {};
   for (const [x, range] of (L.worms || [])) { const [a, b] = clipRange(x, range); G.enemies.push({ kind: 'worm', x, y: GROUND, minX: a, maxX: b, dir: Math.random() < 0.5 ? 1 : -1, hp: 0.8, hp0: 0.8, r: 22, t: Math.random() * 3, flash: 0, spitT: 2 + Math.random() * 2, rear: 0 }); }
   for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', req: true, x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 2, r: 24, t: 0 });
   G.birdsReq = G.enemies.filter(e => e.req).length;
@@ -175,6 +191,8 @@ function update(dt) {
   if (G.exitT > 0) { G.exitT += dt * 1.8; if (G.exitT >= 1) { exitSewer(); return; } }
   updLifts(dt);
   updToggles(dt);
+  updBelts(dt);
+  updZones(dt);
   updPlayer(dt);
   updSpray(dt);
   updEnemies(dt);
@@ -335,6 +353,7 @@ function updPlayer(dt) {
     const before = G.respawnT; G.respawnT -= dt;
     if (before > 0.7 && G.respawnT <= 0.7) {
       if (G.under) { const up = G.under.surf; refundHeart(); up.p = P; up.respawnT = G.respawnT; G = up; hudReset(); }
+      if (G.truck) G.truck.on = false;
       P.inHole = null; P.x = G.arena && G.arena.started ? G.arena.L + 90 : G.checkpoint; P.y = GROUND; P.gy = GROUND; P.on = null; P.vx = P.vy = 0; P.tank = tankMax(); P.hearts = maxHearts(); P.inv = 2; G.balls.length = 0;
       G.cam.x = clamp(P.x - view.W * 0.4, 0, Math.max(0, G.L.len - view.W)); if (G.arena && G.arena.started) G.cam.x = G.arena.L;
     }
@@ -342,17 +361,31 @@ function updPlayer(dt) {
     return;
   }
   const ctl = !P.lock && P.hurtT < 0.35;
+  const T = G.truck;
+  if (T) T.cd = Math.max(0, T.cd - dt);
+  if (T && T.on) { driveTruck(dt, ctl); return; }
   const dir = ctl && !G.demo ? (In.right ? 1 : 0) - (In.left ? 1 : 0) : 0;
-  const spd = 250 * (P.spraying ? 0.62 : 1);
+  const pool = poolAt(P.x, P.y);
+  if (pool && !P.swim) { splash(P.x, pool.surf, '#bfe9ff', 14); Sfx.splat(); hintOnce('swim', 'Swimming! Tap jump to swim up, jump again at the top to climb out!'); }
+  P.swim = pool;
+  const spd = (pool ? 170 : 250) * (P.spraying ? 0.62 : 1);
   if (ctl) P.vx = approach(P.vx, dir * spd, (P.ground ? 2400 : 1600) * dt);
   if (dir) P.face = dir;
   P.jbuf = In.jp ? 0.14 : Math.max(0, P.jbuf - dt); In.jp = false;
   P.coyote = P.ground ? 0.1 : Math.max(0, P.coyote - dt);
-  if (ctl && P.jbuf > 0 && P.coyote > 0) { P.vy = -830; P.ground = false; P.coyote = 0; P.jbuf = 0; Sfx.jump(); }
-  if (!In.jump && P.vy < -380 && !P.hurtT) P.vy = -380;
-  P.vy = Math.min(P.vy + 2100 * dt, 1000);
-  // x
+  if (pool) {
+    // swimming (v1.30): slow sinking, each jump tap is a stroke up; near the top a stroke jumps out of the water
+    if (ctl && P.jbuf > 0) { const out = P.y < pool.surf + 95; P.vy = out ? -830 : -340; P.bigJ = out; P.jbuf = 0; P.ground = false; Sfx.glug(); bubbles(P.x, P.y - 60, 3); }
+    P.vy = P.vy < -400 ? P.vy + 2100 * dt : Math.min(P.vy + 520 * dt, 130);
+    if (Math.random() < dt * 3) bubbles(P.x + P.face * 12, P.y - 80, 1);
+  } else {
+    if (ctl && P.jbuf > 0 && P.coyote > 0) { P.vy = -830; P.ground = false; P.coyote = 0; P.jbuf = 0; Sfx.jump(); }
+    if (!In.jump && P.vy < -380 && !P.hurtT && !P.bigJ) P.vy = -380;
+    P.vy = Math.min(P.vy + 2100 * dt, 1000);
+  }
+  // x (conveyor belts push the kid back at walking speed while standing on them)
   P.x += P.vx * dt;
+  if (P.ground && P.y >= GROUND - 1) for (const b of G.belts) if (P.x > b.x && P.x < b.x + b.w) P.x -= BELT_SPD * dt;
   const s = solidsHit(P.x, P.y);
   if (s) { if (P.x < s.x + s.w / 2) P.x = s.x - 15.01; else P.x = s.x + s.w + 15.01; P.vx = 0; }
   if (G.wall && G.wall.melt < 0.6 && P.x > G.wall.x - 16 && P.x < G.wall.x + 60) { P.x = G.wall.x - 16; P.vx = Math.min(P.vx, 0); }
@@ -374,7 +407,8 @@ function updPlayer(dt) {
   if (P.ground && P.y === GROUND && !holeAt(P.x, -20)) P.safeX = P.x;
   if (P.ground && P.onS && P.onS.tower && !P.onS.tower.off) plugTower(P.onS);
   if (P.ground && !wasGround && P.y - (P.gy == null ? P.y : P.gy) >= 130) fallHurt(P.y - P.gy);
-  if (P.ground) P.gy = P.y;
+  if (P.ground || pool) P.gy = P.y;
+  if (P.ground) P.bigJ = false;
   if (P.ground && !wasGround && vyBefore > 500) { Sfx.land(); for (let i = 0; i < 4; i++) part(P.x, P.y, (Math.random() - 0.5) * 160, -Math.random() * 80, 0.35, 4, 'rgba(255,255,255,.8)', 'm', 0); }
   P.walk += Math.abs(P.vx) * dt * 0.05;
   // hydrants: refill + checkpoint
@@ -385,23 +419,86 @@ function updPlayer(dt) {
       if (!h.active) { h.active = true; G.checkpoint = h.x; Sfx.buy(); sparkleBurst(h.x + 40, GROUND - 76, 10); }
     }
   }
+  // fire hose (v1.30): bought in the shop, hooks onto a red hydrant the kid stands at; walking 450 away unhooks it
+  if (SAVE.up.hose && !G.demo) {
+    const hn = G.hydrants.find(h => Math.abs(P.x - h.x) < 70 && P.y > GROUND - 10);
+    if (hn && G.hose !== hn) { G.hose = hn; Sfx.ding(); floatText(hn.x, GROUND - 120, 'Hose on!', '#ff6f5a', 28); hintOnce('hose', 'Fire hose hooked up! Now I can spray super far and strong!'); }
+    else if (G.hose && Math.abs(P.x - G.hose.x) > 450) { floatText(G.hose.x, GROUND - 120, 'Hose off', '#fff', 24); G.hose = null; Sfx.pop(); }
+  }
+  // fire truck: walk up to it to hop in
+  if (T && !T.on && !T.cd && P.ground && P.y > GROUND - 5 && P.x > T.x + 30 && P.x < T.x + T.w - 30 && T.x < T.x1 - 2 && !G.demo) {
+    T.on = true; G.hose = null; Sfx.honk(); floatText(T.x + T.w / 2, GROUND - 170, 'Beep beep!', '#ffd23f', 30);
+    hintOnce('truckIn', 'Drive the fire truck right and spray the monsters with the water cannon! Jump to hop out.');
+  }
+  for (const k of G.pickups) if (!k.got && Math.abs(P.x - k.x) < 40 && Math.abs(P.y - 45 - k.y) < 60) {
+    k.got = true; sparkleBurst(k.x, k.y, 14); Sfx.buy();
+    if (P.hearts < maxHearts()) { P.hearts++; floatText(k.x, k.y - 40, '+1 heart!', '#ff6f8a', 30); } else { spawnCoins(k.x, k.y, 5); floatText(k.x, k.y - 40, 'Full hearts!', '#ff6f8a', 26); }
+  }
+  if (pool) near = true; // pool water fills the tank too
   if (near && P.tank < tankMax()) { P.tank = Math.min(tankMax(), P.tank + 90 * dt); P.glugT -= dt; if (P.glugT <= 0) { Sfx.glug(); P.glugT = 0.15; bubbles(P.x - P.face * 20, P.y - 50, 1); } }
   if (P.tank > tankMax() * 0.4) P.lowSaid = false;
 }
+const BELT_SPD = 250; // conveyor speed = walking speed
+function poolAt(x, y, dy) { for (const q of G.pools) if (x > q.x && x < q.x + q.w && y > q.surf + (dy == null ? 40 : dy)) return q; return null; }
+function driveTruck(dt, ctl) {
+  const P = G.p, T = G.truck;
+  const dir = ctl && !G.demo ? (In.right ? 1 : 0) - (In.left ? 1 : 0) : 0;
+  T.vx = approach(T.vx, dir * 230, 900 * dt);
+  const want = T.x + T.vx * dt; T.x = clamp(want, T.x0, T.x1); if (T.x !== want) T.vx = 0;
+  T.nagT -= dt;
+  if (T.x >= T.x1 && dir > 0 && T.nagT <= 0) { T.nagT = 6; kidSay('Road closed! Jump off the truck and keep going on foot!', true); }
+  if (dir) P.face = dir;
+  P.x = T.x + 92; P.y = GROUND - 78; P.gy = P.y; P.vx = T.vx; P.vy = 0; P.ground = true; P.on = P.onS = null; P.swim = null;
+  // driving into mud monsters squashes them
+  if (Math.abs(T.vx) > 40) for (const e of G.enemies) if (e.kind === 'blob' && !e.fall && e.hp > 0 && e.x > T.x - 10 && e.x < T.x + T.w + 10) { e.hp = 0; shake(3); }
+  P.jbuf = In.jp ? 0.14 : Math.max(0, P.jbuf - dt); In.jp = false;
+  if (ctl && P.jbuf > 0) { T.on = false; T.cd = 1.2; T.vx = 0; P.vy = -650; P.vx = 0; P.ground = false; P.jbuf = 0; Sfx.jump(); }
+}
+// conveyor belts: mud monsters keep coming from the right end while the kid is on or before the belt
+function updBelts(dt) {
+  const P = G.p;
+  for (const b of G.belts) {
+    b.off = (b.off + dt * BELT_SPD) % 40;
+    if (G.demo || G.done || G.respawnT > 0 || P.x < b.x - 350 || P.x > b.x + b.w - 80) continue;
+    if (b.x < G.cam.x + view.W) hintOnce('belt', 'A backwards belt! Jump again and again while you walk to get across!');
+    b.t -= dt; if (b.t > 0) continue;
+    b.t = b.ev * (0.8 + Math.random() * 0.4);
+    if (G.enemies.filter(e => e.belt === b).length >= 4) continue;
+    const e = newBlob(b.x + b.w - 20, 0); e.belt = b; e.hp = e.hp0 = 0.5; e.spd = 110 + G.idx * 2; e.dir = -1;
+    G.enemies.push(e); Sfx.splat(); splash(e.x, GROUND - 20, '#7b5431', 6);
+  }
+}
+// bird alleys: up to 10 birds fly in one by one (at most 6 at a time) once the kid gets there
+function updZones(dt) {
+  const P = G.p;
+  for (const z of G.zones) {
+    if (z.n <= 0 || G.demo || G.done || G.respawnT > 0 || P.x < z.x0 - 150 || P.x > z.x1 + 150) continue;
+    z.t -= dt; if (z.t > 0) continue;
+    if (G.enemies.filter(e => e.zone === z).length >= 6) { z.t = 1; continue; }
+    z.t = 0.9 + Math.random() * 0.9; z.n--;
+    const fromR = Math.random() < 0.6, x = fromR ? G.cam.x + view.W + 40 : G.cam.x - 40, y = 150 + Math.random() * 90;
+    G.enemies.push({ kind: 'bird', zone: z, temp: true, x, y, y0: y, minX: z.x0 - 60, maxX: z.x1 + 60, dir: fromR ? -1 : 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 1 + Math.random(), r: 24, t: Math.random() * 6 });
+    hintOnce('birdZone', 'Lots of muddy birds! Spray them before they drop mud on me!');
+  }
+}
 function nozzleWorld() {
-  const P = G.p, [lx, ly] = kidNozzleLocal(P.aimA);
+  const P = G.p;
+  if (G.truck && G.truck.on) { const bx = P.x + P.face * 26, by = P.y - 44; return [bx + P.face * Math.cos(P.aimA) * 46, by + Math.sin(P.aimA) * 46]; }
+  const [lx, ly] = kidNozzleLocal(P.aimA);
   return [P.x + P.face * lx, P.y + ly];
 }
 function updSpray(dt) {
   const P = G.p, noz = curNozzle(), pr = curPressure();
-  const want = (In.spray || G.demo) && !P.lock && G.respawnT <= 0;
+  const want = (In.spray || G.demo) && !P.lock && G.respawnT <= 0 && !P.swim;
+  // water cannon (fire truck) and fire hose: free water, farther and stronger (v1.30)
+  const truck = !!(G.truck && G.truck.on), hose = !!G.hose && !truck, free = truck || hose, boost = truck ? 4 : hose ? 2.5 : 1;
   // water only comes from red hydrants
-  if (want && P.tank <= 0) {
+  if (want && P.tank <= 0 && !free) {
     P.sputT -= dt; if (P.sputT <= 0) { Sfx.sputter(); P.sputT = 0.5; }
     hintOnce('water', 'Out of water! Go back to a red hydrant!');
   }
-  P.spraying = want && P.tank > 0;
-  const hx = P.x + P.face * 10, hy = P.y - 40, R = MAX_REACH * noz.range;
+  P.spraying = want && (P.tank > 0 || free);
+  const hx = P.x + P.face * 10, hy = P.y - 40, R = MAX_REACH * noz.range * (truck ? 2 : hose ? 1.9 : 1);
   const ok = (x, y) => { const dx = (x - hx) * P.face, dy = y - hy; if (dx < 16 || dx * dx + dy * dy > R * R) return false; const a = Math.atan2(dy, dx); return a > -1.25 && a < 1.1; };
   // spray-lift block: a fresh press while standing on it moves it (going down only when nothing up here needs washing)
   const press = P.spraying && !G.prevSpray; G.prevSpray = P.spraying;
@@ -412,7 +509,8 @@ function updSpray(dt) {
     P.aimA = approach(P.aimA, 0.35, dt * 3);
     return;
   }
-  if (!G.demo) P.tank = Math.max(0, P.tank - 7 * dt);
+  if (!G.demo && !free) P.tank = Math.max(0, P.tank - 7 * dt);
+  if (SAVE.up.soap && !G.demo) { if (G.aim.y > GROUND - 50) G.soapG[Math.floor(G.aim.x / SOAP_CELL)] = 1; if (Math.random() < dt * 10) bubbles(G.aim.x, G.aim.y, 1); }
   // never spray behind the kid: after turning around (or a respawn) restart the stream in front
   if ((G.aim.x - hx) * P.face < 16) { G.aim.x = hx + P.face * 40; G.aim.y = hy + 10; G.tgt = null; }
   // choose a target
@@ -450,7 +548,7 @@ function updSpray(dt) {
   const adx = Math.max(16, (G.aim.x - hx) * P.face), ady = G.aim.y - hy;
   P.aimA = clamp(Math.atan2(ady, adx), -1.25, 1.1);
   // clean
-  const base = 3.2 * noz.pow * pr.pow * dt, amt = base * 3.4, r = noz.r; // things wash 3.4x base; the boss uses base
+  const base = 3.2 * noz.pow * pr.pow * dt, amt = base * 3.4 * boost, r = noz.r * (truck ? 1.8 : hose ? 1.4 : 1); // things wash 3.4x base; the boss uses base
   let got = 0;
   const [nzx, nzy] = nozzleWorld(), wb = waveBlocks(nzx, nzy, G.aim.x, G.aim.y);
   if (wb) { G.aim.x = wb.x; G.aim.y = GROUND - 40 * wb.size; G.tgt = { k: 'en', ref: wb }; }
@@ -469,7 +567,7 @@ function updSpray(dt) {
       }
     }
   }
-  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt * gearMult() / (G.L.tough || 2); e.flash = 0.1; got += 0.01; }
+  for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - G.aim.x, e.y - e.r * 0.7 - G.aim.y) < e.r + r) { e.hp -= dt * boost * gearMult() / (G.L.tough || 2); e.flash = 0.1; got += 0.01; }
   for (const b of G.balls) if (Math.hypot(b.x - G.aim.x, b.y - G.aim.y) < b.r + r) { b.hp -= amt; got += 0.01; }
   for (const s2 of G.solids) if (s2.tog && s2.tog.up && P.onS !== s2 && G.aim.x > s2.x - 12 && G.aim.x < s2.x + s2.w + 12 && G.aim.y > s2.y + 20 && G.aim.y < GROUND + 5) { s2.baseT = (s2.baseT || 0) + dt; got += 0.01; if (s2.baseT >= 0.5) { s2.baseT = 0; flipToggle(s2); G.tgt = null; } }
   for (const pp of G.pipes) { if (!pp.open) continue; const [vx, vy] = valvePos(pp); if (Math.hypot(vx - G.aim.x, vy - G.aim.y) < 30 + r) { pp.hp -= dt; pp.turnT = 0.15; got += 0.01; if (pp.hp <= 0) closeValve(pp); } }
@@ -525,6 +623,7 @@ function findCell(hx, hy, R, ok) {
 }
 function completeObj(o) {
   finishObj(o);
+  if (SAVE.up.soap && o.type !== 'boss') o.soap = new Uint8Array(o.grid.length).fill(1);
   o.bounce = 0.6;
   spawnCoins(o.x + o.w / 2, o.top + o.h * 0.3, Math.max(1, o.reward - o.given));
   sparkleBurst(o.x + o.w / 2, o.top + o.h / 2, 26, Math.min(o.w, 200));
@@ -566,15 +665,16 @@ function updEnemies(dt) {
         }
         continue;
       }
-      e.hop += dt * 6; e.x += e.dir * e.spd * dt;
-      if (e.x < e.minX) { e.x = e.minX; e.dir = 1; } if (e.x > e.maxX) { e.x = e.maxX; e.dir = -1; }
+      e.hop += dt * 6;
+      if (e.belt) { e.x -= e.spd * dt; if (e.x < e.belt.x + 10) { e.hp = 0; e.noCoin = true; } }
+      else { e.x += e.dir * e.spd * dt; if (e.x < e.minX) { e.x = e.minX; e.dir = 1; } if (e.x > e.maxX) { e.x = e.maxX; e.dir = -1; } }
       const dx = P.x - e.x;
-      if (Math.abs(dx) < 480 && Math.abs(dx) > 70 && G.respawnT <= 0 && !G.demo) {
+      if (!e.belt && Math.abs(dx) < 480 && Math.abs(dx) > 70 && G.respawnT <= 0 && !G.demo) {
         e.shootT -= dt;
         if (e.shootT <= 0) {
-          e.shootT = Math.max(1.2, 2.2 - G.idx * 0.035) * (0.8 + Math.random() * 0.4);
+          e.shootT = Math.max(1.2, 2.2 - G.idx * 0.035) * (0.8 + Math.random() * 0.4) * (e.inf ? 2.5 : 1);
           const T = 1.1, x0 = e.x, y0 = e.y - e.r * 1.3, vy = (GROUND - 30 - y0 - 0.5 * 900 * T * T) / T;
-          G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T, vy, r: 11, hp: 0.3, hp0: 0.3, slime: swamp, temp: !!e.auto });
+          G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T, vy, r: 11, hp: 0.3, hp0: 0.3, slime: swamp, temp: !!(e.auto || e.inf) });
           if (G.idx >= 9 && Math.random() < 0.3) for (const f of [0.7, 1.3]) G.balls.push({ x: x0, y: y0, vx: (P.x - x0) / T * f, vy, r: 10, hp: 0.3, hp0: 0.3, slime: swamp, temp: true });
           e.dir = Math.sign(dx) || 1; e.hop = 0; Sfx.throw();
         }
@@ -606,7 +706,7 @@ function updEnemies(dt) {
       e.dropT -= dt;
       if (e.dropT <= 0 && Math.abs(P.x - e.x) < 170 && G.respawnT <= 0 && !G.demo) {
         const T = Math.sqrt(2 * Math.max(40, P.y - 40 - e.y) / 900);
-        G.balls.push({ x: e.x, y: e.y + 14, vx: clamp((P.x - e.x) / T, -260, 260), vy: 40, r: 12, hp: 0.3, hp0: 0.3, slime: swamp }); e.dropT = 1.5 + Math.random() * 0.5; Sfx.throw();
+        G.balls.push({ x: e.x, y: e.y + 14, vx: clamp((P.x - e.x) / T, -260, 260), vy: 40, r: 12, hp: 0.3, hp0: 0.3, slime: swamp, temp: !!e.temp }); e.dropT = 1.5 + Math.random() * 0.5; Sfx.throw();
       }
       if (Math.abs(P.x - e.x) < 30 && Math.abs(P.y - 45 - e.y) < 50) hurtPlayer(e.x);
     }
@@ -702,7 +802,7 @@ function updTrickle(dt) {
   G.blobT -= dt; if (G.blobT > 0) return;
   if (G.enemies.filter(e => e.trickle).length >= L.blobMax) { G.blobT = 2; return; }
   const lim = G.wall ? G.wall.x - 60 : L.len - 200;
-  const okX = x => x > 120 && x < lim && !holeAt(x, -40) && !G.solids.some(s => x > s.x - 40 && x < s.x + s.w + 40) && !G.pipes.some(pp => Math.abs(x - pp.x) < 200);
+  const okX = x => x > 120 && x < lim && !holeAt(x, -40) && !G.solids.some(s => x > s.x - 40 && x < s.x + s.w + 40) && !G.pipes.some(pp => Math.abs(x - pp.x) < 200) && !G.pools.some(q => x > q.x - 60 && x < q.x + q.w + 60) && !G.belts.some(b => x > b.x - 40 && x < b.x + b.w + 40);
   let x = null;
   for (let k = 0; k < 6 && x == null; k++) { const c = P.x + (k % 2 ? -P.face : P.face) * (240 + Math.random() * 220); if (okX(c)) x = c; }
   if (x == null) { G.blobT = 2; return; }
@@ -713,6 +813,7 @@ function updTrickle(dt) {
 // monster mud that hits the ground stays as a dirty puddle you must wash (outside boss arenas)
 function addPuddle(x) {
   if (G.demo) return;
+  if (soapGround(x)) { soapSlide(x, GROUND - 6); return; }
   const near = G.objs.find(o => o.type === 'puddle' && Math.abs(o.x + o.w / 2 - x) < 46);
   if (near) { dirtyAt(near, clamp(x, near.x + 10, near.x + near.w - 10), GROUND - 2, 30); near.goneAt = null; return; }
   const o = makeObj('puddle', x - 43, GROUND + 2, 0, G.L.dirt, 5000 + G.objs.length);
@@ -733,9 +834,11 @@ function updBalls(dt) {
     }
     if (!arena) {
       let hit = false;
-      for (const o of G.objs) if (o.type !== 'spinner' && o.grid && b.x > o.x && b.x < o.x + o.w && b.y > o.top && b.y < o.y && dirtyAt(o, b.x, b.y, 26) > 0) { hit = true; break; }
+      for (const o of G.objs) if (o.type !== 'spinner' && o.grid && b.x > o.x && b.x < o.x + o.w && b.y > o.top && b.y < o.y) { const d = dirtyAt(o, b.x, b.y, 26); if (d < 0) { hit = 'soap'; break; } if (d > 0) { hit = true; break; } }
+      if (hit === 'soap') { b.dead = true; soapSlide(b.x, b.y); continue; }
       if (hit) { b.dead = true; Sfx.splat(); splash(b.x, b.y, b.slime ? '#6f9a2a' : '#7b5431', 6); continue; }
     }
+    if (poolAt(b.x, b.y, 0)) { b.dead = true; splash(b.x, b.y, '#bfe9ff', 6); continue; }
     if (b.y >= GROUND - 4 && holeAt(b.x, 0)) { if (b.y > GROUND + 60) b.dead = true; continue; }
     if (b.y >= GROUND - 4) { b.dead = true; Sfx.splat(); splash(b.x, GROUND - 4, b.slime ? '#6f9a2a' : '#7b5431', 10); if (arena || b.temp) G.puddles.push({ x: b.x, w: 40, life: 3, slime: b.slime }); else addPuddle(b.x); continue; }
     if (b.x > P.x - 18 - b.r && b.x < P.x + 18 + b.r && b.y > P.y - 88 - b.r && b.y < P.y + b.r) { b.dead = true; hurtPlayer(b.x); }
@@ -744,8 +847,8 @@ function updBalls(dt) {
   for (const p of G.puddles) p.life -= dt;
   G.puddles = G.puddles.filter(p => p.life > 0);
 }
-// coins per falling heart grow with the level, since later levels pay far more coins (v1.25, owner's numbers): 100 / 150 / 200 / 250
-function heartCost() { const i = G ? G.idx : 0; return i < 3 ? 100 : i < 12 ? 150 : i < 27 ? 200 : 250; }
+// coins per falling heart grow with the level (owner's numbers, halved in v1.30 so hearts come twice as often): 50 / 75 / 100 / 125
+function heartCost() { const i = G ? G.idx : 0; return i < 3 ? 50 : i < 12 ? 75 : i < 27 ? 100 : 125; }
 function gotCoin() { SAVE.coins++; G.lvlCoins++; SAVE.heartAcc = (SAVE.heartAcc || 0) + 1; const hc = heartCost(); if (SAVE.heartAcc >= hc) { SAVE.heartAcc -= hc; SAVE.heartPend = Math.min(3, (SAVE.heartPend || 0) + 1); } }
 function updCoins(dt) {
   const P = G.p;
@@ -790,6 +893,8 @@ function updProgress(dt) {
   if (G.under && G.holes.some(h => (h.x - P.x) * P.face > 0 && Math.abs(h.x - P.x) < 300)) hintOnce('slimePit', 'A slime pit! Jump over it!');
   if (G.solids.some(s => s.kind === 'hurdle' && (s.x - P.x) * P.face > 0 && s.x - P.x < 300 && s.x > P.x)) hintOnce('hurdle', 'Construction barriers! Jump over them!');
   if (G.solids.some(s => s.tog && Math.abs(s.x - P.x) < 300)) hintOnce('lift', 'A lift block! Stand on it and spray to make it go up!');
+  if (G.truck && !G.truck.on && Math.abs(G.truck.x - P.x) < 500) hintOnce('truck', 'A fire truck! Walk up to it to hop in!');
+  if (!G.truck && !SAVE.up.hose && (G.L.infest || []).some(([a]) => Math.abs(a - P.x) < 400)) hintOnce('infest', 'So many monsters! A fire hose from the shop would help. It hooks onto red hydrants!');
   if (G.arena && !G.arena.started && P.x > G.arena.x + 120) startBoss();
   if (!G.arena && G.finish && w && w.open && P.x > G.finish - 20) {
     if (!left) completeLevel();
@@ -947,6 +1052,8 @@ function render() {
   if (G.under) drawSewerFloor(c, cx, W); else drawGround(c, G.theme, cx, W);
   const vis = (x, w) => x + w > cx - 50 && x < cx + W + 50;
   for (const h of G.holes) if (vis(h.x, h.w)) drawSewerHole(c, h, G.t);
+  for (const b of G.belts) if (vis(b.x - 30, b.w + 60)) drawBelt(c, b);
+  for (const k in G.soapG) { const sx = k * SOAP_CELL; if (vis(sx, SOAP_CELL)) drawSuds(c, sx, SOAP_CELL, G.t); }
   for (const j of G.jets) if (vis(j.x - 40, 80)) drawCrack(c, j, G.t);
   if (!G.under) drawScenery(c, cx, W);
   for (const [x, k] of (G.L.signs || [])) if (vis(x, 130)) drawSign(c, x, k, G.t);
@@ -966,7 +1073,10 @@ function render() {
     if (o.grid && !o.done && o.count && o.type !== 'puddle') stink(c, o.x + o.w / 2, o.top + 4, G.t + o.x);
     else if (o.done && Math.random() < 0.02) part(o.x + Math.random() * o.w, o.top + Math.random() * o.h, 0, -10, 0.6, 6, '#fff', 's', 0);
   }
-  for (const s of G.solids) if (vis(s.x - 40, s.w + 40)) { if (s.pipe) drawPipe(c, s.pipe, G.t); else if (s.tower) drawTower(c, s, G.t); else if (s.tog) drawLiftBlock(c, s, G.t, G.p.onS === s); else drawSolid(c, s); }
+  for (const s of G.solids) if (vis(s.x - 40, s.w + 40)) { if (s.pipe) drawPipe(c, s.pipe, G.t); else if (s.tower) drawTower(c, s, G.t); else if (s.tog) drawLiftBlock(c, s, G.t, G.p.onS === s); else if (s.kind === 'poolwall') drawPoolWall(c, s); else drawSolid(c, s); }
+  for (const k of G.pickups) if (!k.got && vis(k.x - 30, 60)) drawSkyHeart(c, k.x, k.y, G.t, true);
+  if (G.truck && vis(G.truck.x - 20, G.truck.w + 40)) drawTruck(c, G.truck, G.t, G.p);
+  if (G.hose) drawHose(c, G.hose.x + 16, GROUND - 30, G.p);
   for (const h of G.hydrants) if (vis(h.x - 30, 90)) drawHydrant(c, h.x, h.active);
   if (G.wall && vis(G.wall.x, 80)) drawWall(c, G.wall.x, G.t, G.wall.melt, (G.theme === 'swamp' || G.theme === 'sewer'));
   if (G.finish && vis(G.finish - 10, 100)) drawFinish(c, G.finish, G.t, G.wall ? G.wall.open : true);
@@ -982,6 +1092,7 @@ function render() {
   if (G.p.y > GROUND + 1 && G.p.inHole) { const h = G.p.inHole; c.save(); c.beginPath(); c.rect(cx - 100, -400, W + 200, GROUND + 400); c.rect(h.x, GROUND, h.w, 300); c.clip(); drawPlayer(c); c.restore(); }
   else drawPlayer(c);
   for (const j of G.jets) if (j.st === 2 && vis(j.x - 40, 80)) drawJet(c, j, G.t);
+  for (const q of G.pools) if (vis(q.x, q.w)) drawWater(c, q, G.t);
   drawStream(c);
   drawParts(c);
   for (const t of G.texts) { c.globalAlpha = Math.min(1, t.life * 1.5); outlinedText(c, t.s, t.x, t.y, t.size, t.col); c.globalAlpha = 1; }
@@ -1033,12 +1144,12 @@ function drawPlayer(c) {
 }
 function drawStream(c) {
   const P = G.p; if (!P.spraying) return;
-  const [nx, ny] = nozzleWorld(), hx = G.aim.x, hy = G.aim.y, noz = curNozzle(), r = noz.r;
+  const [nx, ny] = nozzleWorld(), hx = G.aim.x, hy = G.aim.y, noz = curNozzle(), big = (G.truck && G.truck.on) ? 1.8 : G.hose ? 1.4 : 1, r = noz.r * big;
   const ang = Math.atan2(hy - ny, hx - nx), px = -Math.sin(ang), py = Math.cos(ang);
   c.globalAlpha = 0.35; c.fillStyle = noz.color === 'rainbow' ? rainbow(G.t) : '#c9eeff';
   c.beginPath(); c.moveTo(nx + px * 2, ny + py * 2); c.lineTo(hx + px * r * 0.8, hy + py * r * 0.8); c.lineTo(hx - px * r * 0.8, hy - py * r * 0.8); c.lineTo(nx - px * 2, ny - py * 2); c.fill();
   c.globalAlpha = 1;
-  line(c, nx, ny, hx, hy, 'rgba(255,255,255,.95)', 3 + noz.pow * 1.4);
+  line(c, nx, ny, hx, hy, 'rgba(255,255,255,.95)', (3 + noz.pow * 1.4) * big);
   c.setLineDash([6, 14]); c.lineDashOffset = -G.t * 900; line(c, nx, ny, hx, hy, noz.color === 'rainbow' ? rainbow(G.t + 0.5) : 'rgba(110,195,255,.95)', 3); c.setLineDash([]);
   c.globalAlpha = 0.55; circ(c, hx, hy, r * (0.6 + Math.random() * 0.3)); c.fillStyle = '#eefaff'; c.fill(); c.globalAlpha = 1;
 }

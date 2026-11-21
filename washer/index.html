@@ -114,7 +114,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 .item { background: #fff; border: calc(.5 * var(--u)) solid var(--ink); border-radius: calc(2.4 * var(--u)); padding: calc(1.2 * var(--u)); display: flex; flex-direction: column; align-items: center; text-align: center; gap: calc(.4 * var(--u)); }
 .item b { font-size: calc(3.8 * var(--u)); line-height: 1.1; } .item small { font-size: calc(2.8 * var(--u)); line-height: 1.1; min-height: 1.1em; }
 .item button { font-size: calc(3.6 * var(--u)); padding: calc(.4 * var(--u)) calc(2.4 * var(--u)); border-radius: 99px; background: #ffd23f; border: calc(.4 * var(--u)) solid var(--ink); display: inline-flex; align-items: center; gap: .3em; }
-.item.using { background: #e6ffe9; } .item.using button { background: #7ee08a; } .item.owned button { background: #7fd3ff; } .item.max button { background: #ddd; }
+.item.using { background: #e6ffe9; } .item.using button { background: #7ee08a; } .item.owned button { background: #7fd3ff; } .item.max button { background: #ddd; } .item.locked { opacity: .55; } .item.locked button { background: #ddd; }
 .shake { animation: shake .35s; } @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 
 #settings .panel { width: min(94vw, calc(150 * var(--u))); }
@@ -173,7 +173,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 <div id="title" class="screen">
   <div class="logo"><b>SUPER <span>SPLASH</span><i>!</i></b><small>vs. Sir Sludgington</small></div>
   <button id="playBtn" class="btn green">▶ Play</button>
-  <div id="ver">v1.29</div>
+  <div id="ver">v1.30</div>
   <button id="titleSet" class="btn round" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
 </div>
 
@@ -252,10 +252,10 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 
 <div id="rotate"><div class="ph"></div>Turn your device sideways to play!</div>
 
-<script src="js/data.js?v=1.29"></script>
-<script src="js/art.js?v=1.29"></script>
-<script src="js/audio.js?v=1.29"></script>
-<script src="js/game.js?v=1.29"></script>
-<script src="js/ui.js?v=1.29"></script>
+<script src="js/data.js?v=1.30"></script>
+<script src="js/art.js?v=1.30"></script>
+<script src="js/audio.js?v=1.30"></script>
+<script src="js/game.js?v=1.30"></script>
+<script src="js/ui.js?v=1.30"></script>
 </body>
 </html>

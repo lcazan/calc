@@ -863,6 +863,11 @@ function drawSign(c, x, kind, t) {
     rrect(c, x + 22, y - 84, 84, 12, 3); paint(c, '#77738a', 2); txt(c, 'v v v', cx, y - 78, 11, '#ffd23f');
     return;
   }
+  if (kind === 'closed') {
+    rrect(c, x, y - 150, 128, 88, 6); paint(c, '#ff7a1a'); rrect(c, x + 6, y - 144, 116, 76, 4); paint(c, '#fff', 2.5);
+    txt(c, 'ROAD', cx, y - 124, 22, '#e8443a'); txt(c, 'CLOSED', cx, y - 98, 22, '#e8443a');
+    return;
+  }
   if (kind === 'move') { arrowBox(cx - 34, -1); arrowBox(cx - 2, 1); stick(c, cx + 34, cy + 16, Math.sin(t * 6)); }
   else if (kind === 'jump') { circ(c, cx - 26, cy, 16); c.stroke(); c.beginPath(); c.moveTo(cx - 26, cy + 7); c.lineTo(cx - 26, cy - 7); c.moveTo(cx - 32, cy - 2); c.lineTo(cx - 26, cy - 8); c.lineTo(cx - 20, cy - 2); c.stroke(); stick(c, cx + 26, cy + 14 - Math.abs(Math.sin(t * 3)) * 16, 0.6); }
   else if (kind === 'spray') {
@@ -1415,4 +1420,76 @@ function drawJet(c, j, t) {
   c.beginPath(); c.moveTo(x - 16, GROUND); c.quadraticCurveTo(x - 10 + wob, GROUND - h * 0.5, x - 12, top + 10); c.lineTo(x + 12, top + 10); c.quadraticCurveTo(x + 10 - wob, GROUND - h * 0.5, x + 16, GROUND); c.closePath(); paint(c, '#7fc23a', 3);
   circ(c, x, top + 8, 20 + Math.sin(t * 20) * 2); paint(c, '#8fd448', 3);
   c.globalAlpha = 0.6; ell(c, x - 6, top + 2, 6, 4); c.fillStyle = '#e0ffb0'; c.fill(); line(c, x - 4, GROUND - 10, x - 4, top + 30, 'rgba(224,255,176,.6)', 3); c.globalAlpha = 1;
+}
+
+// ---------------------------------------------------------------- v1.30 gadgets
+// conveyor belt flush with the ground, chevrons rolling left (backwards)
+function drawBelt(c, b) {
+  const { x, w } = b, y = GROUND - 4;
+  rrect(c, x - 14, y, w + 28, 24, 12); paint(c, '#3c4150', 3);
+  c.save(); rrect(c, x, y + 3, w, 14, 4); c.clip(); c.fillStyle = '#555b6c'; c.fillRect(x, y + 3, w, 14);
+  c.strokeStyle = '#ffd23f'; c.lineWidth = 3;
+  for (let q = x - 40 + (40 - b.off); q < x + w + 40; q += 40) { c.beginPath(); c.moveTo(q + 8, y + 5); c.lineTo(q, y + 10); c.lineTo(q + 8, y + 15); c.stroke(); }
+  c.restore();
+  for (const rx of [x - 2, x + w + 2]) { circ(c, rx, y + 12, 10); paint(c, '#9aa1b3', 2.5); circ(c, rx, y + 12, 3); c.fillStyle = OUT; c.fill(); }
+}
+// soapy ground: little bubbles that stay where the sudsy spray hit the ground
+function drawSuds(c, x, w, t) {
+  c.globalAlpha = 0.7;
+  for (let k = 0; k < 4; k++) { const bx = x + 5 + k * 10 + Math.sin(t * 2 + x + k) * 2, r = 3 + ((x * 7 + k * 13) % 4); circ(c, bx, GROUND - r + 1, r); c.fillStyle = 'rgba(255,255,255,.55)'; c.fill(); c.strokeStyle = 'rgba(160,210,255,.9)'; c.lineWidth = 1.2; c.stroke(); }
+  c.globalAlpha = 1;
+}
+// swimming pool wall: white and blue tiles
+function drawPoolWall(c, s) {
+  const { x, y, w, h } = s;
+  rrect(c, x, y, w, h + 4, 4); paint(c, '#f4fbff');
+  c.save(); rrect(c, x, y, w, h, 4); c.clip();
+  for (let yy = y; yy < GROUND; yy += 15) for (let xx = x + ((yy - y) / 15 % 2 ? 0 : -7); xx < x + w; xx += 15) { c.fillStyle = ((xx + yy) / 15) % 2 < 1 ? '#bfe6ff' : '#e6f6ff'; c.fillRect(xx + 1, yy + 1, 13, 13); }
+  c.restore(); rrect(c, x - 4, y - 6, w + 8, 10, 4); paint(c, '#3a8cf0', 2.5);
+}
+// pool water, drawn over the kid so swimming looks underwater
+function drawWater(c, q, t) {
+  const top = q.surf, x0 = q.x, x1 = q.x + q.w;
+  c.beginPath(); c.moveTo(x0, GROUND);
+  for (let xx = x0; xx <= x1; xx += 10) c.lineTo(xx, top + Math.sin(t * 3 + xx * 0.05) * 4);
+  c.lineTo(x1, GROUND); c.closePath();
+  const g = c.createLinearGradient(0, top, 0, GROUND); g.addColorStop(0, 'rgba(90,190,255,.55)'); g.addColorStop(1, 'rgba(30,110,220,.6)'); c.fillStyle = g; c.fill();
+  c.beginPath(); for (let xx = x0; xx <= x1; xx += 10) { const yy = top + Math.sin(t * 3 + xx * 0.05) * 4; xx === x0 ? c.moveTo(xx, yy) : c.lineTo(xx, yy); }
+  c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 3; c.stroke();
+  c.globalAlpha = 0.25; c.strokeStyle = '#fff'; c.lineWidth = 2;
+  for (let k = 0; k < 5; k++) { const lx = x0 + 30 + ((k * 83 + t * 20) % (q.w - 60)), ly = top + 40 + k * 28; c.beginPath(); c.moveTo(lx, ly); c.quadraticCurveTo(lx + 15, ly - 6, lx + 30, ly); c.stroke(); }
+  c.globalAlpha = 1;
+}
+// fire truck with a water cannon on the back deck
+function drawTruck(c, T, t, P) {
+  const x = T.x, w = T.w, y = GROUND, deck = y - 78;
+  ell(c, x + w / 2, y + 2, w * 0.5, 7); c.fillStyle = 'rgba(0,0,0,.18)'; c.fill();
+  rrect(c, x, deck, w - 66, 62, 8); paint(c, '#e8443a');
+  rrect(c, x + w - 72, y - 128, 72, 112, 12); paint(c, '#e8443a');
+  rrect(c, x + w - 58, y - 116, 46, 34, 6); paint(c, '#bfe7ff', 2.5);
+  c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(x + w - 52, y - 112, 8, 26);
+  c.fillStyle = '#fff'; c.fillRect(x + 6, deck + 28, w - 80, 8); c.fillRect(x + w - 70, y - 60, 68, 8);
+  // ladder on the side
+  rrect(c, x + 14, deck + 8, w - 100, 16, 3); paint(c, '#d8dde6', 2.5);
+  for (let lx = x + 26; lx < x + w - 90; lx += 18) line(c, lx, deck + 9, lx, deck + 23, OUT, 2);
+  // flashing lights
+  const on = Math.floor(t * 4) % 2;
+  rrect(c, x + w - 56, y - 140, 40, 12, 5); paint(c, '#666', 2);
+  circ(c, x + w - 46, y - 134, 5); paint(c, on ? '#3a8cf0' : '#bfe7ff', 1.5); circ(c, x + w - 26, y - 134, 5); paint(c, on ? '#ffe' : '#ff5a4a', 1.5);
+  rrect(c, x + w - 8, y - 40, 10, 14, 3); paint(c, '#fff27a', 2);
+  for (const wx of [x + 50, x + w - 44]) { circ(c, wx, y - 16, 20); paint(c, '#2f2a3a', 3); circ(c, wx, y - 16, 8); paint(c, '#c9ced8', 2); }
+  // water cannon (points where the kid aims when driving)
+  const face = T.on ? P.face : 1, a = T.on ? P.aimA : -0.3, bx = (T.on ? P.x : x + 92) + face * 26, by = deck - 44;
+  rrect(c, (T.on ? P.x : x + 92) - 14, deck - 30, 28, 30, 5); paint(c, '#9aa1b3', 2.5);
+  c.save(); c.translate(bx, by); c.scale(face, 1); c.rotate(a);
+  rrect(c, -12, -8, 58, 16, 6); paint(c, '#c9ced8', 2.5); rrect(c, 40, -10, 12, 20, 4); paint(c, '#ffd23f', 2.5);
+  c.restore();
+  circ(c, bx, by, 9); paint(c, '#77738a', 2.5);
+  if (!T.on && T.x < T.x1 - 2) { const ay = y - 200 + Math.sin(t * 5) * 8, ax = x + w / 2; poly(c, [ax - 18, ay, ax + 18, ay, ax, ay + 24]); paint(c, '#ffd23f', 3); }
+}
+// fire hose from a hydrant to the kid's washer, sagging on the ground
+function drawHose(c, x1, y1, P) {
+  const x2 = P.x - P.face * 6, y2 = P.y - 36, mx = (x1 + x2) / 2, my = Math.min(GROUND + 4, Math.max(y1, y2) + 60);
+  for (const [col, lw] of [[OUT, 11], ['#e8443a', 7]]) { c.beginPath(); c.moveTo(x1, y1); c.quadraticCurveTo(mx, my, x2, y2); c.strokeStyle = col; c.lineWidth = lw; c.stroke(); }
+  rrect(c, x1 - 6, y1 - 7, 14, 14, 3); paint(c, '#ffd23f', 2);
 }
