@@ -2,7 +2,7 @@
 // Super Splash: menus, saving, input and the main loop
 const SAVE_KEY = 'supersplash-v1';
 const SAVE_DEF = { gender: 'boy', skin: 0, hair: 0, sound: true, music: true, voice: true, diff: 'medium', coins: 0, unlocked: 1, done: [],
-  up: { pressure: 0, tank: 0, soap: false, hose: false, longhose: false, boots: false, balloon: false, rainbow: false }, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
+  up: { pressure: 0, tank: 0, soap: false, hose: false, longhose: false, boots: false, balloon: false, rainbow: false, storm: false }, storms: 0, nozzles: ['fan'], noz: 'fan', hats: ['none'], hat: 'none', colors: ['yellow'], color: 'yellow', seenIntro: false };
 function loadSave() {
   const d = JSON.parse(JSON.stringify(SAVE_DEF));
   // the save is kept twice (v1.25); if the main copy is missing or broken the backup is used, so progress is never lost to a bad read
@@ -173,6 +173,8 @@ const UI = (() => {
     // extras (v1.30): fire hose for red hydrants; soap only after Pressure is maxed
     item(g, iconCanvas(44, hoseIcon), 'Fire hose', 'Hooks onto red hydrants: sprays far and strong', SAVE.up.hose ? 'using' : 'buy', HOSE_COST, () => { SAVE.up.hose = true; });
     item(g, iconCanvas(44, (c, s) => { hoseIcon(c, s); hoseIcon(c, s * 0.6); }), 'Long hose', SAVE.up.hose ? 'Twice as long: walk farther from the hydrant' : 'Buy the Fire hose first', SAVE.up.longhose ? 'using' : SAVE.up.hose ? 'buy' : 'locked', LONGHOSE_COST, () => { SAVE.up.longhose = true; });
+    item(g, iconCanvas(44, stormIcon), 'Storm machine', 'Tap it in a level: a thunderstorm washes away monsters', SAVE.up.storm ? 'using' : 'buy', STORM_COST, () => { SAVE.up.storm = true; SAVE.storms = Math.max(1, SAVE.storms || 0); });
+    item(g, iconCanvas(44, stormIcon), 'Storm refill', SAVE.up.storm ? `One more storm (have ${SAVE.storms || 0})` : 'Buy the Storm machine first', !SAVE.up.storm ? 'locked' : (SAVE.storms || 0) >= STORM_MAX ? 'max' : 'buy', STORM_REFILL_COST, () => { SAVE.storms = (SAVE.storms || 0) + 1; });
     const soapOk = pl >= PRESSURE.length - 1;
     item(g, iconCanvas(44, soapIcon), 'Soap', soapOk ? 'Sudsy spray: washed things stay clean' : 'Max out Pressure first', SAVE.up.soap ? 'using' : soapOk ? 'buy' : 'locked', SOAP_COST, () => { SAVE.up.soap = true; });
     g = sec('Gadgets');
@@ -205,6 +207,7 @@ const UI = (() => {
   function bootsIcon(c, s) { for (const bx of [0.2, 0.52]) { poly(c, [s * bx, s * 0.2, s * (bx + 0.16), s * 0.2, s * (bx + 0.16), s * 0.55, s * (bx + 0.3), s * 0.6, s * (bx + 0.3), s * 0.72, s * bx, s * 0.72]); paint(c, '#e8443a', 2.5); for (const k of [0, 1]) { c.globalAlpha = 0.8; circ(c, s * (bx + 0.08 + k * 0.12), s * 0.86, s * 0.06); c.fillStyle = '#7fd3ff'; c.fill(); c.globalAlpha = 1; } } }
   function balloonIcon(c, s) { drawWaterBalloon(c, { x: s * 0.5, y: s * 0.45, t: 0 }, '#5ab8ff'); }
   function rainbowIcon(c, s) { c.lineCap = 'round'; ['#ef4a3c', '#ffb627', '#ffd23f', '#43c46b', '#3a8cf0', '#9b5de5'].forEach((col, i) => { c.beginPath(); c.arc(s * 0.5, s * 0.72, s * (0.42 - i * 0.055), Math.PI, TAU); c.strokeStyle = col; c.lineWidth = s * 0.06; c.stroke(); }); }
+  function stormIcon(c, s) { poly(c, [s * 0.52, s * 0.5, s * 0.38, s * 0.74, s * 0.5, s * 0.74, s * 0.42, s * 0.95, s * 0.66, s * 0.66, s * 0.54, s * 0.66, s * 0.62, s * 0.5]); paint(c, '#ffd23f', 2); for (const [x, y, r] of [[0.32, 0.38, 0.17], [0.55, 0.3, 0.22], [0.75, 0.42, 0.15]]) { circ(c, s * x, s * y, s * r); paint(c, '#6a7090', 2); } }
   function soapIcon(c, s) { rrect(c, s * 0.3, s * 0.35, s * 0.4, s * 0.55, 6); paint(c, '#ff9fc0', 2.5); rrect(c, s * 0.44, s * 0.18, s * 0.12, s * 0.18, 2); paint(c, '#fff', 2); line(c, s * 0.5, s * 0.2, s * 0.68, s * 0.2, OUT, 3); for (const [bx, by, r] of [[0.75, 0.25, 4], [0.85, 0.12, 3], [0.2, 0.2, 3]]) { circ(c, s * bx, s * by, r); paint(c, 'rgba(200,240,255,.6)', 1.5); } }
   function gaugeIcon(c, s, f) { circ(c, s / 2, s / 2, s * 0.42); paint(c, '#fff', 2.5); const a = Math.PI * (0.8 + f * 1.4); line(c, s / 2, s / 2, s / 2 + Math.cos(a) * s * 0.32, s / 2 + Math.sin(a) * s * 0.32, '#e8443a', 3); circ(c, s / 2, s / 2, 3); paint(c, OUT, 0); }
   function tankIcon(c, s, f) { rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); paint(c, '#eef6ff', 2.5); c.save(); rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); c.clip(); c.fillStyle = '#3a9cf0'; c.fillRect(0, s * (0.9 - 0.8 * f), s, s); c.restore(); rrect(c, s * 0.25, s * 0.1, s * 0.5, s * 0.8, 8); paint(c, null, 2.5); }
@@ -240,16 +243,17 @@ const UI = (() => {
   }
 
   // ---------------- HUD nozzle picker
-  function drawNozzles(el) {
+  // left-edge tools (v1.37, replaced the nozzle switch; nozzles are picked in the shop): Fire hose and Storm machine.
+  // The lit one is in use (the hose rests during a storm); tapping Storm starts a storm right here (startStorm).
+  function drawTools(el) {
     el.innerHTML = '';
-    if (SAVE.nozzles.length < 2) return;
-    for (const id of NOZZLE_ORDER) {
-      if (!SAVE.nozzles.includes(id)) continue;
-      const b = document.createElement('button'); b.className = 'noz' + (SAVE.noz === id ? ' sel' : '');
-      b.appendChild(iconCanvas(40, (c, s) => nozzleIcon(c, s, id)));
-      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Sfx.init(); Sfx.click(); SAVE.noz = id; persist(); banner(NOZZLES[id].name + ' nozzle'); });
-      el.appendChild(b);
-    }
+    const tool = (on, icon, n, tap) => {
+      const b = document.createElement('button'); b.className = 'noz' + (on ? ' sel' : ''); b.appendChild(iconCanvas(40, icon));
+      if (n != null) b.insertAdjacentHTML('beforeend', `<i>${n}</i>`);
+      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Sfx.init(); tap(); }); el.appendChild(b);
+    };
+    if (SAVE.up.hose) tool(!G.storm, hoseIcon, null, () => { Sfx.click(); banner(G.storm ? 'Hose waits for the storm' : 'Fire hose: go to a red hydrant'); });
+    if (SAVE.up.storm) tool(!!G.storm, stormIcon, SAVE.storms || 0, startStorm);
   }
   function drawFace() {
     const cv = $('face'), c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
@@ -347,6 +351,6 @@ const UI = (() => {
     requestAnimationFrame(loop);
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
   }
-  return { boot, levelDone, restartDemo, drawNozzles, get scene() { return scene; }, play, map, title };
+  return { boot, levelDone, restartDemo, drawTools, get scene() { return scene; }, play, map, title };
 })();
 (document.fonts && document.fonts.load ? Promise.race([document.fonts.load('800 20px "Baloo 2"').catch(() => { }), new Promise(r => setTimeout(r, 1500))]) : Promise.resolve()).then(() => UI.boot());

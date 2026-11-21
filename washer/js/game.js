@@ -156,7 +156,7 @@ function startLevel(L, idx, demo) {
   for (const [x, y, k] of (L.wet || [])) G.pickups.push({ x, y, coin: k === 'c' });
   G.zones = (L.birdZones || []).map(([x0, x1, n]) => ({ x0, x1, n, t: 0 }));
   G.truck = L.truck ? { x: L.truck[0], x0: L.truck[0], x1: L.truck[1], w: 240, on: false, vx: 0, cd: 0, nagT: 0 } : null;
-  G.hose = null; G.soapG = {};
+  G.hose = null; G.soapG = {}; G.storm = null;
   for (const [x, range] of (L.worms || [])) { const [a, b] = clipRange(x, range); G.enemies.push({ kind: 'worm', x, y: GROUND, minX: a, maxX: b, dir: Math.random() < 0.5 ? 1 : -1, hp: 0.8, hp0: 0.8, r: 22, t: Math.random() * 3, flash: 0, spitT: 2 + Math.random() * 2, rear: 0 }); }
   for (const [x, range, y] of (L.birds || [])) G.enemies.push({ kind: 'bird', req: true, x, y, y0: y, minX: x - range, maxX: x + range, dir: 1, hp: 0.6, hp0: 0.6, flash: 0, dropT: 2, r: 24, t: 0 });
   G.birdsReq = G.enemies.filter(e => e.req).length;
@@ -200,6 +200,7 @@ function update(dt) {
   updPlayer(dt);
   updSpray(dt);
   updWBalls(dt);
+  updStorm(dt);
   updEnemies(dt);
   updSpinners(dt);
   updWaves(dt);
@@ -437,7 +438,7 @@ function updPlayer(dt) {
     }
   }
   // fire hose (v1.30): bought in the shop, hooks onto a red hydrant the kid stands at; walking HOSE_LEN away unhooks it (twice that with the Long hose)
-  if (SAVE.up.hose && !G.demo) {
+  if (SAVE.up.hose && !G.demo && !G.storm) { // the hose rests while a storm runs (one tool or the other)
     const hn = G.hydrants.find(h => Math.abs(P.x - h.x) < 70 && P.y > GROUND - 10);
     if (hn && G.hose !== hn) { G.hose = hn; Sfx.ding(); floatText(hn.x, GROUND - 120, 'Hose on!', '#ff6f5a', 28); hintOnce('hose', 'Fire hose hooked up! Now I can spray super far and strong!'); }
     else if (G.hose && Math.abs(P.x - G.hose.x) > HOSE_LEN * (SAVE.up.longhose ? 2 : 1)) { floatText(G.hose.x, GROUND - 120, 'Hose off', '#fff', 24); G.hose = null; Sfx.pop(); }
@@ -649,6 +650,28 @@ function burstBalloon(x, y, objs) {
   for (const o of objs) washObj(o, x, y, BALLOON_R, G.boss && o === G.boss.o ? 0.25 * G.boss.armor : 0.9);
   for (const e of G.enemies) if (e.hp > 0 && Math.hypot(e.x - x, e.y - e.r * 0.7 - y) < e.r + BALLOON_R) { e.hp -= 1.2 * gearMult() / (G.L.tough || 2); e.flash = 0.1; }
   for (const s of G.balls) if (Math.hypot(s.x - x, s.y - y) < s.r + BALLOON_R) s.hp -= 3;
+}
+// storm machine (v1.37): the Storm button on the left edge starts a thunderstorm around the kid, using one refill
+function startStorm() {
+  if (!G || G.demo || G.done) return;
+  if (G.storm) { Sfx.nope(); return; }
+  if (!SAVE.storms) { Sfx.nope(); Sfx.say('No storms left! Buy a refill in the shop.'); return; }
+  SAVE.storms--; persist();
+  G.storm = { x: G.p.x, t: 0, boltT: 0.4, flash: 0.3, boltX: G.p.x };
+  G.hose = null; Sfx.thunder(); kidSay('Thunderstorm, GO!', false);
+}
+function updStorm(dt) {
+  const S = G.storm; if (!S) return;
+  S.t += dt;
+  if (S.t >= STORM_TIME) { G.storm = null; floatText(G.p.x, GROUND - 160, 'Storm over', '#fff', 26); return; }
+  const inZ = x => Math.abs(x - S.x) < STORM_W, pow = STORM_POW * gearMult() * dt / (G.L.tough || 2);
+  for (const e of G.enemies) if (e.hp > 0 && inZ(e.x)) { e.hp -= pow; e.flash = 0.1; }
+  for (const b of G.balls) if (inZ(b.x)) b.hp -= dt * 3;
+  const B = G.boss;
+  if (B && B.st === 'fight' && inZ(B.o.x + B.o.w / 2)) { const o = B.o; for (let i = 0; i < 3; i++) washObj(o, o.x + Math.random() * o.w, o.top + Math.random() * (o.y - o.top), 40, dt * STORM_BOSS * B.armor); }
+  S.boltT -= dt; S.flash = Math.max(0, S.flash - dt);
+  if (S.boltT <= 0) { S.boltT = 0.8 + Math.random() * 1.4; S.flash = 0.25; S.boltX = S.x + (Math.random() - 0.5) * STORM_W * 1.6; G.cam.shake = Math.max(G.cam.shake, 8); Sfx.thunder(); }
+  if (Math.random() < dt * 40) part(S.x + (Math.random() - 0.5) * STORM_W * 2, GROUND - 2, (Math.random() - 0.5) * 80, -120, 0.3, 2 + Math.random() * 2, '#cfe9ff', 'c');
 }
 function togBase(s) { return [s.x + s.w / 2, GROUND - 35]; }
 function valvePos(pp) { return [pp.x + pp.w / 2, GROUND - pp.h - 34]; }
@@ -969,6 +992,7 @@ function updProgress(dt) {
   if (G.truck && !G.truck.on && Math.abs(G.truck.x - P.x) < 500) hintOnce('truck', 'A fire truck! Walk up to it to hop in!');
   if (SAVE.up.boots && !G.p.ground && !G.p.swim) hintOnce('boots', 'Jet boots! Keep holding jump in the air to float!');
   if (SAVE.up.balloon) hintOnce('balloon', 'Tap the pink balloon button to throw a water balloon!');
+  if (SAVE.up.storm && SAVE.storms && !G.storm && ((G.L.infest || []).some(([a]) => Math.abs(a - P.x) < 400) || (G.boss && G.boss.st === 'fight'))) hintOnce('storm', 'So many monsters! Tap the storm button to make a thunderstorm!');
   if (!G.truck && !SAVE.up.hose && (G.L.infest || []).some(([a]) => Math.abs(a - P.x) < 400)) hintOnce('infest', 'So many monsters! A fire hose from the shop would help. It hooks onto red hydrants!');
   if (G.arena && !G.arena.started && P.x > G.arena.x + 120) startBoss();
   if (!G.arena && G.finish && w && w.open && P.x > G.finish - 20) {
@@ -1172,12 +1196,14 @@ function render() {
   for (const q of G.pools) if (vis(q.x, q.w)) drawWater(c, q, G.t);
   if (G.lakes.length) drawLakesFront(c, G.lakes, G.tunnels, G.t, G.theme);
   drawStream(c);
+  if (G.storm) drawStorm(c, G.storm, VIEW_OY + G.cam.y, G.t);
   for (const b of G.wballs) drawWaterBalloon(c, b, sprayRainbow() ? rainbow(G.t) : '#5ab8ff');
   drawParts(c);
   for (const t of G.texts) { c.globalAlpha = Math.min(1, t.life * 1.5); outlinedText(c, t.s, t.x, t.y, t.size, t.col); c.globalAlpha = 1; }
   if (G.kidSay) bubble(c, G.p.x, G.p.y - 120, G.kidSay.s, false);
   if (G.boss && G.boss.sayT > 0) bubble(c, G.boss.x, G.boss.y - 250, G.boss.say, true);
   c.restore();
+  if (G.storm) { const S = G.storm, a = Math.min(1, S.t * 2, (STORM_TIME - S.t) * 2); c.fillStyle = `rgba(20,24,60,${0.3 * a})`; c.fillRect(0, 0, W, 540); if (S.flash > 0) { c.fillStyle = `rgba(255,255,240,${S.flash * 2})`; c.fillRect(0, 0, W, 540); } }
   if (!G.demo) { edgeArrow(c, W); if (G.p.tank < tankMax() * 0.2) waterArrow(c, W); }
   const fa = Math.max(G.fade || 0, Math.min(1, G.exitT || 0));
   if (fa > 0) { c.fillStyle = `rgba(20,16,28,${fa})`; c.fillRect(0, 0, W, 540); }
@@ -1327,5 +1353,5 @@ function hud() {
   G = G0;
   hudSet('progTxt', 'pl', label, (el, v) => { el.textContent = v === 'boss' ? 'Sir Sludgington' : v; document.getElementById('prog').classList.toggle('boss', v === 'boss'); });
   hudSet('bBalloon', 'b', SAVE.up.balloon ? (P.balloonT > 0 ? 'w' : 'r') : '', (el, v) => { el.classList.toggle('hidden', !v); el.classList.toggle('wait', v === 'w'); });
-  hudSet('nozzles', 'n', SAVE.noz + SAVE.nozzles.join(), UI.drawNozzles);
+  hudSet('tools', 'n', [SAVE.up.hose, SAVE.up.storm, SAVE.storms, !!G.storm].join(), UI.drawTools);
 }

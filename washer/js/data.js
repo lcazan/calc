@@ -34,6 +34,9 @@ const HOSE_LEN = 450;
 // gadgets (v1.36): jet boots hover, water balloons, rainbow water (looks only)
 const BOOTS_COST = 150, BALLOON_COST = 120, RAINBOW_COST = 60;
 const JET_TIME = 1.2;                                           // seconds of hover per jump
+// storm machine (v1.37): each refill is one thunderstorm, here and now, washing monsters (and Sir Sludgington) in its area
+const STORM_COST = 250, STORM_REFILL_COST = 40, STORM_MAX = 9;  // the machine comes with 1 storm; refills up to STORM_MAX
+const STORM_TIME = 8, STORM_W = 600, STORM_POW = 1.6, STORM_BOSS = 0.25; // seconds, half-width of the rain, monster damage/s, boss wash
 const BALLOON_CD = 1, BALLOON_WATER = 8, BALLOON_R = 90;        // wait between throws, tank water per balloon, splash radius
 const HATS = { none: 0, cap: 15, helmet: 25, cowboy: 30, pirate: 40, wizard: 45, propeller: 60, crown: 80 };
 const HAT_NAMES = { none: 'No hat', cap: 'Cap', helmet: 'Fire helmet', cowboy: 'Cowboy hat', pirate: 'Pirate hat', wizard: 'Wizard hat', propeller: 'Propeller hat', crown: 'Crown' };

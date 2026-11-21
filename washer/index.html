@@ -46,9 +46,10 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 #tank span { position: absolute; left: 0; right: 0; bottom: -1px; text-align: center; font-size: calc(3 * var(--u)); }
 #tank.low { animation: blink .5s infinite; }
 @keyframes blink { 50% { box-shadow: 0 0 0 calc(.8 * var(--u)) #ef3a4c; } }
-#nozzles { top: calc(30 * var(--u)); left: calc(2.5 * var(--u) + env(safe-area-inset-left)); display: flex; flex-direction: column; gap: calc(1.2 * var(--u)); }
-.noz { width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 50%; background: rgba(255,255,255,.85); border: calc(.5 * var(--u)) solid var(--ink); display: grid; place-items: center; opacity: .75; }
+#tools { top: calc(30 * var(--u)); left: calc(2.5 * var(--u) + env(safe-area-inset-left)); display: flex; flex-direction: column; gap: calc(1.2 * var(--u)); }
+.noz { position: relative; width: calc(13 * var(--u)); height: calc(13 * var(--u)); border-radius: 50%; background: rgba(255,255,255,.85); border: calc(.5 * var(--u)) solid var(--ink); display: grid; place-items: center; opacity: .75; }
 .noz canvas { width: 80% !important; height: 80% !important; }
+.noz i { position: absolute; right: calc(-1.5 * var(--u)); bottom: calc(-1.5 * var(--u)); font: calc(3.6 * var(--u)) var(--f); font-style: normal; color: #fff; background: #3a8cf0; border: calc(.4 * var(--u)) solid var(--ink); border-radius: 99px; padding: 0 calc(1 * var(--u)); }
 .noz.sel { opacity: 1; background: #fff6b0; box-shadow: 0 0 0 calc(.6 * var(--u)) #ffb627; }
 .big { border: calc(.6 * var(--u)) solid var(--ink); box-shadow: 0 calc(1 * var(--u)) 0 rgba(0,0,0,.3); display: grid; place-items: center; transition: transform .05s; }
 .big.on { transform: translateY(calc(.8 * var(--u))) scale(.96); box-shadow: 0 calc(.2 * var(--u)) 0 rgba(0,0,0,.3); filter: brightness(1.1); }
@@ -162,7 +163,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
   <button id="hudShop" aria-label="Shop">🛒</button>
   <button id="gear" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
   <div id="tank"><div id="tankFill"></div><span>💧</span></div>
-  <div id="nozzles"></div>
+  <div id="tools"></div>
   <div id="pad">
     <button id="bL" class="big" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M14 4 6 12l8 8v-5h6V9h-6z" fill="#fff" stroke="#2a2140" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
     <button id="bR" class="big" aria-label="Right"><svg viewBox="0 0 24 24"><path d="M10 4l8 8-8 8v-5H4V9h6z" fill="#fff" stroke="#2a2140" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
@@ -176,7 +177,7 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 <div id="title" class="screen">
   <div class="logo"><b>SUPER <span>SPLASH</span><i>!</i></b><small>vs. Sir Sludgington</small></div>
   <button id="playBtn" class="btn green">▶ Play</button>
-  <div id="ver">v1.36</div>
+  <div id="ver">v1.37</div>
   <button id="titleSet" class="btn round" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
 </div>
 
@@ -255,11 +256,11 @@ button { font-family: var(--f); font-weight: 800; color: var(--ink); cursor: poi
 
 <div id="rotate"><div class="ph"></div>Turn your device sideways to play!</div>
 
-<script src="js/data.js?v=1.36"></script>
-<script src="js/art.js?v=1.36"></script>
-<script src="js/world.js?v=1.36"></script>
-<script src="js/audio.js?v=1.36"></script>
-<script src="js/game.js?v=1.36"></script>
-<script src="js/ui.js?v=1.36"></script>
+<script src="js/data.js?v=1.37"></script>
+<script src="js/art.js?v=1.37"></script>
+<script src="js/world.js?v=1.37"></script>
+<script src="js/audio.js?v=1.37"></script>
+<script src="js/game.js?v=1.37"></script>
+<script src="js/ui.js?v=1.37"></script>
 </body>
 </html>

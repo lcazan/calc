@@ -87,6 +87,7 @@ const Sfx = (() => {
     click() { tone(900, 0.05, 'square', 0.05); },
     buy() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.15, 'square', 0.07, i * 0.06)); },
     nope() { tone(220, 0.2, 'square', 0.08, 0, 180); tone(180, 0.25, 'square', 0.08, 0.15, 140); },
+    thunder() { noise(1.8, 0.7, 120, 'lowpass', 0, 0.7); noise(0.25, 0.5, 1200, 'bandpass', 0, 0.8); },
     whoosh() { noise(0.6, 0.35, 400, 'bandpass', 0, 1.5); tone(200, 0.6, 'sine', 0.1, 0, 1200); },
     laugh() { [270, 250, 230, 210].forEach((f, i) => { tone(f, 0.14, 'sawtooth', 0.16, i * 0.17, f * 0.85, null, ['bandpass', 1000, 2]); }); },
     melt() { for (let i = 0; i < 6; i++) tone(500 - i * 60, 0.15, 'sine', 0.12, i * 0.08, 300 - i * 30); },

@@ -2073,6 +2073,16 @@ function drawTruck(c, T, t, P) {
   circ(c, bx, by, 9); paint(c, '#77738a', 2.5);
   if (!T.on && T.x < T.x1 - 2) { const ay = y - 200 + Math.sin(t * 5) * 8, ax = x + w / 2; poly(c, [ax - 18, ay, ax + 18, ay, ax, ay + 24]); paint(c, '#ffd23f', 3); }
 }
+// thunderstorm (v1.37): dark clouds, dense slanted rain over the storm area, a lightning bolt while it flashes
+function drawStorm(c, S, top, t) {
+  const L = S.x - STORM_W, w = STORM_W * 2, h = GROUND - top;
+  c.strokeStyle = 'rgba(190,220,255,.75)'; c.lineWidth = 2; c.beginPath();
+  for (let i = 0; i < 260; i++) { const x = L + (i * 137.5 + t * 260) % w, y = top + (i * 91.3 + t * 1500) % h; c.moveTo(x, y); c.lineTo(x - 7, y + 26); }
+  c.stroke();
+  for (let i = 0; i < 9; i++) { ell(c, L + w * (i + 0.5) / 9 + Math.sin(t + i) * 12, top + 18 + (i % 2) * 14, 110, 42); c.fillStyle = i % 2 ? '#4a4f6a' : '#5a6080'; c.fill(); }
+  if (S.flash > 0.1) { const pts = [S.boltX, top + 40]; let x = S.boltX; for (let y = top + 40; y < GROUND; y += 40) { x += (Math.random() - 0.5) * 50; pts.push(x, Math.min(y + 40, GROUND)); }
+    for (const [col, lw] of [['rgba(255,255,200,.5)', 12], ['#fff', 4]]) { c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.strokeStyle = col; c.lineWidth = lw; c.stroke(); } }
+}
 // water balloon in flight (v1.36), wobbling as it spins
 function drawWaterBalloon(c, b, col) {
   c.save(); c.translate(b.x, b.y); c.rotate(b.t * 8); c.scale(1 + Math.sin(b.t * 20) * 0.08, 1 - Math.sin(b.t * 20) * 0.08);
