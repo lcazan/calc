@@ -129,7 +129,7 @@ function newPlayer(x) {
 function newBlob(x, range) { return { kind: 'blob', x, y: GROUND, minX: x - range, maxX: x + range, dir: -1, hp: 1, hp0: 1, r: 26, hop: Math.random() * 3, flash: 0, spd: 45, shootT: 2 + Math.random() * 2 }; }
 function startLevel(L, idx, demo) {
   G = { L, idx, demo: !!demo, theme: L.theme, t: 0, objs: [], plats: [], solids: [], hydrants: [], enemies: [], balls: [], coins: [], parts: [], texts: [], puddles: [],
-    cam: { x: 0, shake: 0 }, aim: { x: 0, y: 0 }, tgt: null, retarget: 0, lvlCoins: 0, cleaned: 0,
+    cam: { x: 0, y: 0, shake: 0 }, aim: { x: 0, y: 0 }, tgt: null, retarget: 0, lvlCoins: 0, cleaned: 0,
     wall: L.wall ? { x: L.wall, open: false, melt: 0 } : null, finish: L.finish || 0, boss: null, arena: null,
     done: false, respawnT: 0, checkpoint: 120, nagT: 3, kidSay: null, demoT: 0, paused: false, waveT: 12 };
   let seed = (idx + 1) * 1000;
@@ -138,6 +138,8 @@ function startLevel(L, idx, demo) {
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   for (const [x, w, lo, hi] of (L.toggles || [])) G.solids.push({ kind: 'tog', x, y: GROUND - lo, w, h: lo, tog: { lo, hi, up: false } });
   G.holes = (L.holes || []).map(([x, w, sw]) => ({ x, w, sewer: !!sw, pit: !!L.sewer }));
+  G.lakes = (L.lakes || []).map(([x, w]) => ({ x, w, surf: LAKE_SURF, bot: LAKE_BOT, lake: true }));
+  G.tunnels = (L.tunnels || []).map(([x, w]) => ({ x, w, top: TUN_TOP, bot: TUN_BOT, surf: -1e4, lake: true }));
   G.jets = (L.cracks || []).map(x => ({ x, st: 0, t: 0 })); G.jetT = 2;
   if (L.lift) G.plats.push({ x: L.lift[0], y: GROUND, w: L.lift[1], style: 'lift', y0: GROUND, y1: 90, wait: 0, x0: L.lift[0], mx: 0, my: 0, mv: 0, ph: 0, exit: true });
   G.pipes = (L.pipes || []).map(x => ({ x, w: 90, h: 120, open: true, hp: 1.6, spawnT: 1.5, n: 0, ang: 0, turnT: 0 }));
@@ -150,6 +152,7 @@ function startLevel(L, idx, demo) {
   G.belts = (L.belts || []).map(([x, w, ev]) => ({ x, w, ev, t: 1, off: 0 }));
   G.pools = (L.pools || []).map(([x, w]) => ({ x, w, surf: GROUND - 185 }));
   G.pickups = []; for (const [, , ...hs] of (L.pools || [])) for (const hx of hs) G.pickups.push({ x: hx, y: GROUND - 32 });
+  for (const [x, y, k] of (L.wet || [])) G.pickups.push({ x, y, coin: k === 'c' });
   G.zones = (L.birdZones || []).map(([x0, x1, n]) => ({ x0, x1, n, t: 0 }));
   G.truck = L.truck ? { x: L.truck[0], x0: L.truck[0], x1: L.truck[1], w: 240, on: false, vx: 0, cd: 0, nagT: 0 } : null;
   G.hose = null; G.soapG = {};
@@ -238,7 +241,7 @@ function holeAt(x, pad) { pad = pad == null ? 10 : pad; for (const h of G.holes)
 function clipRange(x, range) {
   let lo = x - range, hi = x + range;
   for (const s of G.solids) { if (s.x + s.w <= x) lo = Math.max(lo, s.x + s.w + 30); else if (s.x >= x) hi = Math.min(hi, s.x - 30); }
-  for (const h of G.holes) { if (h.x + h.w <= x) lo = Math.max(lo, h.x + h.w + 30); else if (h.x >= x) hi = Math.min(hi, h.x - 30); }
+  for (const h of G.holes.concat(G.lakes || [])) { if (h.x + h.w <= x) lo = Math.max(lo, h.x + h.w + 30); else if (h.x >= x) hi = Math.min(hi, h.x - 30); }
   if (G.wall && !G.wall.open && G.wall.x > x) hi = Math.min(hi, G.wall.x - 30);
   lo = Math.max(lo, 40); hi = Math.min(hi, G.L.len - 40);
   return lo <= hi ? [lo, hi] : [x, x];
@@ -365,8 +368,8 @@ function updPlayer(dt) {
   if (T) T.cd = Math.max(0, T.cd - dt);
   if (T && T.on) { driveTruck(dt, ctl); return; }
   const dir = ctl && !G.demo ? (In.right ? 1 : 0) - (In.left ? 1 : 0) : 0;
-  const pool = poolAt(P.x, P.y);
-  if (pool && !P.swim) { splash(P.x, pool.surf, '#bfe9ff', 14); Sfx.splat(); hintOnce('swim', 'Swimming! Tap jump to swim up, jump again at the top to climb out!'); }
+  const pool = waterAt(P.x, P.y);
+  if (pool && !P.swim && pool.surf > 0) { splash(P.x, pool.surf, '#bfe9ff', 14); Sfx.splat(); if (pool.lake) hintOnce('lake', 'A pond! Tap jump to swim up. Hold spray to dive down!'); else hintOnce('swim', 'Swimming! Tap jump to swim up, jump again at the top to climb out!'); }
   P.swim = pool;
   const spd = (pool ? 170 : 250) * (P.spraying ? 0.62 : 1);
   if (ctl) P.vx = approach(P.vx, dir * spd, (P.ground ? 2400 : 1600) * dt);
@@ -376,14 +379,17 @@ function updPlayer(dt) {
   if (pool) {
     // swimming (v1.30): slow sinking, each jump tap is a stroke up; near the top a stroke jumps out of the water
     if (ctl && P.jbuf > 0) { const out = P.y < pool.surf + 95; P.vy = out ? -830 : -340; P.bigJ = out; P.jbuf = 0; P.ground = false; Sfx.glug(); bubbles(P.x, P.y - 60, 3); }
-    P.vy = P.vy < -400 ? P.vy + 2100 * dt : Math.min(P.vy + 520 * dt, 130);
-    if (Math.random() < dt * 3) bubbles(P.x + P.face * 12, P.y - 80, 1);
+    const dive = ctl && In.spray && !G.demo; // holding spray dives down (v1.32)
+    P.vy = P.vy < -400 ? P.vy + 2100 * dt : Math.min(P.vy + (dive ? 1400 : 520) * dt, dive ? 300 : 130);
+    if (Math.random() < dt * 3) bubbles(P.x + P.face * (12 + 34 * (P.swimA || 0)), P.y - 80 + 44 * (P.swimA || 0), 1);
+    if (pool.lake && G.solids.some(s => s.kind === 'cliff' && Math.abs(s.x + s.w / 2 - P.x) < 420)) hintOnce('cliff', 'A giant rock! Hold spray to dive and swim through the tunnel under it!');
   } else {
     if (ctl && P.jbuf > 0 && P.coyote > 0) { P.vy = -830; P.ground = false; P.coyote = 0; P.jbuf = 0; Sfx.jump(); }
     if (!In.jump && P.vy < -380 && !P.hurtT && !P.bigJ) P.vy = -380;
     P.vy = Math.min(P.vy + 2100 * dt, 1000);
   }
   // x (conveyor belts push the kid back at walking speed while standing on them)
+  const x0 = P.x;
   P.x += P.vx * dt;
   if (P.ground && P.y >= GROUND - 1) for (const b of G.belts) if (P.x > b.x && P.x < b.x + b.w) P.x -= BELT_SPD * dt;
   const s = solidsHit(P.x, P.y);
@@ -393,13 +399,15 @@ function updPlayer(dt) {
   if (G.arena && G.arena.started) minX = G.arena.L + 20;
   if (P.inHole) P.x = clamp(P.x, P.inHole.x + 16, P.inHole.x + P.inHole.w - 16);
   P.x = clamp(P.x, minX, maxX);
+  if (G.lakes.length && !lakeFree(P.x, P.y)) { P.x = x0; P.vx = 0; } // pond banks and tunnel walls
   // y
   const prevY = P.y, wasGround = P.ground, vyBefore = P.vy;
   P.y += P.vy * dt; P.ground = false; P.on = null; P.onS = null;
   if (P.inHole && P.y < GROUND - 2) P.inHole = null;
   if (P.y >= GROUND - 1 && !P.inHole && prevY <= GROUND + 1) P.inHole = holeAt(P.x);
   if (P.inHole) { if (P.y > GROUND + 120) { if (P.inHole.sewer && !G.under && !G.demo) enterSewer(P.inHole); else holeFall(); return; } }
-  else if (P.y >= GROUND) { P.y = GROUND; P.vy = 0; P.ground = true; }
+  else if (P.y >= GROUND && (!G.lakes.length || (prevY <= GROUND + 1 && !lakeCol(P.x)))) { P.y = GROUND; P.vy = 0; P.ground = true; }
+  if (G.lakes.length && P.y > GROUND - 60 && !lakeFree(P.x, P.y)) { P.y = prevY; P.vy = 0; if (!lakeFree(P.x, P.y)) { P.y = GROUND; P.ground = true; } } // pond bottom, tunnel roof
   if (vyBefore >= 0) {
     for (const p of G.plats) if (prevY <= Math.max(p.y, p.py == null ? p.y : p.py) + 1 && P.y >= p.y && P.x > p.x - 10 && P.x < p.x + p.w + 10) { P.y = p.y; P.vy = 0; P.ground = true; P.on = p; }
     for (const s2 of G.solids) if (prevY <= s2.y + 1 && P.y >= s2.y && P.x + 14 > s2.x && P.x - 14 < s2.x + s2.w) { P.y = s2.y; P.vy = 0; P.ground = true; P.onS = s2; }
@@ -411,6 +419,7 @@ function updPlayer(dt) {
   if (P.ground) P.bigJ = false;
   if (P.ground && !wasGround && vyBefore > 500) { Sfx.land(); for (let i = 0; i < 4; i++) part(P.x, P.y, (Math.random() - 0.5) * 160, -Math.random() * 80, 0.35, 4, 'rgba(255,255,255,.8)', 'm', 0); }
   P.walk += Math.abs(P.vx) * dt * 0.05;
+  P.swimA = approach(P.swimA || 0, pool && P.y > (pool.surf + 60) && Math.abs(P.vx) > 60 ? 1 : 0, dt * 5); // swim pose (v1.32)
   // hydrants: refill + checkpoint
   let near = false;
   for (const h of G.hydrants) {
@@ -434,7 +443,9 @@ function updPlayer(dt) {
   }
   if (T) T.wasIn = overT;
   for (const k of G.pickups) if (!k.got && Math.abs(P.x - k.x) < 40 && Math.abs(P.y - 45 - k.y) < 60) {
-    k.got = true; sparkleBurst(k.x, k.y, 14); Sfx.buy();
+    k.got = true;
+    if (k.coin) { gotCoin(); Sfx.coin(); part(k.x, k.y, 0, -40, 0.3, 8, '#fff27a', 's', 0); continue; }
+    sparkleBurst(k.x, k.y, 14); Sfx.buy();
     if (P.hearts < maxHearts()) { P.hearts++; floatText(k.x, k.y - 40, '+1 heart!', '#ff6f8a', 30); } else { spawnCoins(k.x, k.y, 5); floatText(k.x, k.y - 40, 'Full hearts!', '#ff6f8a', 26); }
   }
   if (pool) near = true; // pool water fills the tank too
@@ -442,6 +453,19 @@ function updPlayer(dt) {
   if (P.tank > tankMax() * 0.4) P.lowSaid = false;
 }
 const BELT_SPD = 250; // conveyor speed = walking speed
+// ponds and tunnels in the ground (v1.32). The kid is a box (±LAKE_MX, ±LAKE_MY around 24 above the feet) that must stay
+// in open space: above the ground, inside a pond (opening + water), or inside a tunnel
+const LAKE_MX = 24, LAKE_MY = 22;
+function lakeCol(x, pad) { pad = pad == null ? LAKE_MX + 2 : pad; for (const q of G.lakes) if (x > q.x + pad && x < q.x + q.w - pad) return q; return null; }
+function openAt(x, y) { return y < GROUND || G.lakes.some(q => x > q.x && x < q.x + q.w && y < q.bot) || G.tunnels.some(q => x > q.x && x < q.x + q.w && y > q.top && y < q.bot); }
+function lakeFree(x, y) { const cy = y - 24; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (!openAt(x + dx * LAKE_MX, cy + dy * LAKE_MY)) return false; return true; }
+function waterAt(x, y, dy) {
+  const p = poolAt(x, y, dy); if (p) return p;
+  dy = dy == null ? 40 : dy;
+  for (const q of G.lakes) if (x > q.x && x < q.x + q.w && y > q.surf + dy) return q;
+  for (const q of G.tunnels) if (x > q.x && x < q.x + q.w && y > q.top) return q;
+  return null;
+}
 function poolAt(x, y, dy) { for (const q of G.pools) if (x > q.x && x < q.x + q.w && y > q.surf + (dy == null ? 40 : dy)) return q; return null; }
 function driveTruck(dt, ctl) {
   const P = G.p, T = G.truck;
@@ -653,7 +677,7 @@ function updEnemies(dt) {
       e.size = 0.35 + 0.65 * Math.max(0, e.hp) / e.hp0; e.r = 46 * e.size; e.t += dt;
       e.x += e.dir * e.spd * dt;
       if (Math.random() < dt * 12) part(e.x - e.dir * 40 * e.size, GROUND - 10 - Math.random() * 40 * e.size, -e.dir * 40, -40, 0.6, 3 + Math.random() * 4, '#7fb52e', 'c');
-      const hitSolid = G.solids.some(s => e.x > s.x - 10 && e.x < s.x + s.w + 10) || G.holes.some(h => e.x > h.x - 10 && e.x < h.x + h.w + 10) || (G.wall && !G.wall.open && Math.abs(e.x - G.wall.x - 38) < 40);
+      const hitSolid = G.solids.some(s => e.x > s.x - 10 && e.x < s.x + s.w + 10) || G.holes.some(h => e.x > h.x - 10 && e.x < h.x + h.w + 10) || G.lakes.some(q => e.x > q.x - 10 && e.x < q.x + q.w + 10) || (G.wall && !G.wall.open && Math.abs(e.x - G.wall.x - 38) < 40);
       const lo = G.arena && G.arena.started ? G.arena.L + 40 : 40, hi = G.L.len - 40;
       if (hitSolid || e.x < lo || e.x > hi) { e.dir = e.x < lo ? 1 : e.x > hi ? -1 : -e.dir; e.x += e.dir * 14; Sfx.splat(); for (let k = 0; k < 6; k++) part(e.x, GROUND - 40 * e.size, e.dir * Math.random() * 200, -Math.random() * 200, 0.5, 4, '#7fb52e', 'c'); }
       else if (Math.abs(P.x - e.x) < 52 * e.size + 12 && P.y > GROUND - 88 * e.size) hurtPlayer(e.x);
@@ -805,7 +829,7 @@ function updTrickle(dt) {
   G.blobT -= dt; if (G.blobT > 0) return;
   if (G.enemies.filter(e => e.trickle).length >= L.blobMax) { G.blobT = 2; return; }
   const lim = G.wall ? G.wall.x - 60 : L.len - 200;
-  const okX = x => x > 120 && x < lim && !holeAt(x, -40) && !G.solids.some(s => x > s.x - 40 && x < s.x + s.w + 40) && !G.pipes.some(pp => Math.abs(x - pp.x) < 200) && !G.pools.some(q => x > q.x - 60 && x < q.x + q.w + 60) && !G.belts.some(b => x > b.x - 40 && x < b.x + b.w + 40);
+  const okX = x => x > 120 && x < lim && !holeAt(x, -40) && !G.solids.some(s => x > s.x - 40 && x < s.x + s.w + 40) && !G.pipes.some(pp => Math.abs(x - pp.x) < 200) && !G.pools.some(q => x > q.x - 60 && x < q.x + q.w + 60) && !G.lakes.some(q => x > q.x - 60 && x < q.x + q.w + 60) && !G.belts.some(b => x > b.x - 40 && x < b.x + b.w + 40);
   let x = null;
   for (let k = 0; k < 6 && x == null; k++) { const c = P.x + (k % 2 ? -P.face : P.face) * (240 + Math.random() * 220); if (okX(c)) x = c; }
   if (x == null) { G.blobT = 2; return; }
@@ -841,7 +865,7 @@ function updBalls(dt) {
       if (hit === 'soap') { b.dead = true; soapSlide(b.x, b.y); continue; }
       if (hit) { b.dead = true; Sfx.splat(); splash(b.x, b.y, b.slime ? '#6f9a2a' : '#7b5431', 6); continue; }
     }
-    if (poolAt(b.x, b.y, 0)) { b.dead = true; splash(b.x, b.y, '#bfe9ff', 6); continue; }
+    if (poolAt(b.x, b.y, 0) || (b.y >= GROUND - 4 && lakeCol(b.x, 0))) { b.dead = true; splash(b.x, b.y, '#bfe9ff', 6); continue; }
     if (b.y >= GROUND - 4 && holeAt(b.x, 0)) { if (b.y > GROUND + 60) b.dead = true; continue; }
     if (b.y >= GROUND - 4) { b.dead = true; Sfx.splat(); splash(b.x, GROUND - 4, b.slime ? '#6f9a2a' : '#7b5431', 10); if (arena || b.temp) G.puddles.push({ x: b.x, w: 40, life: 3, slime: b.slime }); else addPuddle(b.x); continue; }
     if (b.x > P.x - 18 - b.r && b.x < P.x + 18 + b.r && b.y > P.y - 88 - b.r && b.y < P.y + b.r) { b.dead = true; hurtPlayer(b.x); }
@@ -911,6 +935,7 @@ function updCam(dt) {
   if (G.demo) tx = 0;
   tx = clamp(tx, 0, Math.max(0, G.L.len - view.W));
   c.x += (tx - c.x) * Math.min(1, dt * 5);
+  c.y += (clamp(P.y - GROUND - 10, 0, 250) - c.y) * Math.min(1, dt * 4); // follow the kid down into ponds (v1.32)
   c.shake = Math.max(0, c.shake - dt * 30);
 }
 
@@ -1048,11 +1073,12 @@ function render() {
   c.setTransform(view.S, 0, 0, view.S, 0, 0);
   const sh = G.cam.shake, sx = (Math.random() - 0.5) * sh, sy = (Math.random() - 0.5) * sh;
   const cx = Math.round(G.cam.x);
-  c.save(); c.translate(0, -VIEW_OY);
+  c.save(); c.translate(0, -VIEW_OY - Math.round(G.cam.y));
   if (G.under) drawSewerBack(c, cx, W, G.t); else drawBackdrop(c, G.theme, cx, W, G.t, G.L.bgv || 0);
   c.translate(-cx + sx, sy);
   c.lineJoin = 'round'; c.lineCap = 'round';
   if (G.under) drawSewerFloor(c, cx, W); else drawGround(c, G.theme, cx, W);
+  if (G.lakes.length) { drawUnderSoil(c, cx, W); drawLakesBack(c, G.lakes, G.tunnels, G.t, G.theme, cx, W); }
   const vis = (x, w) => x + w > cx - 50 && x < cx + W + 50;
   for (const h of G.holes) if (vis(h.x, h.w)) drawSewerHole(c, h, G.t);
   for (const b of G.belts) if (vis(b.x - 30, b.w + 60)) drawBelt(c, b);
@@ -1077,7 +1103,7 @@ function render() {
     else if (o.done && Math.random() < 0.02) part(o.x + Math.random() * o.w, o.top + Math.random() * o.h, 0, -10, 0.6, 6, '#fff', 's', 0);
   }
   for (const s of G.solids) if (vis(s.x - 40, s.w + 40)) { if (s.pipe) drawPipe(c, s.pipe, G.t); else if (s.tower) drawTower(c, s, G.t); else if (s.tog) drawLiftBlock(c, s, G.t, G.p.onS === s); else if (s.kind === 'poolwall') drawPoolWall(c, s); else drawSolid(c, s); }
-  for (const k of G.pickups) if (!k.got && vis(k.x - 30, 60)) drawSkyHeart(c, k.x, k.y, G.t, true);
+  for (const k of G.pickups) if (!k.got && vis(k.x - 30, 60)) { if (k.coin) drawCoin(c, k.x, k.y + Math.sin(G.t * 3 + k.x) * 4, G.t + k.x); else drawSkyHeart(c, k.x, k.y, G.t, true); }
   if (G.truck && vis(G.truck.x - 20, G.truck.w + 40)) drawTruck(c, G.truck, G.t, G.p);
   if (G.hose) drawHose(c, G.hose.x + 16, GROUND - 30, G.p);
   for (const h of G.hydrants) if (vis(h.x - 30, 90)) drawHydrant(c, h.x, h.active);
@@ -1096,6 +1122,7 @@ function render() {
   else drawPlayer(c);
   for (const j of G.jets) if (j.st === 2 && vis(j.x - 40, 80)) drawJet(c, j, G.t);
   for (const q of G.pools) if (vis(q.x, q.w)) drawWater(c, q, G.t);
+  if (G.lakes.length) drawLakesFront(c, G.lakes, G.tunnels, G.t, G.theme);
   drawStream(c);
   drawParts(c);
   for (const t of G.texts) { c.globalAlpha = Math.min(1, t.life * 1.5); outlinedText(c, t.s, t.x, t.y, t.size, t.col); c.globalAlpha = 1; }
@@ -1142,7 +1169,10 @@ function drawPlayer(c) {
   if (P.inv > 0 && Math.floor(P.inv * 12) % 2 && G.respawnT <= 0) return;
   c.save(); c.translate(P.x, P.y); c.scale(P.face, 1);
   const k = kidState(); k.walk = P.walk; k.air = !P.ground; k.aim = P.aimA; k.blink = P.blink > 0; k.hurt = P.hurtT > 0; k.moving = Math.abs(P.vx) > 10;
-  drawKid(c, k);
+  // swimming sideways underwater: tip over into the flat swimming pose and back (v1.32)
+  const a = P.swimA || 0, tip = (y, r) => { c.translate(0, y); c.rotate(r); c.translate(0, -y); };
+  if (a > 0.5) { tip(-30, -(1 - a) * 1.4); drawKidSwim(c, k); }
+  else { if (a > 0) tip(-50, a * 1.4); drawKid(c, k); }
   c.restore();
 }
 function drawStream(c) {

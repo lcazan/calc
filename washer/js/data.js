@@ -1,6 +1,8 @@
 'use strict';
 // Super Splash: game data (areas, level recipe, shop, nozzles, story)
 const GROUND = 460;
+// ponds in the ground (v1.32): water surface, pond bottom, and the underwater tunnels between ponds
+const LAKE_SURF = GROUND + 30, LAKE_BOT = GROUND + 270, TUN_TOP = GROUND + 165, TUN_BOT = GROUND + 270;
 
 const NOZZLES = {
   fan:   { name: 'Fan',   color: '#36c25b', r: 20, range: 1,    pow: 1 },
@@ -45,13 +47,25 @@ const AREAS = [
     { name: 'Corner Market', story: true, ground: [['busstop'], ['bus', 0], ['newsstand'], ['shop', 0], ['fruitstand'], ['flowerstand'], ['cafe'], ['shop', 1], ['vending'], ['bench'], ['car', 4], ['trash'], ['mailbox'], ['car', 2]],
       high: [['basket'], ['flowerpot'], ['trash'], ['bench']] } ] },
   { name: 'Puddle Park', theme: 'park', dirt: 'mud', block: 'crate', icon: 'fountain', scenes: [
-    { name: 'Playground', ground: [['slide'], ['swing'], ['seesaw'], ['sandbox']], high: [['bench'], ['trash']] },
-    { name: 'Duck Pond', ground: [['fountain'], ['statue'], ['boat', 0], ['bench']], high: [['picnic'], ['bench']] },
-    { name: 'Flower Garden', ground: [['gazebo'], ['greenhouse'], ['picnic']], high: [['bench'], ['picnic']] } ] },
+    // story (v1.32): a morning at the park: strollers, the playground, the splash pad, a hot dog for lunch
+    { name: 'Playground', story: true, ground: [['stroller'], ['bench'], ['slide'], ['swing'], ['sandbox'], ['springrider'], ['seesaw'], ['splashpad'], ['merrygo'], ['monkeybars'], ['tires'], ['hotdog'], ['picnic'], ['drinkfountain'], ['climbwall'], ['playhouse'], ['tunnel'], ['balloonstand'], ['icecream', 1], ['trash'], ['bike'], ['fence']],
+      high: [['ballbucket'], ['backpack'], ['cooler'], ['basket']] },
+    // story: boats and ducks around the pond (always has ponds with tunnels)
+    { name: 'Duck Pond', story: true, lake: true, ground: [['boatrental'], ['duckhouse'], ['swanboat'], ['footbridge'], ['frogstatue'], ['bench'], ['fountain'], ['boat', 0], ['statue'], ['birdbath'], ['picnic'], ['birdhouse'], ['gazebo'], ['stroller'], ['lemonade'], ['trash'], ['bike'], ['boat', 1]],
+      high: [['wateringcan'], ['cooler'], ['basket'], ['flowerpot']] },
+    // story: an evening walk through the flower garden
+    { name: 'Flower Garden', story: true, ground: [['rosearch'], ['tulipbed'], ['gazebo'], ['sunflowers'], ['wheelbarrow'], ['greenhouse'], ['beehive'], ['topiary'], ['birdbath'], ['garden'], ['birdhouse'], ['bench'], ['picnic'], ['flowerstand']],
+      high: [['gnome'], ['wateringcan'], ['flowerpot'], ['basket']] } ] },
   { name: 'Big City', theme: 'city', dirt: 'soot', block: 'crate', icon: 'shop', scenes: [
-    { name: 'Downtown', ground: [['shop', 1], ['bus', 0], ['car', 4], ['bus', 1]], high: [['billboard'], ['trash']] },
-    { name: 'Construction Site', ground: [['digger'], ['mixer'], ['cones']], high: [['cones'], ['trash']] },
-    { name: 'Fire Station', ground: [['firehouse'], ['firetruck'], ['car', 4]], high: [['trash'], ['mailbox']] } ] },
+    // story (v1.32): a busy morning downtown: buses, traffic lights, pizza, a taco truck
+    { name: 'Downtown', story: true, ground: [['busstop'], ['bus', 0], ['trafficlight'], ['car', 4], ['newsstand'], ['pizzeria'], ['phonebooth'], ['foodtruck'], ['cafe'], ['bikeshare'], ['shop', 1], ['hotdog'], ['billboard'], ['car', 1], ['vending'], ['bench'], ['mailbox'], ['trash'], ['bus', 1], ['car', 2]],
+      high: [['parkingmeter'], ['trash'], ['flowerpot'], ['mailbox']] },
+    // story: a day on the building site, from the site office to the steamroller
+    { name: 'Construction Site', story: true, ground: [['siteoffice'], ['cones'], ['digger'], ['crane'], ['dumptruck'], ['portapotty'], ['mixer'], ['pipestack'], ['bulldozer'], ['steamroller'], ['toolbench'], ['van'], ['trash'], ['foodtruck']],
+      high: [['hardhat'], ['bricks'], ['toolbox'], ['paintcans']] },
+    // story: the fire station and its helpers
+    { name: 'Fire Station', story: true, ground: [['firehouse'], ['firetruck'], ['firedog'], ['hosereel'], ['ambulance'], ['watertower'], ['policecar'], ['bell'], ['car', 4], ['trafficlight'], ['bench'], ['mailbox']],
+      high: [['extinguisher'], ['hardhat'], ['trash'], ['toolbox']] } ] },
   { name: 'Sandy Beach', theme: 'beach', dirt: 'sand', block: 'stone', icon: 'lighthouse', scenes: [
     { name: 'Boardwalk', ground: [['hut', 0], ['icecream', 0], ['surfrack'], ['hut', 1]], high: [['sandcastle'], ['umbrella']] },
     { name: 'Harbor', ground: [['boat', 0], ['lighthouse'], ['boat', 1]], high: [['hut', 1], ['sandcastle']] },
@@ -95,7 +109,7 @@ const LEVEL_COUNT = AREAS.length * 3;
 function buildLevel(i, seed) {
   const a = Math.floor(i / 3), k = i % 3, A = AREAS[a], SC = A.scenes[k], r = rng(i === 0 || seed == null ? i * 7919 + 13 : seed), boss = k === 2;
   const d = i / (LEVEL_COUNT - 1);
-  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [], towers: [], belts: [], pools: [], birdZones: [], infest: [], puddles: [] };
+  const L = { name: SC.name, area: a, step: k, bgv: k, tough: 2 + 5 * i / (LEVEL_COUNT - 1), theme: A.theme, dirt: A.dirt, objs: [], solids: [], plats: [], hydrants: [], blobs: [], birds: [], signs: [], holes: [], toggles: [], pipes: [], towers: [], belts: [], pools: [], lakes: [], tunnels: [], wet: [], birdZones: [], infest: [], puddles: [] };
   const blk = A.block;
   let gc = SC.story ? 0 : Math.floor(r() * 7), hc = SC.story ? 0 : Math.floor(r() * 3), x = 300; // story scenes (v1.31) walk their list in order
   const W = t => OBJ[t].w;
@@ -195,6 +209,24 @@ function buildLevel(i, seed) {
     L.solids.push(['poolwall', ix + iw, 30, 200], [blk, ix + iw + 30, 70, 140], [blk, ix + iw + 100, 70, 70]);
     x = ix + iw + 170 + 110;
   };
+  // ponds in the ground (v1.32): 2-3 ponds joined by underwater tunnels with coins; a big rock between two of them
+  // can only be passed by diving through the tunnel under it; hearts lie on the pond bottoms
+  const lake = () => {
+    x += 70; const n = d > 0.4 && r() < 0.6 ? 3 : 2, cliffAt = Math.floor(r() * (n - 1));
+    for (let j = 0; j < n; j++) {
+      const w = 270 + Math.round(r() * 70);
+      L.lakes.push([x, w]);
+      if (j === 0 || r() < 0.4) L.wet.push([x + Math.round(w * (0.3 + r() * 0.4)), LAKE_BOT - 34, 'h']);
+      x += w;
+      if (j === n - 1) break;
+      const lw = 220 + Math.round(r() * 60);
+      L.tunnels.push([x - 80, lw + 160]);
+      for (let q = 0; q < 5; q++) L.wet.push([x + Math.round(lw * (q + 0.5) / 5), TUN_TOP + 52, 'c']);
+      if (j === cliffAt) L.solids.push(['cliff', x + 8, lw - 16, 250]);
+      x += lw;
+    }
+    x += 100;
+  };
   // infested stretch (v1.30): dozens of mud monsters and slime puddles; a fire truck to drive (or hydrants for the fire hose), road closed at the end
   const infest = () => {
     const truck = r() < 0.6, x0 = x + 60;
@@ -231,6 +263,7 @@ function buildLevel(i, seed) {
       if (i >= 2 && r() < 0.5) feats.push('Y');
       if (i >= 2 && r() < 0.55) feats.push('C');
       if (r() < 0.45) feats.push('W');
+      if (SC.lake || (i >= 1 && r() < 0.5)) feats.push('D');
       if (i >= 3 && r() < 0.45) feats.push('X');
     }
     // shuffle, then never the same gadget twice in a row
@@ -264,6 +297,7 @@ function buildLevel(i, seed) {
     else if (p === 'C') belt();
     else if (p === 'W') pool();
     else if (p === 'X') infest();
+    else if (p === 'D') lake();
   }
   if (i === 3 && !L.signs.length) L.signs.push([120, 'nozzle']);
   // enemies on flat stretches only
