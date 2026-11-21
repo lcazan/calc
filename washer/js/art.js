@@ -1702,15 +1702,17 @@ function getBg(theme, v) {
   return (BG_CACHE[key] = { far, mid, FW, MW, S, H, info: themeInfo(theme) });
 }
 // v = which of the 3 levels in the area: 0 morning, 1 afternoon, 2 sunset (boss level)
-function drawBackdrop(c, theme, camX, W, t, v) {
-  v = v || 0; const bg = getBg(theme, v), info = bg.info, swamp = theme === 'swamp';
+// world (v1.33): the level's own chapters (world.js) instead of the area's repeating background strips
+function drawBackdrop(c, theme, camX, W, t, v, world) {
+  v = v || 0; const info = themeInfo(theme), swamp = theme === 'swamp';
   const sky = v === 0 ? info.sky : v === 1 ? (swamp ? ['#2a3a5a', '#6a8a7a'] : [info.sky[0], '#ffe6b0']) : (swamp ? ['#2a1a40', '#9a5a7a'] : ['#ff8f7a', '#ffd38a']);
   const g = c.createLinearGradient(0, 0, 0, 470); g.addColorStop(0, sky[0]); g.addColorStop(1, sky[1]);
   c.fillStyle = g; c.fillRect(0, 0, W, 540);
   if (!swamp) { const sy = [80, 110, 170][v], sc = ['#ffe466', '#ffd040', '#ff8a3c'][v]; circ(c, W - 120, sy, v === 2 ? 50 : 40); c.fillStyle = sc; c.fill(); c.globalAlpha = 0.25; circ(c, W - 120, sy, 60); c.fill(); c.globalAlpha = 1; }
   c.fillStyle = swamp ? 'rgba(160,190,140,.35)' : v === 2 ? 'rgba(255,200,210,.85)' : 'rgba(255,255,255,.9)';
   for (let i = 0; i < 5; i++) { const x = ((i * 330 - camX * 0.05 + t * 8) % (W + 300) + W + 300) % (W + 300) - 150, y = 60 + (i * 47) % 120; ell(c, x, y, 50, 18); c.fill(); ell(c, x + 30, y - 10, 32, 18); c.fill(); }
-  const tile = (img, w, par) => { const off = -((camX * par) % w + w) % w; for (let x = off; x < W; x += w) c.drawImage(img, x, 0, w, bg.H); };
+  if (world) { drawWorldLayers(c, world, camX, W); return; }
+  const bg = getBg(theme, v), tile = (img, w, par) => { const off = -((camX * par) % w + w) % w; for (let x = off; x < W; x += w) c.drawImage(img, x, 0, w, bg.H); };
   tile(bg.far, bg.FW, 0.15); tile(bg.mid, bg.MW, 0.45);
 }
 function drawGround(c, theme, x0, W) {

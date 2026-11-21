@@ -138,6 +138,7 @@ function startLevel(L, idx, demo) {
   for (const [kind, x, w, h] of (L.solids || [])) G.solids.push({ kind, x, y: GROUND - h, w, h, theme: L.theme });
   for (const [x, w, lo, hi] of (L.toggles || [])) G.solids.push({ kind: 'tog', x, y: GROUND - lo, w, h: lo, tog: { lo, hi, up: false } });
   G.holes = (L.holes || []).map(([x, w, sw]) => ({ x, w, sewer: !!sw, pit: !!L.sewer }));
+  G.world = buildWorld(L, view.W); // the level's own scenery chapters (v1.33)
   G.lakes = (L.lakes || []).map(([x, w]) => ({ x, w, surf: LAKE_SURF, bot: LAKE_BOT, lake: true }));
   G.tunnels = (L.tunnels || []).map(([x, w]) => ({ x, w, top: TUN_TOP, bot: TUN_BOT, surf: -1e4, lake: true }));
   G.jets = (L.cracks || []).map(x => ({ x, st: 0, t: 0 })); G.jetT = 2;
@@ -1074,10 +1075,10 @@ function render() {
   const sh = G.cam.shake, sx = (Math.random() - 0.5) * sh, sy = (Math.random() - 0.5) * sh;
   const cx = Math.round(G.cam.x);
   c.save(); c.translate(0, -VIEW_OY - Math.round(G.cam.y));
-  if (G.under) drawSewerBack(c, cx, W, G.t); else drawBackdrop(c, G.theme, cx, W, G.t, G.L.bgv || 0);
+  if (G.under) drawSewerBack(c, cx, W, G.t); else drawBackdrop(c, G.theme, cx, W, G.t, G.L.bgv || 0, G.world);
   c.translate(-cx + sx, sy);
   c.lineJoin = 'round'; c.lineCap = 'round';
-  if (G.under) drawSewerFloor(c, cx, W); else drawGround(c, G.theme, cx, W);
+  if (G.under) drawSewerFloor(c, cx, W); else if (G.world) drawWorldGround(c, G.world, cx, W); else drawGround(c, G.theme, cx, W);
   if (G.lakes.length) { drawUnderSoil(c, cx, W); drawLakesBack(c, G.lakes, G.tunnels, G.t, G.theme, cx, W); }
   const vis = (x, w) => x + w > cx - 50 && x < cx + W + 50;
   for (const h of G.holes) if (vis(h.x, h.w)) drawSewerHole(c, h, G.t);
@@ -1140,14 +1141,15 @@ function render() {
 }
 // background props (seeded by slot + level, skipped near holes, hydrants, signs, the wall and the finish) and ambient life
 function drawScenery(c, cx, W) {
-  const list = PROPS[G.theme] || [], slot = 300;
+  const slot = 300;
   for (let k = Math.floor((cx - 250) / slot); k * slot < cx + W + 100; k++) {
-    if (hsh(k * 3.1 + G.idx) < 0.3 || !list.length) continue;
+    if (hsh(k * 3.1 + G.idx) < 0.3) continue;
     const px = k * slot + 40 + hsh(k + 9.3) * 180;
     if (px < 140 || px > G.L.len - 60) continue;
-    if (G.holes.some(h => px > h.x - 60 && px < h.x + h.w + 60) || G.hydrants.some(h => Math.abs(px - h.x) < 100)) continue;
+    if (G.holes.concat(G.lakes).some(h => px > h.x - 60 && px < h.x + h.w + 60) || G.hydrants.some(h => Math.abs(px - h.x) < 100)) continue;
     if ((G.L.signs || []).some(([sx]) => px > sx - 50 && px < sx + 180) || (G.wall && Math.abs(px - G.wall.x - 38) < 90) || (G.finish && Math.abs(px - G.finish) < 90)) continue;
-    drawProp(c, list[Math.floor(hsh(k + 5.7) * list.length)], px, G.t, hsh(k + 2.2));
+    const list = (G.world && worldChapter(G.world, px).C.p) || PROPS[G.theme] || []; // props of the chapter (v1.33)
+    if (list.length) drawProp(c, list[Math.floor(hsh(k + 5.7) * list.length)], px, G.t, hsh(k + 2.2));
   }
   drawAmbient(c, G.theme, cx, W, G.t);
 }
